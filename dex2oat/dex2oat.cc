@@ -34,6 +34,7 @@
 #include <sys/personality.h>
 #include <sys/utsname.h>
 #endif
+#include <alloca.h>
 
 #include "android-base/stringprintf.h"
 #include "android-base/strings.h"
@@ -626,6 +627,16 @@ class Dex2Oat FINAL {
       timings_(timings),
       force_determinism_(false)
       {}
+
+  static int grow_stack() {
+    const size_t size = 1024 * 1024;
+    char* buf = reinterpret_cast<char*>(alloca(size));
+    if (buf) {
+      memset(buf, 0, size);
+      return 1;
+    }
+    return 0;
+  }
 
   ~Dex2Oat() {
     // Log completion time before deleting the runtime_, because this accesses
@@ -2978,6 +2989,7 @@ static dex2oat::ReturnCode CompileApp(Dex2Oat& dex2oat) {
 static dex2oat::ReturnCode Dex2oat(int argc, char** argv) {
   b13564922();
 
+  Dex2Oat::grow_stack();
   TimingLogger timings("compiler", false, false);
 
   // Allocate `dex2oat` on the heap instead of on the stack, as Clang
