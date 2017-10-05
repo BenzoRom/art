@@ -949,48 +949,55 @@ public class Main {
     return array[1] + array[i];
   }
 
-  /// CHECK-START: void Main.$noinline$testFillArrayData() builder (after)
-  /// CHECK-DAG: <<Const0:i\d+>>    IntConstant 0
-  /// CHECK-DAG: <<Const1:i\d+>>    IntConstant 1
-  /// CHECK-DAG: <<ConstPos0:i\d+>> IntConstant 40960
-  /// CHECK-DAG: <<ConstPos1:i\d+>> IntConstant 40961
-  /// CHECK-DAG:                    ArraySet [{{l\d+}},<<Const0>>,<<ConstPos0>>]
-  /// CHECK-DAG:                    ArraySet [{{l\d+}},<<Const1>>,<<ConstPos1>>]
+  /// CHECK-START: int Main.testExitMerge(boolean) load_store_elimination (before)
+  /// CHECK: NewInstance
+  /// CHECK: InstanceFieldSet
+  /// CHECK: InstanceFieldGet
+  /// CHECK: Return
+  /// CHECK: InstanceFieldSet
+  /// CHECK: Throw
 
-  /// CHECK-START: void Main.$noinline$testFillArrayData() load_store_elimination (after)
-  /// CHECK-DAG: <<ConstPos:i\d+>>  IntConstant 40960
-  /// CHECK-DAG: <<Conv:c\d+>>      TypeConversion [<<ConstPos>>]
-  /// CHECK-DAG:                    InvokeStaticOrDirect [<<Conv>>,<<ConstPos>>]
-  //
-  /// CHECK-NOT:                    IntConstant -24576
-  public static void $noinline$testFillArrayData() {
-    // Use an array initializer to hint the use of filled-new-array.
-    //
-    //  - During instruction building of fill-array-data the compiler only knows the array element
-    //    data size, not whether it is signed or unsigned. Thus for the char case ArraySets with
-    //    type kInt16 are created; 'IntConstant -24575' is used for initialization instead of
-    //    'IntConstant 40960'.
-    char[] a = { (char)0xa000, (char)0xa001 };
-    assertIntEquals(a[0], 0xa000);
+  /// CHECK-START: int Main.testExitMerge(boolean) load_store_elimination (after)
+  /// CHECK-NOT: NewInstance
+  /// CHECK-NOT: InstanceFieldSet
+  /// CHECK-NOT: InstanceFieldGet
+  /// CHECK: Return
+  /// CHECK-NOT: InstanceFieldSet
+  /// CHECK: Throw
+  private static int testExitMerge(boolean cond) {
+    TestClass obj = new TestClass();
+    if (cond) {
+      obj.i = 1;
+      return obj.i + 1;
+    } else {
+      obj.i = 2;
+      throw new Error();
+    }
   }
 
-  /// CHECK-START: void Main.testStoreSameValue() load_store_elimination (before)
-  /// CHECK: NewArray
-  /// CHECK: ArrayGet
-  /// CHECK: ArraySet
+  /// CHECK-START: int Main.testExitMerge2(boolean) load_store_elimination (before)
+  /// CHECK: NewInstance
+  /// CHECK: InstanceFieldSet
+  /// CHECK: InstanceFieldGet
+  /// CHECK: InstanceFieldSet
+  /// CHECK: InstanceFieldGet
 
-  /// CHECK-START: void Main.testStoreSameValue() load_store_elimination (after)
-  /// CHECK: NewArray
-  /// CHECK-NOT: ArrayGet
-  /// CHECK-NOT: ArraySet
-  private static void testStoreSameValue() {
-    Object[] array = new Object[2];
-    sArray = array;
-    Object obj = array[0];
-    array[1] = obj;    // store the same value as the defaut value.
+  /// CHECK-START: int Main.testExitMerge2(boolean) load_store_elimination (after)
+  /// CHECK-NOT: NewInstance
+  /// CHECK-NOT: InstanceFieldSet
+  /// CHECK-NOT: InstanceFieldGet
+  private static int testExitMerge2(boolean cond) {
+    TestClass obj = new TestClass();
+    int res;
+    if (cond) {
+      obj.i = 1;
+      res = obj.i + 1;
+    } else {
+      obj.i = 2;
+      res = obj.j + 2;
+    }
+    return res;
   }
-
-  static Object[] sArray;
 
   static void assertIntEquals(int result, int expected) {
     if (expected != result) {
@@ -1081,6 +1088,10 @@ public class Main {
     assertIntEquals(testStoreStore().i, 41);
     assertIntEquals(testStoreStore().j, 43);
     assertIntEquals(testStoreStoreWithDeoptimize(new int[4]), 4);
+
+    assertIntEquals(testExitMerge(true), 2);
+    assertIntEquals(testExitMerge2(true), 2);
+    assertIntEquals(testExitMerge2(false), 2);
 
     int ret = testNoSideEffects(iarray);
     assertIntEquals(iarray[0], 101);
