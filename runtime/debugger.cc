@@ -345,6 +345,10 @@ bool DebuggerActiveMethodInspectionCallback::IsMethodBeingInspected(ArtMethod* m
   return Dbg::IsDebuggerActive();
 }
 
+bool DebuggerActiveMethodInspectionCallback::IsMethodSafeToJit(ArtMethod* m) {
+  return !Dbg::MethodHasAnyBreakpoints(m);
+}
+
 // Breakpoints.
 static std::vector<Breakpoint> gBreakpoints GUARDED_BY(Locks::breakpoint_lock_);
 
