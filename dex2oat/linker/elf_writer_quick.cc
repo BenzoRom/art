@@ -104,6 +104,7 @@ class ElfWriterQuick FINAL : public ElfWriter {
   void Start() OVERRIDE;
   void PrepareDynamicSection(size_t rodata_size,
                              size_t text_size,
+                             size_t data_bimg_rel_ro_size,
                              size_t bss_size,
                              size_t bss_methods_offset,
                              size_t bss_roots_offset,
@@ -113,6 +114,8 @@ class ElfWriterQuick FINAL : public ElfWriter {
   void EndRoData(OutputStream* rodata) OVERRIDE;
   OutputStream* StartText() OVERRIDE;
   void EndText(OutputStream* text) OVERRIDE;
+  OutputStream* StartDataBimgRelRo() OVERRIDE;
+  void EndDataBimgRelRo(OutputStream* data_bimg_rel_ro) OVERRIDE;
   void WriteDynamicSection() OVERRIDE;
   void WriteDebugInfo(const debug::DebugInfo& debug_info) OVERRIDE;
   bool End() OVERRIDE;
@@ -129,6 +132,7 @@ class ElfWriterQuick FINAL : public ElfWriter {
   File* const elf_file_;
   size_t rodata_size_;
   size_t text_size_;
+  size_t data_bimg_rel_ro_size_;
   size_t bss_size_;
   size_t dex_section_size_;
   std::unique_ptr<BufferedOutputStream> output_stream_;
@@ -157,6 +161,7 @@ ElfWriterQuick<ElfTypes>::ElfWriterQuick(const CompilerOptions& compiler_options
       elf_file_(elf_file),
       rodata_size_(0u),
       text_size_(0u),
+      data_bimg_rel_ro_size_(0u),
       bss_size_(0u),
       dex_section_size_(0u),
       output_stream_(
@@ -180,6 +185,7 @@ void ElfWriterQuick<ElfTypes>::Start() {
 template <typename ElfTypes>
 void ElfWriterQuick<ElfTypes>::PrepareDynamicSection(size_t rodata_size,
                                                      size_t text_size,
+                                                     size_t data_bimg_rel_ro_size,
                                                      size_t bss_size,
                                                      size_t bss_methods_offset,
                                                      size_t bss_roots_offset,
@@ -188,6 +194,8 @@ void ElfWriterQuick<ElfTypes>::PrepareDynamicSection(size_t rodata_size,
   rodata_size_ = rodata_size;
   DCHECK_EQ(text_size_, 0u);
   text_size_ = text_size;
+  DCHECK_EQ(data_bimg_rel_ro_size_, 0u);
+  data_bimg_rel_ro_size_ = data_bimg_rel_ro_size;
   DCHECK_EQ(bss_size_, 0u);
   bss_size_ = bss_size;
   DCHECK_EQ(dex_section_size_, 0u);
@@ -195,6 +203,7 @@ void ElfWriterQuick<ElfTypes>::PrepareDynamicSection(size_t rodata_size,
   builder_->PrepareDynamicSection(elf_file_->GetPath(),
                                   rodata_size_,
                                   text_size_,
+                                  data_bimg_rel_ro_size_,
                                   bss_size_,
                                   bss_methods_offset,
                                   bss_roots_offset,
@@ -225,6 +234,19 @@ template <typename ElfTypes>
 void ElfWriterQuick<ElfTypes>::EndText(OutputStream* text) {
   CHECK_EQ(builder_->GetText(), text);
   builder_->GetText()->End();
+}
+
+template <typename ElfTypes>
+OutputStream* ElfWriterQuick<ElfTypes>::StartDataBimgRelRo() {
+  auto* data_bimg_rel_ro = builder_->GetDataBimgRelRo();
+  data_bimg_rel_ro->Start();
+  return data_bimg_rel_ro;
+}
+
+template <typename ElfTypes>
+void ElfWriterQuick<ElfTypes>::EndDataBimgRelRo(OutputStream* data_bimg_rel_ro) {
+  CHECK_EQ(builder_->GetDataBimgRelRo(), data_bimg_rel_ro);
+  builder_->GetDataBimgRelRo()->End();
 }
 
 template <typename ElfTypes>
