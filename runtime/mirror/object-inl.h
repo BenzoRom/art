@@ -580,7 +580,7 @@ inline bool Object::CasFieldWeakSequentiallyConsistent32(MemberOffset field_offs
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   AtomicInteger* atomic_addr = reinterpret_cast<AtomicInteger*>(raw_addr);
 
-  return atomic_addr->CompareExchangeWeakSequentiallyConsistent(old_value, new_value);
+  return atomic_addr->CompareAndSetWeakSequentiallyConsistent(old_value, new_value);
 }
 
 template<bool kTransactionActive, bool kCheckTransaction, VerifyObjectFlags kVerifyFlags>
@@ -598,7 +598,7 @@ inline bool Object::CasFieldWeakAcquire32(MemberOffset field_offset,
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   AtomicInteger* atomic_addr = reinterpret_cast<AtomicInteger*>(raw_addr);
 
-  return atomic_addr->CompareExchangeWeakAcquire(old_value, new_value);
+  return atomic_addr->CompareAndSetWeakAcquire(old_value, new_value);
 }
 
 template<bool kTransactionActive, bool kCheckTransaction, VerifyObjectFlags kVerifyFlags>
@@ -616,7 +616,7 @@ inline bool Object::CasFieldWeakRelease32(MemberOffset field_offset,
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   AtomicInteger* atomic_addr = reinterpret_cast<AtomicInteger*>(raw_addr);
 
-  return atomic_addr->CompareExchangeWeakRelease(old_value, new_value);
+  return atomic_addr->CompareAndSetWeakRelease(old_value, new_value);
 }
 
 template<bool kTransactionActive, bool kCheckTransaction, VerifyObjectFlags kVerifyFlags>
@@ -634,7 +634,7 @@ inline bool Object::CasFieldStrongSequentiallyConsistent32(MemberOffset field_of
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   AtomicInteger* atomic_addr = reinterpret_cast<AtomicInteger*>(raw_addr);
 
-  return atomic_addr->CompareExchangeStrongSequentiallyConsistent(old_value, new_value);
+  return atomic_addr->CompareAndSetStrongSequentiallyConsistent(old_value, new_value);
 }
 
 template<bool kTransactionActive, bool kCheckTransaction, VerifyObjectFlags kVerifyFlags,
@@ -690,7 +690,7 @@ inline bool Object::CasFieldWeakSequentiallyConsistent64(MemberOffset field_offs
   }
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   Atomic<int64_t>* atomic_addr = reinterpret_cast<Atomic<int64_t>*>(raw_addr);
-  return atomic_addr->CompareExchangeWeakSequentiallyConsistent(old_value, new_value);
+  return atomic_addr->CompareAndSetWeakSequentiallyConsistent(old_value, new_value);
 }
 
 template<bool kTransactionActive, bool kCheckTransaction, VerifyObjectFlags kVerifyFlags>
@@ -707,7 +707,7 @@ inline bool Object::CasFieldStrongSequentiallyConsistent64(MemberOffset field_of
   }
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   Atomic<int64_t>* atomic_addr = reinterpret_cast<Atomic<int64_t>*>(raw_addr);
-  return atomic_addr->CompareExchangeStrongSequentiallyConsistent(old_value, new_value);
+  return atomic_addr->CompareAndSetStrongSequentiallyConsistent(old_value, new_value);
 }
 
 template<class T, VerifyObjectFlags kVerifyFlags, ReadBarrierOption kReadBarrierOption,
@@ -833,7 +833,7 @@ inline bool Object::CasFieldWeakSequentiallyConsistentObjectWithoutWriteBarrier(
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   Atomic<uint32_t>* atomic_addr = reinterpret_cast<Atomic<uint32_t>*>(raw_addr);
 
-  bool success = atomic_addr->CompareExchangeWeakSequentiallyConsistent(old_ref, new_ref);
+  bool success = atomic_addr->CompareAndSetWeakSequentiallyConsistent(old_ref, new_ref);
   return success;
 }
 
@@ -874,7 +874,7 @@ inline bool Object::CasFieldStrongSequentiallyConsistentObjectWithoutWriteBarrie
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   Atomic<uint32_t>* atomic_addr = reinterpret_cast<Atomic<uint32_t>*>(raw_addr);
 
-  bool success = atomic_addr->CompareExchangeStrongSequentiallyConsistent(old_ref, new_ref);
+  bool success = atomic_addr->CompareAndSetStrongSequentiallyConsistent(old_ref, new_ref);
   return success;
 }
 
@@ -903,7 +903,7 @@ inline bool Object::CasFieldWeakRelaxedObjectWithoutWriteBarrier(
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   Atomic<uint32_t>* atomic_addr = reinterpret_cast<Atomic<uint32_t>*>(raw_addr);
 
-  bool success = atomic_addr->CompareExchangeWeakRelaxed(old_ref, new_ref);
+  bool success = atomic_addr->CompareAndSetWeakRelaxed(old_ref, new_ref);
   return success;
 }
 
@@ -932,7 +932,7 @@ inline bool Object::CasFieldWeakReleaseObjectWithoutWriteBarrier(
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   Atomic<uint32_t>* atomic_addr = reinterpret_cast<Atomic<uint32_t>*>(raw_addr);
 
-  bool success = atomic_addr->CompareExchangeWeakRelease(old_ref, new_ref);
+  bool success = atomic_addr->CompareAndSetWeakRelease(old_ref, new_ref);
   return success;
 }
 

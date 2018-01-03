@@ -2167,7 +2167,7 @@ inline void ConcurrentCopying::VisitRoots(
         // It was updated by the mutator.
         break;
       }
-    } while (!addr->CompareExchangeWeakRelaxed(expected_ref, new_ref));
+    } while (!addr->CompareAndSetWeakRelaxed(expected_ref, new_ref));
   }
 }
 
@@ -2186,7 +2186,7 @@ inline void ConcurrentCopying::MarkRoot(mirror::CompressedReference<mirror::Obje
         // It was updated by the mutator.
         break;
       }
-    } while (!addr->CompareExchangeWeakRelaxed(expected_ref, new_ref));
+    } while (!addr->CompareAndSetWeakRelaxed(expected_ref, new_ref));
   }
 }
 
