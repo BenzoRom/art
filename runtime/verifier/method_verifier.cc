@@ -31,9 +31,10 @@
 #include "base/time_utils.h"
 #include "class_linker.h"
 #include "compiler_callbacks.h"
-#include "dex_file-inl.h"
-#include "dex_instruction-inl.h"
-#include "dex_instruction_utils.h"
+#include "dex/dex_file-inl.h"
+#include "dex/dex_file_exception_helpers.h"
+#include "dex/dex_instruction-inl.h"
+#include "dex/dex_instruction_utils.h"
 #include "experimental_flags.h"
 #include "gc/accounting/card_table-inl.h"
 #include "handle_scope-inl.h"
@@ -353,13 +354,13 @@ FailureKind MethodVerifier::VerifyClass(Thread* self,
   }
 }
 
-static bool IsLargeMethod(const DexFile::CodeItem* const code_item) {
-  if (code_item == nullptr) {
+static bool IsLargeMethod(const CodeItemDataAccessor& accessor) {
+  if (!accessor.HasCodeItem()) {
     return false;
   }
 
-  uint16_t registers_size = code_item->registers_size_;
-  uint32_t insns_size = code_item->insns_size_in_code_units_;
+  uint16_t registers_size = accessor.RegistersSize();
+  uint32_t insns_size = accessor.InsnsSizeInCodeUnits();
 
   return registers_size * insns_size > 4*1024*1024;
 }
@@ -493,7 +494,7 @@ MethodVerifier::FailureData MethodVerifier::VerifyMethod(Thread* self,
     if (duration_ns > MsToNs(100)) {
       LOG(WARNING) << "Verification of " << dex_file->PrettyMethod(method_idx)
                    << " took " << PrettyDuration(duration_ns)
-                   << (IsLargeMethod(code_item) ? " (large method)" : "");
+                   << (IsLargeMethod(verifier.CodeItem()) ? " (large method)" : "");
     }
   }
   result.types = verifier.encountered_failure_types_;
@@ -566,7 +567,7 @@ MethodVerifier::MethodVerifier(Thread* self,
       dex_cache_(dex_cache),
       class_loader_(class_loader),
       class_def_(class_def),
-      code_item_accessor_(CodeItemDataAccessor::CreateNullable(dex_file, code_item)),
+      code_item_accessor_(*dex_file, code_item),
       declaring_class_(nullptr),
       interesting_dex_pc_(-1),
       monitor_enter_dex_pcs_(nullptr),
@@ -834,7 +835,7 @@ bool MethodVerifier::Verify() {
           return false;
         } else {
           uint32_t access_flag_options = kAccPublic;
-          if (dex_file_->GetVersion() >= DexFile::kDefaultMethodsVersion) {
+          if (dex_file_->SupportsDefaultMethods()) {
             access_flag_options |= kAccPrivate;
           }
           if (!(method_access_flags_ & access_flag_options)) {
@@ -3576,7 +3577,7 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
     bool has_catch_all_handler = false;
     const DexFile::TryItem* try_item = code_item_accessor_.FindTryItem(work_insn_idx_);
     CHECK(try_item != nullptr);
-    CatchHandlerIterator iterator(code_item_accessor_.GetCatchHandlerData(try_item->handler_off_));
+    CatchHandlerIterator iterator(code_item_accessor_, *try_item);
 
     // Need the linker to try and resolve the handled class to check if it's Throwable.
     ClassLinker* linker = Runtime::Current()->GetClassLinker();
@@ -3910,10 +3911,10 @@ ArtMethod* MethodVerifier::ResolveMethodAndCheckAccess(
   //       while this check implies an IncompatibleClassChangeError.
   if (klass->IsInterface()) {
     // methods called on interfaces should be invoke-interface, invoke-super, invoke-direct (if
-    // dex file version is 37 or greater), or invoke-static.
+    // default methods are supported for the dex file), or invoke-static.
     if (method_type != METHOD_INTERFACE &&
         method_type != METHOD_STATIC &&
-        ((dex_file_->GetVersion() < DexFile::kDefaultMethodsVersion) ||
+        (!dex_file_->SupportsDefaultMethods() ||
          method_type != METHOD_DIRECT) &&
         method_type != METHOD_SUPER) {
       Fail(VERIFY_ERROR_CLASS_CHANGE)

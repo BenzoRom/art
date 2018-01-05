@@ -37,8 +37,9 @@
 #include "art_method-inl.h"
 #include "base/enums.h"
 #include "base/mutex-inl.h"
-#include "dex_file_annotations.h"
-#include "dex_file_types.h"
+#include "dex/code_item_accessors-inl.h"
+#include "dex/dex_file_annotations.h"
+#include "dex/dex_file_types.h"
 #include "events-inl.h"
 #include "jit/jit.h"
 #include "jni_internal.h"
@@ -139,19 +140,19 @@ jvmtiError MethodUtil::GetBytecodes(jvmtiEnv* env,
   }
 
   art::ScopedObjectAccess soa(art::Thread::Current());
-  const art::DexFile::CodeItem* code_item = art_method->GetCodeItem();
-  if (code_item == nullptr) {
+  art::CodeItemInstructionAccessor accessor(art_method);
+  if (!accessor.HasCodeItem()) {
     *size_ptr = 0;
     *bytecode_ptr = nullptr;
     return OK;
   }
   // 2 bytes per instruction for dex code.
-  *size_ptr = code_item->insns_size_in_code_units_ * 2;
+  *size_ptr = accessor.InsnsSizeInCodeUnits() * 2;
   jvmtiError err = env->Allocate(*size_ptr, bytecode_ptr);
   if (err != OK) {
     return err;
   }
-  memcpy(*bytecode_ptr, code_item->insns_, *size_ptr);
+  memcpy(*bytecode_ptr, accessor.Insns(), *size_ptr);
   return OK;
 }
 
@@ -184,7 +185,7 @@ jvmtiError MethodUtil::GetArgumentsSize(jvmtiEnv* env ATTRIBUTE_UNUSED,
   }
 
   DCHECK_NE(art_method->GetCodeItemOffset(), 0u);
-  *size_ptr = art_method->GetCodeItem()->ins_size_;
+  *size_ptr = art::CodeItemDataAccessor(art_method).InsSize();
 
   return ERR(NONE);
 }
@@ -207,12 +208,17 @@ jvmtiError MethodUtil::GetLocalVariableTable(jvmtiEnv* env,
   }
 
   art::ScopedObjectAccess soa(art::Thread::Current());
-  const art::DexFile* dex_file = art_method->GetDexFile();
-  const art::DexFile::CodeItem* code_item = art_method->GetCodeItem();
-  // TODO code_item == nullptr means that the method is abstract (or native, but we check that
+
+  const art::DexFile* const dex_file = art_method->GetDexFile();
+  if (dex_file == nullptr) {
+    return ERR(ABSENT_INFORMATION);
+  }
+
+  // TODO HasCodeItem == false means that the method is abstract (or native, but we check that
   // earlier). We should check what is returned by the RI in this situation since it's not clear
   // what the appropriate return value is from the spec.
-  if (dex_file == nullptr || code_item == nullptr) {
+  art::CodeItemDebugInfoAccessor accessor(art_method);
+  if (!accessor.HasCodeItem()) {
     return ERR(ABSENT_INFORMATION);
   }
 
@@ -277,13 +283,10 @@ jvmtiError MethodUtil::GetLocalVariableTable(jvmtiEnv* env,
   };
 
   LocalVariableContext context(env);
-  uint32_t debug_info_offset = art::OatFile::GetDebugInfoOffset(*dex_file, code_item);
-  if (!dex_file->DecodeDebugLocalInfo(code_item,
-                                      debug_info_offset,
-                                      art_method->IsStatic(),
-                                      art_method->GetDexMethodIndex(),
-                                      LocalVariableContext::Callback,
-                                      &context)) {
+  if (!accessor.DecodeDebugLocalInfo(art_method->IsStatic(),
+                                     art_method->GetDexMethodIndex(),
+                                     LocalVariableContext::Callback,
+                                     &context)) {
     // Something went wrong with decoding the debug information. It might as well not be there.
     return ERR(ABSENT_INFORMATION);
   } else {
@@ -315,7 +318,7 @@ jvmtiError MethodUtil::GetMaxLocals(jvmtiEnv* env ATTRIBUTE_UNUSED,
   }
 
   DCHECK_NE(art_method->GetCodeItemOffset(), 0u);
-  *max_ptr = art_method->GetCodeItem()->registers_size_;
+  *max_ptr = art::CodeItemDataAccessor(art_method).RegistersSize();
 
   return ERR(NONE);
 }
@@ -430,7 +433,7 @@ jvmtiError MethodUtil::GetMethodLocation(jvmtiEnv* env ATTRIBUTE_UNUSED,
 
   DCHECK_NE(art_method->GetCodeItemOffset(), 0u);
   *start_location_ptr = 0;
-  *end_location_ptr = art_method->GetCodeItem()->insns_size_in_code_units_ - 1;
+  *end_location_ptr = art_method->DexInstructions().InsnsSizeInCodeUnits() - 1;
 
   return ERR(NONE);
 }
@@ -479,7 +482,7 @@ jvmtiError MethodUtil::GetLineNumberTable(jvmtiEnv* env,
   art::ArtMethod* art_method = art::jni::DecodeArtMethod(method);
   DCHECK(!art_method->IsRuntimeMethod());
 
-  const art::DexFile::CodeItem* code_item;
+  art::CodeItemDebugInfoAccessor accessor;
   const art::DexFile* dex_file;
   {
     art::ScopedObjectAccess soa(art::Thread::Current());
@@ -494,15 +497,14 @@ jvmtiError MethodUtil::GetLineNumberTable(jvmtiEnv* env,
       return ERR(NULL_POINTER);
     }
 
-    code_item = art_method->GetCodeItem();
+    accessor = art::CodeItemDebugInfoAccessor(art_method);
     dex_file = art_method->GetDexFile();
-    DCHECK(code_item != nullptr) << art_method->PrettyMethod() << " " << dex_file->GetLocation();
+    DCHECK(accessor.HasCodeItem()) << art_method->PrettyMethod() << " " << dex_file->GetLocation();
   }
 
   LineNumberContext context;
-  uint32_t debug_info_offset = art::OatFile::GetDebugInfoOffset(*dex_file, code_item);
   bool success = dex_file->DecodeDebugPositionInfo(
-      code_item, debug_info_offset, CollectLineNumbers, &context);
+      accessor.DebugInfoOffset(), CollectLineNumbers, &context);
   if (!success) {
     return ERR(ABSENT_INFORMATION);
   }
@@ -582,7 +584,7 @@ class CommonLocalVariableClosure : public art::Closure {
       // TODO It might be useful to fake up support for get at least on proxy frames.
       result_ = ERR(OPAQUE_FRAME);
       return;
-    } else if (method->GetCodeItem()->registers_size_ <= slot_) {
+    } else if (art::CodeItemDataAccessor(method).RegistersSize() <= slot_) {
       result_ = ERR(INVALID_SLOT);
       return;
     }
@@ -630,8 +632,11 @@ class CommonLocalVariableClosure : public art::Closure {
                          /*out*/art::Primitive::Type* type)
       REQUIRES(art::Locks::mutator_lock_) {
     const art::DexFile* dex_file = method->GetDexFile();
-    const art::DexFile::CodeItem* code_item = method->GetCodeItem();
-    if (dex_file == nullptr || code_item == nullptr) {
+    if (dex_file == nullptr) {
+      return ERR(OPAQUE_FRAME);
+    }
+    art::CodeItemDebugInfoAccessor accessor(method);
+    if (!accessor.HasCodeItem()) {
       return ERR(OPAQUE_FRAME);
     }
 
@@ -670,9 +675,10 @@ class CommonLocalVariableClosure : public art::Closure {
     };
 
     GetLocalVariableInfoContext context(slot_, dex_pc, descriptor, type);
-    uint32_t debug_info_offset = art::OatFile::GetDebugInfoOffset(*dex_file, code_item);
-    if (!dex_file->DecodeDebugLocalInfo(code_item,
-                                        debug_info_offset,
+    if (!dex_file->DecodeDebugLocalInfo(accessor.RegistersSize(),
+                                        accessor.InsSize(),
+                                        accessor.InsnsSizeInCodeUnits(),
+                                        accessor.DebugInfoOffset(),
                                         method->IsStatic(),
                                         method->GetDexMethodIndex(),
                                         GetLocalVariableInfoContext::Callback,

@@ -20,12 +20,12 @@
 
 #include <vector>
 
-#include "cdex/compact_dex_file.h"
 #include "compact_dex_writer.h"
-#include "dex_file_layout.h"
-#include "dex_file_types.h"
+#include "dex/compact_dex_file.h"
+#include "dex/dex_file_layout.h"
+#include "dex/dex_file_types.h"
+#include "dex/standard_dex_file.h"
 #include "dexlayout.h"
-#include "standard_dex_file.h"
 #include "utf.h"
 
 namespace art {
@@ -774,13 +774,20 @@ uint32_t DexWriter::GenerateAndWriteMapItems(uint32_t offset) {
 
 void DexWriter::WriteHeader() {
   StandardDexFile::Header header;
-  static constexpr size_t kMagicAndVersionLen =
-      StandardDexFile::kDexMagicSize + StandardDexFile::kDexVersionLen;
-  std::copy_n(header_->Magic(), kMagicAndVersionLen, header.magic_);
+  if (CompactDexFile::IsMagicValid(header_->Magic())) {
+    StandardDexFile::WriteMagic(header.magic_);
+    // TODO: Should we write older versions based on the feature flags?
+    StandardDexFile::WriteCurrentVersion(header.magic_);
+  } else {
+    // Standard dex -> standard dex, just reuse the same header.
+    static constexpr size_t kMagicAndVersionLen =
+        StandardDexFile::kDexMagicSize + StandardDexFile::kDexVersionLen;
+    std::copy_n(header_->Magic(), kMagicAndVersionLen, header.magic_);
+  }
   header.checksum_ = header_->Checksum();
   std::copy_n(header_->Signature(), DexFile::kSha1DigestSize, header.signature_);
   header.file_size_ = header_->FileSize();
-  header.header_size_ = header_->GetSize();
+  header.header_size_ = GetHeaderSize();
   header.endian_tag_ = header_->EndianTag();
   header.link_size_ = header_->LinkSize();
   header.link_off_ = header_->LinkOffset();
@@ -801,13 +808,18 @@ void DexWriter::WriteHeader() {
   header.data_size_ = header_->DataSize();
   header.data_off_ = header_->DataOffset();
 
+  CHECK_EQ(sizeof(header), GetHeaderSize());
   static_assert(sizeof(header) == 0x70, "Size doesn't match dex spec");
   UNUSED(Write(reinterpret_cast<uint8_t*>(&header), sizeof(header), 0u));
 }
 
+size_t DexWriter::GetHeaderSize() const {
+  return sizeof(StandardDexFile::Header);
+}
+
 void DexWriter::WriteMemMap() {
   // Starting offset is right after the header.
-  uint32_t offset = sizeof(StandardDexFile::Header);
+  uint32_t offset = GetHeaderSize();
 
   dex_ir::Collections& collection = header_->GetCollections();
 
@@ -885,6 +897,12 @@ void DexWriter::WriteMemMap() {
     header_->SetFileSize(offset);
   }
   WriteHeader();
+
+  if (dex_layout_->GetOptions().update_checksum_) {
+    header_->SetChecksum(DexFile::CalculateChecksum(mem_map_->Begin(), offset));
+    // Rewrite the header with the calculated checksum.
+    WriteHeader();
+  }
 }
 
 void DexWriter::Output(dex_ir::Header* header,

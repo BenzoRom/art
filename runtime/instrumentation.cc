@@ -25,9 +25,9 @@
 #include "base/callee_save_type.h"
 #include "class_linker.h"
 #include "debugger.h"
-#include "dex_file-inl.h"
-#include "dex_file_types.h"
-#include "dex_instruction-inl.h"
+#include "dex/dex_file-inl.h"
+#include "dex/dex_file_types.h"
+#include "dex/dex_instruction-inl.h"
 #include "entrypoints/quick/quick_alloc_entrypoints.h"
 #include "entrypoints/quick/quick_entrypoints.h"
 #include "entrypoints/runtime_asm_entrypoints.h"
@@ -166,7 +166,7 @@ void Instrumentation::InstallStubsForMethod(ArtMethod* method) {
       if (NeedDebugVersionFor(method)) {
         new_quick_code = GetQuickToInterpreterBridge();
       } else {
-        new_quick_code = class_linker->GetQuickOatCodeFor(method);
+        new_quick_code = class_linker->GetQuickEntrypointFor(method);
       }
     } else {
       new_quick_code = GetQuickResolutionStub();
@@ -187,7 +187,7 @@ void Instrumentation::InstallStubsForMethod(ArtMethod* method) {
         } else if (entry_exit_stubs_installed_) {
           new_quick_code = GetQuickInstrumentationEntryPoint();
         } else {
-          new_quick_code = class_linker->GetQuickOatCodeFor(method);
+          new_quick_code = class_linker->GetQuickEntrypointFor(method);
         }
       } else {
         new_quick_code = GetQuickResolutionStub();
@@ -916,7 +916,7 @@ void Instrumentation::Undeoptimize(ArtMethod* method) {
     } else {
       const void* quick_code = NeedDebugVersionFor(method)
           ? GetQuickToInterpreterBridge()
-          : class_linker->GetQuickOatCodeFor(method);
+          : class_linker->GetQuickEntrypointFor(method);
       UpdateEntrypoints(method, quick_code);
     }
 
@@ -1010,7 +1010,7 @@ const void* Instrumentation::GetQuickCodeFor(ArtMethod* method, PointerSize poin
       return code;
     }
   }
-  return class_linker->GetQuickOatCodeFor(method);
+  return class_linker->GetQuickEntrypointFor(method);
 }
 
 void Instrumentation::MethodEnterEventImpl(Thread* thread,
@@ -1285,18 +1285,17 @@ struct RuntimeMethodShortyVisitor : public StackVisitor {
         shorty = m->GetInterfaceMethodIfProxy(kRuntimePointerSize)->GetShorty()[0];
         return false;
       }
-      const DexFile::CodeItem* code_item = m->GetCodeItem();
-      const Instruction* instr = Instruction::At(&code_item->insns_[GetDexPc()]);
-      if (instr->IsInvoke()) {
+      const Instruction& instr = m->DexInstructions().InstructionAt(GetDexPc());
+      if (instr.IsInvoke()) {
         const DexFile* dex_file = m->GetDexFile();
-        if (interpreter::IsStringInit(dex_file, instr->VRegB())) {
+        if (interpreter::IsStringInit(dex_file, instr.VRegB())) {
           // Invoking string init constructor is turned into invoking
           // StringFactory.newStringFromChars() which returns a string.
           shorty = 'L';
           return false;
         }
         // A regular invoke, use callee's shorty.
-        uint32_t method_idx = instr->VRegB();
+        uint32_t method_idx = instr.VRegB();
         shorty = dex_file->GetMethodShorty(method_idx)[0];
       }
       // Stop stack walking since we've seen a Java frame.

@@ -31,9 +31,9 @@
 #include "base/systrace.h"
 #include "class_linker.h"
 #include "class_loader_context.h"
-#include "dex_file-inl.h"
-#include "dex_file_loader.h"
-#include "dex_file_tracking_registrar.h"
+#include "dex/dex_file-inl.h"
+#include "dex/dex_file_loader.h"
+#include "dex/dex_file_tracking_registrar.h"
 #include "gc/scoped_gc_critical_section.h"
 #include "gc/space/image_space.h"
 #include "handle_scope-inl.h"
@@ -606,7 +606,7 @@ std::vector<std::unique_ptr<const DexFile>> OatFileManager::OpenDexFilesFromOat(
         static constexpr bool kVerifyChecksum = true;
         if (!DexFileLoader::Open(dex_location,
                                  dex_location,
-                                 /*verify*/ true,
+                                 Runtime::Current()->IsVerificationEnabled(),
                                  kVerifyChecksum,
                                  /*out*/ &error_msg,
                                  &dex_files)) {

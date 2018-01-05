@@ -26,7 +26,7 @@
 #include "compiled_method-inl.h"
 #include "compiler.h"
 #include "debug/method_debug_info.h"
-#include "dex_file_loader.h"
+#include "dex/dex_file_loader.h"
 #include "dex/quick_compiler_callbacks.h"
 #include "dex/verification_results.h"
 #include "driver/compiler_driver.h"
@@ -220,7 +220,8 @@ class OatTest : public CommonCompilerTest {
                                       text_size,
                                       oat_writer.GetBssSize(),
                                       oat_writer.GetBssMethodsOffset(),
-                                      oat_writer.GetBssRootsOffset());
+                                      oat_writer.GetBssRootsOffset(),
+                                      oat_writer.GetVdexSize());
 
     std::unique_ptr<BufferedOutputStream> vdex_out =
         std::make_unique<BufferedOutputStream>(std::make_unique<FileOutputStream>(vdex_file));

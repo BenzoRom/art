@@ -36,9 +36,9 @@
 #include "compiler.h"
 #include "debug/elf_debug_writer.h"
 #include "debug/method_debug_info.h"
+#include "dex/dex_file_types.h"
 #include "dex/verification_results.h"
 #include "dex/verified_method.h"
-#include "dex_file_types.h"
 #include "driver/compiler_driver-inl.h"
 #include "driver/compiler_options.h"
 #include "driver/dex_compilation_unit.h"
@@ -770,11 +770,13 @@ CodeGenerator* OptimizingCompiler::TryCompile(ArenaAllocator* allocator,
   static constexpr size_t kSpaceFilterOptimizingThreshold = 128;
   const CompilerOptions& compiler_options = compiler_driver->GetCompilerOptions();
   if ((compiler_options.GetCompilerFilter() == CompilerFilter::kSpace)
-      && (code_item->insns_size_in_code_units_ > kSpaceFilterOptimizingThreshold)) {
+      && (CodeItemInstructionAccessor(dex_file, code_item).InsnsSizeInCodeUnits() >
+          kSpaceFilterOptimizingThreshold)) {
     MaybeRecordStat(compilation_stats_.get(), MethodCompilationStat::kNotCompiledSpaceFilter);
     return nullptr;
   }
 
+  CodeItemDebugInfoAccessor code_item_accessor(dex_file, code_item);
   HGraph* graph = new (allocator) HGraph(
       allocator,
       arena_stack,
@@ -818,7 +820,7 @@ CodeGenerator* OptimizingCompiler::TryCompile(ArenaAllocator* allocator,
     VLOG(compiler) << "Building " << pass_observer.GetMethodName();
     PassScope scope(HGraphBuilder::kBuilderPassName, &pass_observer);
     HGraphBuilder builder(graph,
-                          code_item,
+                          code_item_accessor,
                           &dex_compilation_unit,
                           &dex_compilation_unit,
                           compiler_driver,
@@ -936,7 +938,7 @@ CodeGenerator* OptimizingCompiler::TryCompileIntrinsic(
     VLOG(compiler) << "Building intrinsic graph " << pass_observer.GetMethodName();
     PassScope scope(HGraphBuilder::kBuilderPassName, &pass_observer);
     HGraphBuilder builder(graph,
-                          /* code_item */ nullptr,
+                          CodeItemDebugInfoAccessor(),  // Null code item.
                           &dex_compilation_unit,
                           &dex_compilation_unit,
                           compiler_driver,
@@ -1228,7 +1230,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
     }
 
     const CompilerOptions& compiler_options = GetCompilerDriver()->GetCompilerOptions();
-    if (compiler_options.GetGenerateDebugInfo()) {
+    if (compiler_options.GenerateAnyDebugInfo()) {
       const auto* method_header = reinterpret_cast<const OatQuickMethodHeader*>(code);
       const uintptr_t code_address = reinterpret_cast<uintptr_t>(method_header->GetCode());
       debug::MethodDebugInfo info = {};
@@ -1248,10 +1250,13 @@ bool OptimizingCompiler::JitCompile(Thread* self,
       info.frame_size_in_bytes = method_header->GetFrameSizeInBytes();
       info.code_info = nullptr;
       info.cfi = jni_compiled_method.GetCfi();
-      std::vector<uint8_t> elf_file = debug::WriteDebugElfFileForMethods(
+      // If both flags are passed, generate full debug info.
+      const bool mini_debug_info = !compiler_options.GetGenerateDebugInfo();
+      std::vector<uint8_t> elf_file = debug::MakeElfFileForJIT(
           GetCompilerDriver()->GetInstructionSet(),
           GetCompilerDriver()->GetInstructionSetFeatures(),
-          ArrayRef<const debug::MethodDebugInfo>(&info, 1));
+          mini_debug_info,
+          info);
       CreateJITCodeEntryForAddress(code_address, std::move(elf_file));
     }
 
@@ -1356,7 +1361,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
   }
 
   const CompilerOptions& compiler_options = GetCompilerDriver()->GetCompilerOptions();
-  if (compiler_options.GetGenerateDebugInfo()) {
+  if (compiler_options.GenerateAnyDebugInfo()) {
     const auto* method_header = reinterpret_cast<const OatQuickMethodHeader*>(code);
     const uintptr_t code_address = reinterpret_cast<uintptr_t>(method_header->GetCode());
     debug::MethodDebugInfo info = {};
@@ -1376,10 +1381,13 @@ bool OptimizingCompiler::JitCompile(Thread* self,
     info.frame_size_in_bytes = method_header->GetFrameSizeInBytes();
     info.code_info = stack_map_size == 0 ? nullptr : stack_map_data;
     info.cfi = ArrayRef<const uint8_t>(*codegen->GetAssembler()->cfi().data());
-    std::vector<uint8_t> elf_file = debug::WriteDebugElfFileForMethods(
+    // If both flags are passed, generate full debug info.
+    const bool mini_debug_info = !compiler_options.GetGenerateDebugInfo();
+    std::vector<uint8_t> elf_file = debug::MakeElfFileForJIT(
         GetCompilerDriver()->GetInstructionSet(),
         GetCompilerDriver()->GetInstructionSetFeatures(),
-        ArrayRef<const debug::MethodDebugInfo>(&info, 1));
+        mini_debug_info,
+        info);
     CreateJITCodeEntryForAddress(code_address, std::move(elf_file));
   }
 

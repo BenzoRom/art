@@ -43,8 +43,9 @@
 #include "base/stl_util.h"
 #include "base/systrace.h"
 #include "base/unix_file/fd_file.h"
-#include "dex_file_types.h"
-#include "dex_file_loader.h"
+#include "dex/dex_file_loader.h"
+#include "dex/dex_file_types.h"
+#include "dex/standard_dex_file.h"
 #include "elf_file.h"
 #include "elf_utils.h"
 #include "gc_root.h"
@@ -57,7 +58,6 @@
 #include "oat_file_manager.h"
 #include "os.h"
 #include "runtime.h"
-#include "standard_dex_file.h"
 #include "type_lookup_table.h"
 #include "utf-inl.h"
 #include "utils.h"
@@ -194,10 +194,6 @@ OatFileBase* OatFileBase::OpenOatFile(const std::string& vdex_filename,
 
   ret->PreLoad();
 
-  if (!ret->LoadVdex(vdex_filename, writable, low_4gb, error_msg)) {
-    return nullptr;
-  }
-
   if (!ret->Load(elf_filename,
                  oat_file_begin,
                  writable,
@@ -208,6 +204,10 @@ OatFileBase* OatFileBase::OpenOatFile(const std::string& vdex_filename,
   }
 
   if (!ret->ComputeFields(requested_base, elf_filename, error_msg)) {
+    return nullptr;
+  }
+
+  if (!ret->LoadVdex(vdex_filename, writable, low_4gb, error_msg)) {
     return nullptr;
   }
 
@@ -234,10 +234,6 @@ OatFileBase* OatFileBase::OpenOatFile(int vdex_fd,
                                       std::string* error_msg) {
   std::unique_ptr<OatFileBase> ret(new kOatFileBaseSubType(oat_location, executable));
 
-  if (!ret->LoadVdex(vdex_fd, vdex_location, writable, low_4gb, error_msg)) {
-    return nullptr;
-  }
-
   if (!ret->Load(oat_fd,
                  oat_file_begin,
                  writable,
@@ -248,6 +244,10 @@ OatFileBase* OatFileBase::OpenOatFile(int vdex_fd,
   }
 
   if (!ret->ComputeFields(requested_base, oat_location, error_msg)) {
+    return nullptr;
+  }
+
+  if (!ret->LoadVdex(vdex_fd, vdex_location, writable, low_4gb, error_msg)) {
     return nullptr;
   }
 
@@ -264,7 +264,14 @@ bool OatFileBase::LoadVdex(const std::string& vdex_filename,
                            bool writable,
                            bool low_4gb,
                            std::string* error_msg) {
-  vdex_ = VdexFile::Open(vdex_filename, writable, low_4gb, /* unquicken*/ false, error_msg);
+  vdex_ = VdexFile::OpenAtAddress(vdex_begin_,
+                                  vdex_end_ - vdex_begin_,
+                                  true /* mmap_reuse */,
+                                  vdex_filename,
+                                  writable,
+                                  low_4gb,
+                                  /* unquicken*/ false,
+                                  error_msg);
   if (vdex_.get() == nullptr) {
     *error_msg = StringPrintf("Failed to load vdex file '%s' %s",
                               vdex_filename.c_str(),
@@ -285,13 +292,16 @@ bool OatFileBase::LoadVdex(int vdex_fd,
     if (rc == -1) {
       PLOG(WARNING) << "Failed getting length of vdex file";
     } else {
-      vdex_ = VdexFile::Open(vdex_fd,
-                             s.st_size,
-                             vdex_filename,
-                             writable,
-                             low_4gb,
-                             false /* unquicken */,
-                             error_msg);
+      vdex_ = VdexFile::OpenAtAddress(vdex_begin_,
+                                      vdex_end_ - vdex_begin_,
+                                      true /* mmap_reuse */,
+                                      vdex_fd,
+                                      s.st_size,
+                                      vdex_filename,
+                                      writable,
+                                      low_4gb,
+                                      false /* unquicken */,
+                                      error_msg);
       if (vdex_.get() == nullptr) {
         *error_msg = "Failed opening vdex file.";
         return false;
@@ -339,7 +349,7 @@ bool OatFileBase::ComputeFields(uint8_t* requested_base,
   } else {
     bss_end_ = const_cast<uint8_t*>(FindDynamicSymbolAddress("oatbsslastword", &symbol_error_msg));
     if (bss_end_ == nullptr) {
-      *error_msg = StringPrintf("Failed to find oatbasslastword symbol in '%s'", file_path.c_str());
+      *error_msg = StringPrintf("Failed to find oatbsslastword symbol in '%s'", file_path.c_str());
       return false;
     }
     // Readjust to be non-inclusive upper bound.
@@ -349,6 +359,20 @@ bool OatFileBase::ComputeFields(uint8_t* requested_base,
         const_cast<uint8_t*>(FindDynamicSymbolAddress("oatbssmethods", &symbol_error_msg));
     // Find bss roots if present.
     bss_roots_ = const_cast<uint8_t*>(FindDynamicSymbolAddress("oatbssroots", &symbol_error_msg));
+  }
+
+  vdex_begin_ = const_cast<uint8_t*>(FindDynamicSymbolAddress("oatdex", &symbol_error_msg));
+  if (vdex_begin_ == nullptr) {
+    // No .vdex section.
+    vdex_end_ = nullptr;
+  } else {
+    vdex_end_ = const_cast<uint8_t*>(FindDynamicSymbolAddress("oatdexlastword", &symbol_error_msg));
+    if (vdex_end_ == nullptr) {
+      *error_msg = StringPrintf("Failed to find oatdexlastword symbol in '%s'", file_path.c_str());
+      return false;
+    }
+    // Readjust to be non-inclusive upper bound.
+    vdex_end_ += sizeof(uint32_t);
   }
 
   return true;
@@ -1441,6 +1465,8 @@ OatFile::OatFile(const std::string& location, bool is_executable)
       bss_methods_(nullptr),
       bss_roots_(nullptr),
       is_executable_(is_executable),
+      vdex_begin_(nullptr),
+      vdex_end_(nullptr),
       secondary_lookup_lock_("OatFile secondary lookup lock", kOatFileSecondaryLookupLock) {
   CHECK(!location_.empty());
 }
@@ -1469,6 +1495,14 @@ const uint8_t* OatFile::BssBegin() const {
 
 const uint8_t* OatFile::BssEnd() const {
   return bss_end_;
+}
+
+const uint8_t* OatFile::VdexBegin() const {
+  return vdex_begin_;
+}
+
+const uint8_t* OatFile::VdexEnd() const {
+  return vdex_end_;
 }
 
 const uint8_t* OatFile::DexBegin() const {
@@ -1500,14 +1534,10 @@ ArrayRef<GcRoot<mirror::Object>> OatFile::GetBssGcRoots() const {
   }
 }
 
-uint32_t OatFile::GetDebugInfoOffset(const DexFile& dex_file,
-                                     const DexFile::CodeItem* code_item) {
-  if (code_item == nullptr) {
-    return 0;
-  }
-  const uint32_t debug_info_off = code_item->debug_info_off_;
+uint32_t OatFile::GetDebugInfoOffset(const DexFile& dex_file, uint32_t debug_info_off) {
   // Note that although the specification says that 0 should be used if there
   // is no debug information, some applications incorrectly use 0xFFFFFFFF.
+  // The following check also handles debug_info_off == 0.
   if (debug_info_off < dex_file.Size() || debug_info_off == 0xFFFFFFFF) {
     return debug_info_off;
   }

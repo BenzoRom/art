@@ -23,11 +23,11 @@
 #include "base/callee_save_type.h"
 #include "base/logging.h"
 #include "class_linker-inl.h"
-#include "code_item_accessors-inl.h"
 #include "common_throws.h"
-#include "dex_file-inl.h"
-#include "dex_file_annotations.h"
-#include "dex_file_types.h"
+#include "dex/code_item_accessors-inl.h"
+#include "dex/dex_file-inl.h"
+#include "dex/dex_file_annotations.h"
+#include "dex/dex_file_types.h"
 #include "gc_root-inl.h"
 #include "invoke_type.h"
 #include "jit/profiling_info.h"
@@ -465,16 +465,8 @@ inline void ArtMethod::UpdateEntrypoints(const Visitor& visitor, PointerSize poi
   }
 }
 
-inline IterationRange<DexInstructionIterator> ArtMethod::DexInstructions() {
-  CodeItemInstructionAccessor accessor(this);
-  return { accessor.begin(),
-           accessor.end() };
-}
-
-inline IterationRange<DexInstructionIterator> ArtMethod::NullableDexInstructions() {
-  CodeItemInstructionAccessor accessor(CodeItemInstructionAccessor::CreateNullable(this));
-  return { accessor.begin(),
-           accessor.end() };
+inline CodeItemInstructionAccessor ArtMethod::DexInstructions() {
+  return CodeItemInstructionAccessor(this);
 }
 
 }  // namespace art

@@ -16,6 +16,7 @@
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 
 import dalvik.annotation.optimization.CriticalNative;
@@ -29,6 +30,7 @@ public class Main {
           throw new RuntimeException("Slow-debug flags unexpectedly off.");
         }
 
+        testFieldSubclass();
         testFindClassOnAttachedNativeThread();
         testFindFieldOnAttachedNativeThread();
         testReflectFieldGetFromAttachedNativeThreadNative();
@@ -59,6 +61,19 @@ public class Main {
 
         testClinitMethodLookup();
     }
+
+    static class ABC { public static int XYZ = 12; }
+    static class DEF extends ABC {}
+    public static void testFieldSubclass() {
+      try {
+        System.out.println("ABC.XYZ = " + ABC.XYZ + ", GetStaticIntField(DEF.class, 'XYZ') = " +
+            getFieldSubclass(ABC.class.getDeclaredField("XYZ"), DEF.class));
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to test get static field on a subclass", e);
+      }
+    }
+
+    public static native int getFieldSubclass(Field f, Class sub);
 
     private static native boolean registerNativesJniTest();
 

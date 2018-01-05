@@ -32,6 +32,7 @@ enum class Intrinsics;
 
 struct VarHandleOffsets;
 struct FieldVarHandleOffsets;
+struct ArrayElementVarHandleOffsets;
 struct ByteArrayViewVarHandleOffsets;
 struct ByteBufferViewVarHandleOffsets;
 

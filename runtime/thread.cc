@@ -47,9 +47,9 @@
 #include "base/to_str.h"
 #include "class_linker-inl.h"
 #include "debugger.h"
-#include "dex_file-inl.h"
-#include "dex_file_annotations.h"
-#include "dex_file_types.h"
+#include "dex/dex_file-inl.h"
+#include "dex/dex_file_annotations.h"
+#include "dex/dex_file_types.h"
 #include "entrypoints/entrypoint_utils.h"
 #include "entrypoints/quick/quick_alloc_entrypoints.h"
 #include "gc/accounting/card_table-inl.h"
@@ -3449,7 +3449,7 @@ class ReferenceMapVisitor : public StackVisitor {
                        const CodeInfoEncoding& _encoding,
                        const StackMap& map,
                        RootVisitor& _visitor)
-          : number_of_dex_registers(method->GetCodeItem()->registers_size_),
+          : number_of_dex_registers(CodeItemDataAccessor(method).RegistersSize()),
             code_info(_code_info),
             encoding(_encoding),
             dex_register_map(code_info.GetDexRegisterMapOf(map,

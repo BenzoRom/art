@@ -27,8 +27,8 @@
 #include <stdio.h>
 #include <unordered_map>
 
-#include "cdex/compact_dex_level.h"
-#include "dex_file_layout.h"
+#include "dex/compact_dex_level.h"
+#include "dex/dex_file_layout.h"
 #include "dex_ir.h"
 #include "mem_map.h"
 
@@ -63,6 +63,7 @@ class Options {
   bool verbose_ = false;
   bool verify_output_ = kIsDebugBuild;
   bool visualize_pattern_ = false;
+  bool update_checksum_ = false;
   CompactDexLevel compact_dex_level_ = CompactDexLevel::kCompactDexLevelNone;
   OutputFormat output_format_ = kOutputPlain;
   const char* output_dex_directory_ = nullptr;
@@ -79,6 +80,10 @@ class DexLayoutHotnessInfo {
 
 class DexLayout {
  public:
+  // Setting this to false disables class def layout entirely, which is stronger than strictly
+  // necessary to ensure the partial order w.r.t. class derivation. TODO: Re-enable (b/68317550).
+  static constexpr bool kChangeClassDefOrder = false;
+
   DexLayout(Options& options,
             ProfileCompilationInfo* info,
             FILE* out_file,
@@ -100,6 +105,10 @@ class DexLayout {
 
   const DexLayoutHotnessInfo& LayoutHotnessInfo() const {
     return layout_hotness_info_;
+  }
+
+  const Options& GetOptions() const {
+    return options_;
   }
 
  private:

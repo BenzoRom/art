@@ -37,7 +37,7 @@
 #include "art_jvmti.h"
 #include "art_method-inl.h"
 #include "base/logging.h"
-#include "dex_file_types.h"
+#include "dex/dex_file_types.h"
 #include "gc/allocation_listener.h"
 #include "gc/gc_pause_listener.h"
 #include "gc/heap.h"

@@ -26,8 +26,8 @@
 #include "base/stringpiece.h"
 #include "class_status.h"
 #include "compiler_filter.h"
-#include "dex_file.h"
-#include "dex_file_layout.h"
+#include "dex/dex_file.h"
+#include "dex/dex_file_layout.h"
 #include "index_bss_mapping.h"
 #include "mirror/object.h"
 #include "oat.h"
@@ -115,9 +115,9 @@ class OatFile {
                                const char* abs_dex_location,
                                std::string* error_msg);
 
-  // Return the debug info offset of the code item `item` located in `dex_file`.
-  static uint32_t GetDebugInfoOffset(const DexFile& dex_file,
-                                     const DexFile::CodeItem* item);
+  // Return the actual debug info offset for an offset that might be actually pointing to
+  // dequickening info. The returned debug info offset is the one originally in the the dex file.
+  static uint32_t GetDebugInfoOffset(const DexFile& dex_file, uint32_t debug_info_off);
 
   virtual ~OatFile();
 
@@ -281,6 +281,10 @@ class OatFile {
     return BssEnd() - BssBegin();
   }
 
+  size_t VdexSize() const {
+    return VdexEnd() - VdexBegin();
+  }
+
   size_t BssMethodsOffset() const {
     // Note: This is used only for symbolizer and needs to return a valid .bss offset.
     return (bss_methods_ != nullptr) ? bss_methods_ - BssBegin() : BssRootsOffset();
@@ -300,6 +304,9 @@ class OatFile {
 
   const uint8_t* BssBegin() const;
   const uint8_t* BssEnd() const;
+
+  const uint8_t* VdexBegin() const;
+  const uint8_t* VdexEnd() const;
 
   const uint8_t* DexBegin() const;
   const uint8_t* DexEnd() const;
@@ -359,6 +366,12 @@ class OatFile {
 
   // Was this oat_file loaded executable?
   const bool is_executable_;
+
+  // Pointer to the .vdex section, if present, otherwise null.
+  uint8_t* vdex_begin_;
+
+  // Pointer to the end of the .vdex section, if present, otherwise null.
+  uint8_t* vdex_end_;
 
   // Owning storage for the OatDexFile objects.
   std::vector<const OatDexFile*> oat_dex_files_storage_;

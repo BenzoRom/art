@@ -26,7 +26,8 @@
 #include "base/enums.h"
 #include "class_linker-inl.h"
 #include "common_runtime_test.h"
-#include "dex_file_types.h"
+#include "dex/dex_file_types.h"
+#include "dex/standard_dex_file.h"
 #include "entrypoints/entrypoint_utils-inl.h"
 #include "experimental_flags.h"
 #include "gc/heap.h"
@@ -50,7 +51,6 @@
 #include "mirror/string-inl.h"
 #include "mirror/var_handle.h"
 #include "scoped_thread_state_change-inl.h"
-#include "standard_dex_file.h"
 #include "thread-current-inl.h"
 
 namespace art {
@@ -795,6 +795,12 @@ struct FieldVarHandleOffsets : public CheckOffsets<mirror::FieldVarHandle> {
   }
 };
 
+struct ArrayElementVarHandleOffsets : public CheckOffsets<mirror::ArrayElementVarHandle> {
+  ArrayElementVarHandleOffsets() : CheckOffsets<mirror::ArrayElementVarHandle>(
+      false, "Ljava/lang/invoke/ArrayElementVarHandle;") {
+  }
+};
+
 struct ByteArrayViewVarHandleOffsets : public CheckOffsets<mirror::ByteArrayViewVarHandle> {
   ByteArrayViewVarHandleOffsets() : CheckOffsets<mirror::ByteArrayViewVarHandle>(
       false, "Ljava/lang/invoke/ByteArrayViewVarHandle;") {
@@ -838,6 +844,7 @@ TEST_F(ClassLinkerTest, ValidateFieldOrderOfJavaCppUnionClasses) {
   EXPECT_TRUE(CallSiteOffsets().Check());
   EXPECT_TRUE(VarHandleOffsets().Check());
   EXPECT_TRUE(FieldVarHandleOffsets().Check());
+  EXPECT_TRUE(ArrayElementVarHandleOffsets().Check());
   EXPECT_TRUE(ByteArrayViewVarHandleOffsets().Check());
   EXPECT_TRUE(ByteBufferViewVarHandleOffsets().Check());
 }

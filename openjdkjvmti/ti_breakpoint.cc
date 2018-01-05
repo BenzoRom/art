@@ -37,7 +37,7 @@
 #include "art_method-inl.h"
 #include "base/enums.h"
 #include "base/mutex-inl.h"
-#include "dex_file_annotations.h"
+#include "dex/dex_file_annotations.h"
 #include "events-inl.h"
 #include "jni_internal.h"
 #include "mirror/class-inl.h"
@@ -87,7 +87,7 @@ jvmtiError BreakpointUtil::SetBreakpoint(jvmtiEnv* jenv, jmethodID method, jloca
   art::ArtMethod* art_method = art::jni::DecodeArtMethod(method)->GetCanonicalMethod();
   art::WriterMutexLock lk(art::Thread::Current(), env->event_info_mutex_);
   if (location < 0 || static_cast<uint32_t>(location) >=
-      art_method->GetCodeItem()->insns_size_in_code_units_) {
+      art_method->DexInstructions().InsnsSizeInCodeUnits()) {
     return ERR(INVALID_LOCATION);
   }
   auto res_pair = env->breakpoints.insert(/* Breakpoint */ {art_method, location});

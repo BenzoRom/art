@@ -24,8 +24,9 @@
 #include "base/enums.h"
 #include "base/iteration_range.h"
 #include "base/logging.h"
-#include "dex_file.h"
-#include "dex_instruction_iterator.h"
+#include "dex/code_item_accessors.h"
+#include "dex/dex_file.h"
+#include "dex/dex_instruction_iterator.h"
 #include "gc_root.h"
 #include "modifiers.h"
 #include "obj_ptr.h"
@@ -724,13 +725,9 @@ class ArtMethod FINAL {
             "ptr_sized_fields_.entry_point_from_quick_compiled_code_");
   }
 
-  // Returns the dex instructions of the code item for the art method. Must not be called on null
-  // code items.
-  ALWAYS_INLINE IterationRange<DexInstructionIterator> DexInstructions()
-      REQUIRES_SHARED(Locks::mutator_lock_);
-
-  // Handles a null code item by returning iterators that have a null address.
-  ALWAYS_INLINE IterationRange<DexInstructionIterator> NullableDexInstructions()
+  // Returns the dex instructions of the code item for the art method. Returns an empty array for
+  // the null code item case.
+  ALWAYS_INLINE CodeItemInstructionAccessor DexInstructions()
       REQUIRES_SHARED(Locks::mutator_lock_);
 
  protected:

@@ -33,10 +33,11 @@
 #include "class_table-inl.h"
 #include "compiled_method-inl.h"
 #include "debug/method_debug_info.h"
+#include "dex/dex_file-inl.h"
+#include "dex/dex_file_loader.h"
+#include "dex/dex_file_types.h"
+#include "dex/standard_dex_file.h"
 #include "dex/verification_results.h"
-#include "dex_file-inl.h"
-#include "dex_file_loader.h"
-#include "dex_file_types.h"
 #include "dexlayout.h"
 #include "driver/compiler_driver-inl.h"
 #include "driver/compiler_options.h"
@@ -54,7 +55,6 @@
 #include "mirror/class_loader.h"
 #include "mirror/dex_cache-inl.h"
 #include "mirror/object-inl.h"
-#include "standard_dex_file.h"
 #include "oat_quick_method_header.h"
 #include "os.h"
 #include "safe_map.h"
@@ -2636,7 +2636,8 @@ class OatWriter::WriteQuickeningIndicesMethodVisitor {
           CompiledMethod* compiled_method =
               driver.GetCompiledMethod(MethodReference(dex_file, method_idx));
           const DexFile::CodeItem* code_item = class_it.GetMethodCodeItem();
-          uint32_t existing_debug_info_offset = OatFile::GetDebugInfoOffset(*dex_file, code_item);
+          CodeItemDebugInfoAccessor accessor(*dex_file, code_item);
+          const uint32_t existing_debug_info_offset = accessor.DebugInfoOffset();
           // If the existing offset is already out of bounds (and not magic marker 0xFFFFFFFF)
           // we will pretend the method has been quickened.
           bool existing_offset_out_of_bounds =
@@ -3299,8 +3300,9 @@ bool OatWriter::WriteDexFile(OutputStream* out,
   if (!SeekToDexFile(out, file, oat_dex_file)) {
     return false;
   }
-  if (profile_compilation_info_ != nullptr ||
-          compact_dex_level_ != CompactDexLevel::kCompactDexLevelNone) {
+  // update_input_vdex disables compact dex and layout.
+  if (!update_input_vdex && (profile_compilation_info_ != nullptr ||
+      compact_dex_level_ != CompactDexLevel::kCompactDexLevelNone)) {
     CHECK(!update_input_vdex) << "We should never update the input vdex when doing dexlayout";
     if (!LayoutAndWriteDexFile(out, oat_dex_file)) {
       return false;
@@ -3418,6 +3420,7 @@ bool OatWriter::LayoutAndWriteDexFile(OutputStream* out, OatDexFile* oat_dex_fil
   Options options;
   options.output_to_memmap_ = true;
   options.compact_dex_level_ = compact_dex_level_;
+  options.update_checksum_ = true;
   DexLayout dex_layout(options, profile_compilation_info_, nullptr);
   dex_layout.ProcessDexFile(location.c_str(), dex_file.get(), 0);
   std::unique_ptr<MemMap> mem_map(dex_layout.GetAndReleaseMemMap());

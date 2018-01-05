@@ -30,7 +30,7 @@
 #include "base/time_utils.h"
 #include "class_linker-inl.h"
 #include "class_linker.h"
-#include "dex_file-inl.h"
+#include "dex/dex_file-inl.h"
 #include "gc/space/space.h"
 #include "java_vm_ext.h"
 #include "jni_internal.h"
@@ -389,7 +389,7 @@ class ScopedCheck {
     if (f == nullptr) {
       return false;
     }
-    if (c != f->GetDeclaringClass()) {
+    if (!f->GetDeclaringClass()->IsAssignableFrom(c)) {
       AbortF("static jfieldID %p not valid for class %s", fid,
              mirror::Class::PrettyClass(c).c_str());
       return false;
@@ -725,7 +725,7 @@ class ScopedCheck {
         return false;
       }
       ObjPtr<mirror::Class> c = o->AsClass();
-      if (c != field->GetDeclaringClass()) {
+      if (!field->GetDeclaringClass()->IsAssignableFrom(c)) {
         AbortF("attempt to access static field %s with an incompatible class argument of %s: %p",
                field->PrettyField().c_str(), mirror::Class::PrettyDescriptor(c).c_str(), fid);
         return false;

@@ -25,8 +25,9 @@
 #include "base/stringpiece.h"
 #include "class_linker-inl.h"
 #include "debugger.h"
-#include "dex_file-inl.h"
-#include "dex_instruction.h"
+#include "dex/dex_file-inl.h"
+#include "dex/dex_file_exception_helpers.h"
+#include "dex/dex_instruction.h"
 #include "entrypoints/runtime_asm_entrypoints.h"
 #include "gc/accounting/card_table-inl.h"
 #include "interpreter/interpreter.h"
@@ -268,7 +269,6 @@ uint32_t ArtMethod::FindDexMethodIndexInOtherDexFile(const DexFile& other_dexfil
 
 uint32_t ArtMethod::FindCatchBlock(Handle<mirror::Class> exception_type,
                                    uint32_t dex_pc, bool* has_no_move_exception) {
-  const DexFile::CodeItem* code_item = GetCodeItem();
   // Set aside the exception while we resolve its type.
   Thread* self = Thread::Current();
   StackHandleScope<1> hs(self);
@@ -277,7 +277,8 @@ uint32_t ArtMethod::FindCatchBlock(Handle<mirror::Class> exception_type,
   // Default to handler not found.
   uint32_t found_dex_pc = dex::kDexNoIndex;
   // Iterate over the catch handlers associated with dex_pc.
-  for (CatchHandlerIterator it(*code_item, dex_pc); it.HasNext(); it.Next()) {
+  CodeItemDataAccessor accessor(this);
+  for (CatchHandlerIterator it(accessor, dex_pc); it.HasNext(); it.Next()) {
     dex::TypeIndex iter_type_idx = it.GetHandlerTypeIndex();
     // Catch all case
     if (!iter_type_idx.IsValid()) {
@@ -302,9 +303,8 @@ uint32_t ArtMethod::FindCatchBlock(Handle<mirror::Class> exception_type,
     }
   }
   if (found_dex_pc != dex::kDexNoIndex) {
-    const Instruction* first_catch_instr =
-        Instruction::At(&code_item->insns_[found_dex_pc]);
-    *has_no_move_exception = (first_catch_instr->Opcode() != Instruction::MOVE_EXCEPTION);
+    const Instruction& first_catch_instr = accessor.InstructionAt(found_dex_pc);
+    *has_no_move_exception = (first_catch_instr.Opcode() != Instruction::MOVE_EXCEPTION);
   }
   // Put the exception back.
   if (exception != nullptr) {
@@ -324,6 +324,21 @@ void ArtMethod::Invoke(Thread* self, uint32_t* args, uint32_t args_size, JValue*
     self->AssertThreadSuspensionIsAllowable();
     CHECK_EQ(kRunnable, self->GetState());
     CHECK_STREQ(GetInterfaceMethodIfProxy(kRuntimePointerSize)->GetShorty(), shorty);
+
+    if (!IsNative() &&
+        !IsObsolete() &&
+        !IsProxyMethod() &&
+        IsInvokable() &&
+        ClassLinker::ShouldUseInterpreterEntrypoint(this, GetEntryPointFromQuickCompiledCode())) {
+      ClassLinker* cl = Runtime::Current()->GetClassLinker();
+      const void* entry_point = GetEntryPointFromQuickCompiledCode();
+      DCHECK(cl->IsQuickToInterpreterBridge(entry_point) ||
+             cl->IsQuickResolutionStub(entry_point) ||
+             entry_point == GetQuickInstrumentationEntryPoint())
+          << PrettyMethod() << " is expected to be interpreted but has an unexpected entrypoint."
+          << " The entrypoint is " << entry_point << " (incorrect) oat entrypoint would be "
+          << GetOatMethodQuickCode(cl->GetImagePointerSize());
+    }
   }
 
   // Push a transition back into managed code onto the linked list in thread.

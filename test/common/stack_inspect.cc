@@ -17,7 +17,7 @@
 #include "jni.h"
 
 #include "base/logging.h"
-#include "dex_file-inl.h"
+#include "dex/dex_file-inl.h"
 #include "jni_internal.h"
 #include "mirror/class-inl.h"
 #include "nth_caller_visitor.h"

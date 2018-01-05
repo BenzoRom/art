@@ -37,12 +37,12 @@
 #include "base/unix_file/fd_file.h"
 #include "class_linker-inl.h"
 #include "class_linker.h"
-#include "code_item_accessors-inl.h"
 #include "compiled_method.h"
 #include "debug/elf_debug_writer.h"
 #include "debug/method_debug_info.h"
-#include "dex_file-inl.h"
-#include "dex_instruction-inl.h"
+#include "dex/code_item_accessors-inl.h"
+#include "dex/dex_file-inl.h"
+#include "dex/dex_instruction-inl.h"
 #include "disassembler.h"
 #include "gc/accounting/space_bitmap-inl.h"
 #include "gc/space/image_space.h"
@@ -147,13 +147,10 @@ class OatSymbolizer FINAL {
 
     auto* rodata = builder_->GetRoData();
     auto* text = builder_->GetText();
-    auto* bss = builder_->GetBss();
 
     const uint8_t* rodata_begin = oat_file_->Begin();
     const size_t rodata_size = oat_file_->GetOatHeader().GetExecutableOffset();
-    if (no_bits_) {
-      rodata->WriteNoBitsSection(rodata_size);
-    } else {
+    if (!no_bits_) {
       rodata->Start();
       rodata->WriteFully(rodata_begin, rodata_size);
       rodata->End();
@@ -161,16 +158,10 @@ class OatSymbolizer FINAL {
 
     const uint8_t* text_begin = oat_file_->Begin() + rodata_size;
     const size_t text_size = oat_file_->End() - text_begin;
-    if (no_bits_) {
-      text->WriteNoBitsSection(text_size);
-    } else {
+    if (!no_bits_) {
       text->Start();
       text->WriteFully(text_begin, text_size);
       text->End();
-    }
-
-    if (oat_file_->BssSize() != 0) {
-      bss->WriteNoBitsSection(oat_file_->BssSize());
     }
 
     if (isa == InstructionSet::kMips || isa == InstructionSet::kMips64) {
@@ -181,7 +172,8 @@ class OatSymbolizer FINAL {
                                     text_size,
                                     oat_file_->BssSize(),
                                     oat_file_->BssMethodsOffset(),
-                                    oat_file_->BssRootsOffset());
+                                    oat_file_->BssRootsOffset(),
+                                    oat_file_->VdexSize());
     builder_->WriteDynamicSection();
 
     const OatHeader& oat_header = oat_file_->GetOatHeader();
@@ -1003,7 +995,7 @@ class OatDumper {
       if (code_item == nullptr) {
         return;
       }
-      CodeItemInstructionAccessor instructions(&dex_file, code_item);
+      CodeItemInstructionAccessor instructions(dex_file, code_item);
 
       // If we inserted a new dex code item pointer, add to total code bytes.
       const uint16_t* code_ptr = instructions.Insns();
@@ -1271,8 +1263,7 @@ class OatDumper {
                      bool* addr_found) {
     bool success = true;
 
-    CodeItemDataAccessor code_item_accessor(CodeItemDataAccessor::CreateNullable(&dex_file,
-                                                                                 code_item));
+    CodeItemDataAccessor code_item_accessor(dex_file, code_item);
 
     // TODO: Support regex
     std::string method_name = dex_file.GetMethodName(dex_file.GetMethodId(dex_method_idx));

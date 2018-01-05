@@ -326,7 +326,7 @@ class Heap {
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   // Initiates an explicit garbage collection.
-  void CollectGarbage(bool clear_soft_references)
+  void CollectGarbage(bool clear_soft_references, GcCause cause = kGcCauseExplicit)
       REQUIRES(!*gc_complete_lock_, !*pending_task_lock_);
 
   // Does a concurrent GC, should only be called by the GC daemon thread

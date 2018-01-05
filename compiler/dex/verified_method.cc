@@ -20,9 +20,9 @@
 #include <memory>
 
 #include "base/logging.h"
-#include "code_item_accessors-inl.h"
-#include "dex_file.h"
-#include "dex_instruction-inl.h"
+#include "dex/code_item_accessors-inl.h"
+#include "dex/dex_file.h"
+#include "dex/dex_instruction-inl.h"
 #include "runtime.h"
 #include "verifier/method_verifier-inl.h"
 #include "verifier/reg_type-inl.h"

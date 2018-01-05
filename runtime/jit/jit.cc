@@ -463,7 +463,8 @@ bool Jit::MaybeDoOnStackReplacement(Thread* thread,
   // Fetch some data before looking up for an OSR method. We don't want thread
   // suspension once we hold an OSR method, as the JIT code cache could delete the OSR
   // method while we are being suspended.
-  const size_t number_of_vregs = method->GetCodeItem()->registers_size_;
+  CodeItemDataAccessor accessor(method);
+  const size_t number_of_vregs = accessor.RegistersSize();
   const char* shorty = method->GetShorty();
   std::string method_name(VLOG_IS_ON(jit) ? method->PrettyMethod() : "");
   void** memory = nullptr;
@@ -642,6 +643,10 @@ void Jit::AddSamples(Thread* self, ArtMethod* method, uint16_t count, bool with_
 
   if (method->IsClassInitializer() || !method->IsCompilable()) {
     // We do not want to compile such methods.
+    return;
+  }
+  if (hot_method_threshold_ == 0) {
+    // Tests might request JIT on first use (compiled synchronously in the interpreter).
     return;
   }
   DCHECK(thread_pool_ != nullptr);

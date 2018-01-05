@@ -33,12 +33,12 @@
 
 #include "android-base/stringprintf.h"
 
-#include "dex_file-inl.h"
-#include "dex_file_layout.h"
-#include "dex_file_loader.h"
-#include "dex_file_types.h"
-#include "dex_file_verifier.h"
-#include "dex_instruction-inl.h"
+#include "dex/dex_file-inl.h"
+#include "dex/dex_file_layout.h"
+#include "dex/dex_file_loader.h"
+#include "dex/dex_file_types.h"
+#include "dex/dex_file_verifier.h"
+#include "dex/dex_instruction-inl.h"
 #include "dex_ir_builder.h"
 #include "dex_verify.h"
 #include "dex_visualize.h"
@@ -51,10 +51,6 @@
 namespace art {
 
 using android::base::StringPrintf;
-
-// Setting this to false disables class def layout entirely, which is stronger than strictly
-// necessary to ensure the partial order w.r.t. class derivation. TODO: Re-enable (b/68317550).
-static constexpr bool kChangeClassDefOrder = false;
 
 /*
  * Flags for use with createAccessFlagStr().
@@ -1593,7 +1589,7 @@ void DexLayout::LayoutClassDefsAndClassData(const DexFile* dex_file) {
   }
   CHECK_EQ(class_data_index, class_datas.size());
 
-  if (kChangeClassDefOrder) {
+  if (DexLayout::kChangeClassDefOrder) {
     // This currently produces dex files that violate the spec since the super class class_def is
     // supposed to occur before any subclasses.
     dex_ir::CollectionVector<dex_ir::ClassDef>::Vector& class_defs =
@@ -1915,7 +1911,8 @@ void DexLayout::ProcessDexFile(const char* file_name,
     if (do_layout) {
       LayoutOutputFile(dex_file);
     }
-    OutputDexFile(dex_file, do_layout);
+    // If we didn't set the offsets eagerly, we definitely need to compute them here.
+    OutputDexFile(dex_file, do_layout || !eagerly_assign_offsets);
 
     // Clear header before verifying to reduce peak RAM usage.
     const size_t file_size = header_->FileSize();

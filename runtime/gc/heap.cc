@@ -38,7 +38,7 @@
 #include "common_throws.h"
 #include "cutils/sched_policy.h"
 #include "debugger.h"
-#include "dex_file-inl.h"
+#include "dex/dex_file-inl.h"
 #include "entrypoints/quick/quick_alloc_entrypoints.h"
 #include "gc/accounting/card_table-inl.h"
 #include "gc/accounting/heap_bitmap-inl.h"
@@ -1857,10 +1857,10 @@ void Heap::GetReferringObjects(VariableSizedHandleScope& scope,
   VisitObjects(referring_objects_finder);
 }
 
-void Heap::CollectGarbage(bool clear_soft_references) {
+void Heap::CollectGarbage(bool clear_soft_references, GcCause cause) {
   // Even if we waited for a GC we still need to do another GC since weaks allocated during the
   // last GC will not have necessarily been cleared.
-  CollectGarbageInternal(gc_plan_.back(), kGcCauseExplicit, clear_soft_references);
+  CollectGarbageInternal(gc_plan_.back(), cause, clear_soft_references);
 }
 
 bool Heap::SupportHomogeneousSpaceCompactAndCollectorTransitions() const {

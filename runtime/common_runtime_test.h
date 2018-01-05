@@ -26,6 +26,7 @@
 
 #include "arch/instruction_set.h"
 #include "base/mutex.h"
+#include "dex/compact_dex_level.h"
 #include "globals.h"
 // TODO: Add inl file and avoid including inl.
 #include "obj_ptr-inl.h"
@@ -308,6 +309,12 @@ class CheckJniAbortCatcher {
 #define TEST_DISABLED_FOR_HEAP_POISONING() \
   if (kPoisonHeapReferences) { \
     printf("WARNING: TEST DISABLED FOR HEAP POISONING\n"); \
+    return; \
+  }
+
+#define TEST_DISABLED_FOR_COMPACT_DEX() \
+  if (kDefaultCompactDexLevel != CompactDexLevel::kCompactDexLevelNone) { \
+    printf("WARNING: TEST DISABLED FOR COMPACT DEX\n"); \
     return; \
   }
 }  // namespace art

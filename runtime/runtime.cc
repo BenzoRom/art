@@ -70,7 +70,7 @@
 #include "class_linker-inl.h"
 #include "compiler_callbacks.h"
 #include "debugger.h"
-#include "dex_file_loader.h"
+#include "dex/dex_file_loader.h"
 #include "elf_file.h"
 #include "entrypoints/runtime_asm_entrypoints.h"
 #include "experimental_flags.h"
@@ -291,7 +291,22 @@ Runtime::~Runtime() {
   Thread* self = Thread::Current();
   const bool attach_shutdown_thread = self == nullptr;
   if (attach_shutdown_thread) {
-    CHECK(AttachCurrentThread("Shutdown thread", false, nullptr, false));
+    // We can only create a peer if the runtime is actually started. This is only not true during
+    // some tests. If there is extreme memory pressure the allocation of the thread peer can fail.
+    // In this case we will just try again without allocating a peer so that shutdown can continue.
+    // Very few things are actually capable of distinguishing between the peer & peerless states so
+    // this should be fine.
+    bool thread_attached = AttachCurrentThread("Shutdown thread",
+                                               /* as_daemon */ false,
+                                               GetSystemThreadGroup(),
+                                               /* Create peer */ IsStarted());
+    if (UNLIKELY(!thread_attached)) {
+      LOG(WARNING) << "Failed to attach shutdown thread. Trying again without a peer.";
+      CHECK(AttachCurrentThread("Shutdown thread (no java peer)",
+                                /* as_daemon */   false,
+                                /* thread_group*/ nullptr,
+                                /* Create peer */ false));
+    }
     self = Thread::Current();
   } else {
     LOG(WARNING) << "Current thread not detached in Runtime shutdown";
@@ -1030,8 +1045,12 @@ static size_t OpenDexFiles(const std::vector<std::string>& dex_filenames,
       LOG(WARNING) << "Skipping non-existent dex file '" << dex_filename << "'";
       continue;
     }
-    if (!DexFileLoader::Open(
-          dex_filename, dex_location, /* verify */ true, kVerifyChecksum, &error_msg, dex_files)) {
+    if (!DexFileLoader::Open(dex_filename,
+                             dex_location,
+                             Runtime::Current()->IsVerificationEnabled(),
+                             kVerifyChecksum,
+                             &error_msg,
+                             dex_files)) {
       LOG(WARNING) << "Failed to open .dex from file '" << dex_filename << "': " << error_msg;
       ++failure_count;
     }

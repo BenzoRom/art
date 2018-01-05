@@ -59,11 +59,12 @@
 #include "compiler_callbacks.h"
 #include "debug/elf_debug_writer.h"
 #include "debug/method_debug_info.h"
+#include "dexlayout.h"
+#include "dex/dex_file-inl.h"
 #include "dex/quick_compiler_callbacks.h"
 #include "dex/verification_results.h"
 #include "dex2oat_options.h"
 #include "dex2oat_return_codes.h"
-#include "dex_file-inl.h"
 #include "driver/compiler_driver.h"
 #include "driver/compiler_options.h"
 #include "driver/compiler_options_map-inl.h"
@@ -2039,8 +2040,8 @@ class Dex2Oat FINAL {
                                           text_size,
                                           oat_writer->GetBssSize(),
                                           oat_writer->GetBssMethodsOffset(),
-                                          oat_writer->GetBssRootsOffset());
-
+                                          oat_writer->GetBssRootsOffset(),
+                                          oat_writer->GetVdexSize());
         if (IsImage()) {
           // Update oat layout.
           DCHECK(image_writer_ != nullptr);
@@ -2255,10 +2256,14 @@ class Dex2Oat FINAL {
     return DoProfileGuidedOptimizations();
   }
 
-  bool DoEagerUnquickeningOfVdex() const {
-    // DexLayout can invalidate the vdex metadata, so we need to unquicken
-    // the vdex file eagerly, before passing it to dexlayout.
+  bool MayInvalidateVdexMetadata() const {
+    // DexLayout can invalidate the vdex metadata if changing the class def order is enabled, so
+    // we need to unquicken the vdex file eagerly, before passing it to dexlayout.
     return DoDexLayoutOptimizations();
+  }
+
+  bool DoEagerUnquickeningOfVdex() const {
+    return MayInvalidateVdexMetadata();
   }
 
   bool LoadProfile() {
