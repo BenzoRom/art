@@ -192,15 +192,7 @@ class DexoptAnalyzer FINAL {
           if (zip_fd_ < 0) {
             Usage("Invalid --zip-fd %d", zip_fd_);
           }
-      } else if (option.starts_with("--class-loader-context=")) {
-        std::string context_str = option.substr(strlen("--class-loader-context=")).ToString();
-        class_loader_context_ = ClassLoaderContext::Create(context_str);
-        if (class_loader_context_ == nullptr) {
-          Usage("Invalid --class-loader-context '%s'", context_str.c_str());
-        }
-      } else {
-        Usage("Unknown argument '%s'", option.data());
-      }
+      } else { Usage("Unknown argument '%s'", option.data()); }
     }
 
     if (image_.empty()) {
@@ -269,8 +261,9 @@ class DexoptAnalyzer FINAL {
       return kNoDexOptNeeded;
     }
 
+    // TODO(calin): Pass the class loader context as an argument to dexoptanalyzer. b/62269291.
     int dexoptNeeded = oat_file_assistant->GetDexOptNeeded(
-        compiler_filter_, assume_profile_changed_, downgrade_, class_loader_context_.get());
+        compiler_filter_, assume_profile_changed_, downgrade_);
 
     // Convert OatFileAssitant codes to dexoptanalyzer codes.
     switch (dexoptNeeded) {
@@ -293,7 +286,6 @@ class DexoptAnalyzer FINAL {
   std::string dex_file_;
   InstructionSet isa_;
   CompilerFilter::Filter compiler_filter_;
-  std::unique_ptr<ClassLoaderContext> class_loader_context_;
   bool assume_profile_changed_;
   bool downgrade_;
   std::string image_;

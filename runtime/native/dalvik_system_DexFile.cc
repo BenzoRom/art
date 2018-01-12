@@ -24,9 +24,9 @@
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "class_linker.h"
-#include <class_loader_context.h>
 #include "common_throws.h"
 #include "compiler_filter.h"
+#include "dex/art_dex_file_loader.h"
 #include "dex/dex_file-inl.h"
 #include "dex/dex_file_loader.h"
 #include "jni_internal.h"
@@ -188,12 +188,13 @@ static const DexFile* CreateDexFile(JNIEnv* env, std::unique_ptr<MemMap> dex_mem
                                       dex_mem_map->Begin(),
                                       dex_mem_map->End());
   std::string error_message;
-  std::unique_ptr<const DexFile> dex_file(DexFileLoader::Open(location,
-                                                              0,
-                                                              std::move(dex_mem_map),
-                                                              /* verify */ true,
-                                                              /* verify_location */ true,
-                                                              &error_message));
+  const ArtDexFileLoader dex_file_loader;
+  std::unique_ptr<const DexFile> dex_file(dex_file_loader.Open(location,
+                                                               0,
+                                                               std::move(dex_mem_map),
+                                                               /* verify */ true,
+                                                               /* verify_location */ true,
+                                                               &error_message));
   if (dex_file == nullptr) {
     ScopedObjectAccess soa(env);
     ThrowWrappedIOException("%s", error_message.c_str());
@@ -461,7 +462,6 @@ static jint GetDexOptNeeded(JNIEnv* env,
                             const char* filename,
                             const char* instruction_set,
                             const char* compiler_filter_name,
-                            const char* class_loader_context,
                             bool profile_changed,
                             bool downgrade) {
   if ((filename == nullptr) || !OS::FileExists(filename)) {
@@ -488,19 +488,6 @@ static jint GetDexOptNeeded(JNIEnv* env,
     return -1;
   }
 
-  std::unique_ptr<ClassLoaderContext> context = nullptr;
-  if (class_loader_context != nullptr) {
-    context = ClassLoaderContext::Create(class_loader_context);
-
-    if (context == nullptr) {
-      ScopedLocalRef<jclass> iae(env, env->FindClass("java/lang/IllegalArgumentException"));
-      std::string message(StringPrintf("Class loader context '%s' is invalid.",
-                                       class_loader_context));
-      env->ThrowNew(iae.get(), message.c_str());
-      return -1;
-    }
-  }
-
   // TODO: Verify the dex location is well formed, and throw an IOException if
   // not?
 
@@ -511,10 +498,8 @@ static jint GetDexOptNeeded(JNIEnv* env,
     return OatFileAssistant::kNoDexOptNeeded;
   }
 
-  return oat_file_assistant.GetDexOptNeeded(filter,
-                                            profile_changed,
-                                            downgrade,
-                                            context.get());
+  // TODO(calin): Extend DexFile.getDexOptNeeded to accept the class loader context. b/62269291.
+  return oat_file_assistant.GetDexOptNeeded(filter, profile_changed, downgrade);
 }
 
 static jstring DexFile_getDexFileStatus(JNIEnv* env,
@@ -550,7 +535,6 @@ static jint DexFile_getDexOptNeeded(JNIEnv* env,
                                     jstring javaFilename,
                                     jstring javaInstructionSet,
                                     jstring javaTargetCompilerFilter,
-                                    jstring javaClassLoaderContext,
                                     jboolean newProfile,
                                     jboolean downgrade) {
   ScopedUtfChars filename(env, javaFilename);
@@ -568,16 +552,10 @@ static jint DexFile_getDexOptNeeded(JNIEnv* env,
     return -1;
   }
 
-  NullableScopedUtfChars class_loader_context(env, javaClassLoaderContext);
-  if (env->ExceptionCheck()) {
-    return -1;
-  }
-
   return GetDexOptNeeded(env,
                          filename.c_str(),
                          instruction_set.c_str(),
                          target_compiler_filter.c_str(),
-                         class_loader_context.c_str(),
                          newProfile == JNI_TRUE,
                          downgrade == JNI_TRUE);
 }
@@ -756,7 +734,7 @@ static JNINativeMethod gMethods[] = {
   NATIVE_METHOD(DexFile, getClassNameList, "(Ljava/lang/Object;)[Ljava/lang/String;"),
   NATIVE_METHOD(DexFile, isDexOptNeeded, "(Ljava/lang/String;)Z"),
   NATIVE_METHOD(DexFile, getDexOptNeeded,
-                "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZ)I"),
+                "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZZ)I"),
   NATIVE_METHOD(DexFile, openDexFileNative,
                 "(Ljava/lang/String;"
                 "Ljava/lang/String;"

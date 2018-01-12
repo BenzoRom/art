@@ -21,6 +21,7 @@
 #include "base/stl_util.h"
 #include "class_linker.h"
 #include "class_loader_utils.h"
+#include "dex/art_dex_file_loader.h"
 #include "dex/dex_file.h"
 #include "dex/dex_file_loader.h"
 #include "handle_scope-inl.h"
@@ -226,6 +227,7 @@ bool ClassLoaderContext::OpenDexFiles(InstructionSet isa, const std::string& cla
   // We may get resource-only apks which we cannot load.
   // TODO(calin): Refine the dex opening interface to be able to tell if an archive contains
   // no dex files. So that we can distinguish the real failures...
+  const ArtDexFileLoader dex_file_loader;
   for (int i = class_loader_chain_.size() - 1; i >= 0; i--) {
     ClassLoaderInfo& info = class_loader_chain_[i];
     size_t opened_dex_files_index = info.opened_dex_files.size();
@@ -273,15 +275,15 @@ bool ClassLoaderContext::OpenDexFiles(InstructionSet isa, const std::string& cla
         // When opening the dex files from the context we expect their checksum to match their
         // contents. So pass true to verify_checksum.
         std::vector<std::unique_ptr<const DexFile>> dex_files;
-        if (DexFileLoader::Open(location.c_str(),
-                                 location.c_str(),
-                                 Runtime::Current()->IsVerificationEnabled(),
-                                 /*verify_checksum*/ true,
-                                 &error_msg,
-                                 &dex_files)) {
+        if (dex_file_loader.Open(location.c_str(),
+                                location.c_str(),
+                                Runtime::Current()->IsVerificationEnabled(),
+                                /*verify_checksum*/ true,
+                                &error_msg,
+                                &dex_files)) {
           info.opened_dex_files.insert(info.opened_dex_files.begin(),
-                                       std::make_move_iterator(dex_files.begin()),
-                                       std::make_move_iterator(dex_files.end()));
+                                std::make_move_iterator(dex_files.begin()),
+                                std::make_move_iterator(dex_files.end()));
         } else {
           LOG(WARNING) << "Could not open dex files from location: " << location;
           dex_files_open_result_ = false;

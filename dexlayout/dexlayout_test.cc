@@ -23,6 +23,7 @@
 
 #include "base/unix_file/fd_file.h"
 #include "common_runtime_test.h"
+#include "dex/art_dex_file_loader.h"
 #include "dex/code_item_accessors-inl.h"
 #include "dex/dex_file-inl.h"
 #include "dex/dex_file_loader.h"
@@ -322,12 +323,13 @@ class DexLayoutTest : public CommonRuntimeTest {
   bool MutateDexFile(File* output_dex, const std::string& input_jar, const Mutator& mutator) {
     std::vector<std::unique_ptr<const DexFile>> dex_files;
     std::string error_msg;
-    CHECK(DexFileLoader::Open(input_jar.c_str(),
-                              input_jar.c_str(),
-                              /*verify*/ true,
-                              /*verify_checksum*/ true,
-                              &error_msg,
-                              &dex_files)) << error_msg;
+    const ArtDexFileLoader dex_file_loader;
+    CHECK(dex_file_loader.Open(input_jar.c_str(),
+                               input_jar.c_str(),
+                               /*verify*/ true,
+                               /*verify_checksum*/ true,
+                               &error_msg,
+                               &dex_files)) << error_msg;
     EXPECT_EQ(dex_files.size(), 1u) << "Only one input dex is supported";
     for (const std::unique_ptr<const DexFile>& dex : dex_files) {
       CHECK(dex->EnableWrite()) << "Failed to enable write";
@@ -348,12 +350,13 @@ class DexLayoutTest : public CommonRuntimeTest {
                      const std::string& dex_location) {
     std::vector<std::unique_ptr<const DexFile>> dex_files;
     std::string error_msg;
-    bool result = DexFileLoader::Open(input_dex.c_str(),
-                                      input_dex,
-                                      /*verify*/ true,
-                                      /*verify_checksum*/ false,
-                                      &error_msg,
-                                      &dex_files);
+    const ArtDexFileLoader dex_file_loader;
+    bool result = dex_file_loader.Open(input_dex.c_str(),
+                                       input_dex,
+                                       /*verify*/ true,
+                                       /*verify_checksum*/ false,
+                                       &error_msg,
+                                       &dex_files);
 
     ASSERT_TRUE(result) << error_msg;
     ASSERT_GE(dex_files.size(), 1u);
@@ -752,6 +755,48 @@ TEST_F(DexLayoutTest, CodeItemOverrun) {
                             /*dex_filename*/ nullptr,
                             nullptr /* profile_file */,
                             dexlayout_exec_argv));
+}
+
+// Test that link data is written out (or at least the header is updated).
+TEST_F(DexLayoutTest, LinkData) {
+  TEST_DISABLED_FOR_TARGET();
+  ScratchFile temp_dex;
+  size_t file_size = 0;
+  MutateDexFile(temp_dex.GetFile(), GetTestDexFileName("ManyMethods"), [&] (DexFile* dex) {
+    DexFile::Header& header = const_cast<DexFile::Header&>(dex->GetHeader());
+    header.link_off_ = header.file_size_;
+    header.link_size_ = 16 * KB;
+    header.file_size_ += header.link_size_;
+    file_size = header.file_size_;
+  });
+  TEMP_FAILURE_RETRY(temp_dex.GetFile()->SetLength(file_size));
+
+  std::string error_msg;
+
+  ScratchFile tmp_file;
+  const std::string& tmp_name = tmp_file.GetFilename();
+  size_t tmp_last_slash = tmp_name.rfind('/');
+  std::string tmp_dir = tmp_name.substr(0, tmp_last_slash + 1);
+  ScratchFile profile_file;
+
+  std::vector<std::string> dexlayout_args =
+      { "-i",
+        "-v",
+        "-w", tmp_dir,
+        "-o", tmp_name,
+        "-p", profile_file.GetFilename(),
+        temp_dex.GetFilename()
+      };
+  // -v makes sure that the layout did not corrupt the dex file.
+  ASSERT_TRUE(DexLayoutExec(&temp_dex,
+                            /*dex_filename*/ nullptr,
+                            &profile_file,
+                            dexlayout_args));
+
+  std::string output_dex = temp_dex.GetFilename() + ".new";
+  std::vector<std::string> rm_exec_argv =
+      { "/bin/rm", output_dex };
+  ASSERT_TRUE(::art::Exec(rm_exec_argv, &error_msg));
 }
 
 }  // namespace art
