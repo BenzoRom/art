@@ -719,7 +719,6 @@ class OatDumper {
     }
 
     vdex_file->Unquicken(MakeNonOwningPointerVector(tmp_dex_files),
-                         vdex_file->GetQuickeningInfo(),
                          /* decompile_return_instruction */ true);
 
     *dex_files = std::move(tmp_dex_files);

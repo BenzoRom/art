@@ -66,6 +66,7 @@ class CodeItemInstructionAccessor {
  protected:
   CodeItemInstructionAccessor() = default;
 
+  ALWAYS_INLINE void Init(uint32_t insns_size_in_code_units, const uint16_t* insns);
   ALWAYS_INLINE void Init(const CompactDexFile::CodeItem& code_item);
   ALWAYS_INLINE void Init(const StandardDexFile::CodeItem& code_item);
   ALWAYS_INLINE void Init(const DexFile& dex_file, const DexFile::CodeItem* code_item);
@@ -131,20 +132,16 @@ class CodeItemDebugInfoAccessor : public CodeItemDataAccessor {
  public:
   CodeItemDebugInfoAccessor() = default;
 
-  // Handles null code items, but not null dex files.
-  ALWAYS_INLINE CodeItemDebugInfoAccessor(const DexFile& dex_file,
-                                          const DexFile::CodeItem* code_item);
-
   // Initialize with an existing offset.
   ALWAYS_INLINE CodeItemDebugInfoAccessor(const DexFile& dex_file,
                                           const DexFile::CodeItem* code_item,
-                                          uint32_t debug_info_offset) {
-    Init(dex_file, code_item, debug_info_offset);
+                                          uint32_t dex_method_index) {
+    Init(dex_file, code_item, dex_method_index);
   }
 
   ALWAYS_INLINE void Init(const DexFile& dex_file,
                           const DexFile::CodeItem* code_item,
-                          uint32_t debug_info_offset);
+                          uint32_t dex_method_index);
 
   ALWAYS_INLINE explicit CodeItemDebugInfoAccessor(ArtMethod* method);
 
@@ -159,7 +156,7 @@ class CodeItemDebugInfoAccessor : public CodeItemDataAccessor {
                             void* context) const;
 
  protected:
-  ALWAYS_INLINE void Init(const CompactDexFile::CodeItem& code_item);
+  ALWAYS_INLINE void Init(const CompactDexFile::CodeItem& code_item, uint32_t dex_method_index);
   ALWAYS_INLINE void Init(const StandardDexFile::CodeItem& code_item);
 
  private:
