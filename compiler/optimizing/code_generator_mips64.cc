@@ -1070,6 +1070,12 @@ static dwarf::Reg DWARFReg(FpuRegister reg) {
 void CodeGeneratorMIPS64::GenerateFrameEntry() {
   __ Bind(&frame_entry_label_);
 
+  if (GetCompilerOptions().CountHotnessInCompiledCode()) {
+    __ Lhu(TMP, kMethodRegisterArgument, ArtMethod::HotnessCountOffset().Int32Value());
+    __ Addiu(TMP, TMP, 1);
+    __ Sh(TMP, kMethodRegisterArgument, ArtMethod::HotnessCountOffset().Int32Value());
+  }
+
   bool do_overflow_check =
       FrameNeedsStackCheck(GetFrameSize(), InstructionSet::kMips64) || !IsLeafMethod();
 
@@ -3469,6 +3475,12 @@ void InstructionCodeGeneratorMIPS64::HandleGoto(HInstruction* got, HBasicBlock* 
   HLoopInformation* info = block->GetLoopInformation();
 
   if (info != nullptr && info->IsBackEdge(*block) && info->HasSuspendCheck()) {
+    if (codegen_->GetCompilerOptions().CountHotnessInCompiledCode()) {
+      __ Ld(AT, SP, kCurrentMethodStackOffset);
+      __ Lhu(TMP, AT, ArtMethod::HotnessCountOffset().Int32Value());
+      __ Addiu(TMP, TMP, 1);
+      __ Sh(TMP, AT, ArtMethod::HotnessCountOffset().Int32Value());
+    }
     GenerateSuspendCheck(info->GetSuspendCheck(), successor);
     return;
   }
