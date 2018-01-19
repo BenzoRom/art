@@ -252,8 +252,6 @@ static Parser CreateArgumentParser() {
   return parser_builder->Build();
 }
 
-#pragma GCC diagnostic pop
-
 std::unique_ptr<Dex2oatArgumentMap> Dex2oatArgumentMap::Parse(int argc,
                                                               const char** argv,
                                                               std::string* error_msg) {
@@ -267,4 +265,5 @@ std::unique_ptr<Dex2oatArgumentMap> Dex2oatArgumentMap::Parse(int argc,
   return std::unique_ptr<Dex2oatArgumentMap>(new Dex2oatArgumentMap(parser.ReleaseArgumentsMap()));
 }
 
+#pragma GCC diagnostic pop
 }  // namespace art
