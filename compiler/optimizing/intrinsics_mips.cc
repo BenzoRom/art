@@ -2267,6 +2267,15 @@ void IntrinsicCodeGeneratorMIPS::VisitMathAtan2(HInvoke* invoke) {
   GenFPFPToFPCall(invoke, codegen_, kQuickAtan2);
 }
 
+// static double java.lang.Math.pow(double y, double x)
+void IntrinsicLocationsBuilderMIPS::VisitMathPow(HInvoke* invoke) {
+  CreateFPFPToFPCallLocations(allocator_, invoke);
+}
+
+void IntrinsicCodeGeneratorMIPS::VisitMathPow(HInvoke* invoke) {
+  GenFPFPToFPCall(invoke, codegen_, kQuickPow);
+}
+
 // static double java.lang.Math.cbrt(double a)
 void IntrinsicLocationsBuilderMIPS::VisitMathCbrt(HInvoke* invoke) {
   CreateFPToFPCallLocations(allocator_, invoke);
