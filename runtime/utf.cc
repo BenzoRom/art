@@ -17,8 +17,7 @@
 #include "utf.h"
 
 #include "base/logging.h"
-#include "mirror/array.h"
-#include "mirror/object-inl.h"
+#include "base/casts.h"
 #include "utf-inl.h"
 
 namespace art {
