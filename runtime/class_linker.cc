@@ -8506,6 +8506,8 @@ void ClassLinker::SetEntryPointsForObsoleteMethod(ArtMethod* method) const {
 
 void ClassLinker::DumpForSigQuit(std::ostream& os) {
   ScopedObjectAccess soa(Thread::Current());
+  gc::ScopedGCCriticalSection gcs(Thread::Current(), gc::kGcCauseClassLinker,
+                                  gc::kCollectorTypeClassLinker);
   ReaderMutexLock mu(soa.Self(), *Locks::classlinker_classes_lock_);
   os << "Zygote loaded classes=" << NumZygoteClasses() << " post zygote classes="
      << NumNonZygoteClasses() << "\n";
