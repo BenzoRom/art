@@ -1936,6 +1936,8 @@ void CodeGeneratorARM64::Load(DataType::Type type,
       DCHECK_EQ(dst.Is64Bits(), DataType::Is64BitType(type));
       __ Ldr(dst, src);
       break;
+    case DataType::Type::kUint32:
+    case DataType::Type::kUint64:
     case DataType::Type::kVoid:
       LOG(FATAL) << "Unreachable type " << type;
   }
@@ -2014,6 +2016,8 @@ void CodeGeneratorARM64::LoadAcquire(HInstruction* instruction,
         __ Fmov(FPRegister(dst), temp);
         break;
       }
+      case DataType::Type::kUint32:
+      case DataType::Type::kUint64:
       case DataType::Type::kVoid:
         LOG(FATAL) << "Unreachable type " << type;
     }
@@ -2041,6 +2045,8 @@ void CodeGeneratorARM64::Store(DataType::Type type,
       DCHECK_EQ(src.Is64Bits(), DataType::Is64BitType(type));
       __ Str(src, dst);
       break;
+    case DataType::Type::kUint32:
+    case DataType::Type::kUint64:
     case DataType::Type::kVoid:
       LOG(FATAL) << "Unreachable type " << type;
   }
@@ -2118,6 +2124,8 @@ void CodeGeneratorARM64::StoreRelease(HInstruction* instruction,
       }
       break;
     }
+    case DataType::Type::kUint32:
+    case DataType::Type::kUint64:
     case DataType::Type::kVoid:
       LOG(FATAL) << "Unreachable type " << type;
   }

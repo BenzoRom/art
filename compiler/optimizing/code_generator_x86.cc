@@ -1121,9 +1121,11 @@ Location InvokeDexCallingConventionVisitorX86::GetReturnLocation(DataType::Type 
     case DataType::Type::kInt8:
     case DataType::Type::kUint16:
     case DataType::Type::kInt16:
+    case DataType::Type::kUint32:
     case DataType::Type::kInt32:
       return Location::RegisterLocation(EAX);
 
+    case DataType::Type::kUint64:
     case DataType::Type::kInt64:
       return Location::RegisterPairLocation(EAX, EDX);
 
@@ -1193,6 +1195,8 @@ Location InvokeDexCallingConventionVisitorX86::GetNextLocation(DataType::Type ty
       }
     }
 
+    case DataType::Type::kUint32:
+    case DataType::Type::kUint64:
     case DataType::Type::kVoid:
       LOG(FATAL) << "Unexpected parameter type " << type;
       break;
@@ -4822,6 +4826,8 @@ void InstructionCodeGeneratorX86::HandleFieldGet(HInstruction* instruction,
       break;
     }
 
+    case DataType::Type::kUint32:
+    case DataType::Type::kUint64:
     case DataType::Type::kVoid:
       LOG(FATAL) << "Unreachable type " << load_type;
       UNREACHABLE();
@@ -4995,6 +5001,8 @@ void InstructionCodeGeneratorX86::HandleFieldSet(HInstruction* instruction,
       break;
     }
 
+    case DataType::Type::kUint32:
+    case DataType::Type::kUint64:
     case DataType::Type::kVoid:
       LOG(FATAL) << "Unreachable type " << field_type;
       UNREACHABLE();
@@ -5298,6 +5306,8 @@ void InstructionCodeGeneratorX86::VisitArrayGet(HArrayGet* instruction) {
       break;
     }
 
+    case DataType::Type::kUint32:
+    case DataType::Type::kUint64:
     case DataType::Type::kVoid:
       LOG(FATAL) << "Unreachable type " << type;
       UNREACHABLE();
@@ -5549,6 +5559,8 @@ void InstructionCodeGeneratorX86::VisitArraySet(HArraySet* instruction) {
       break;
     }
 
+    case DataType::Type::kUint32:
+    case DataType::Type::kUint64:
     case DataType::Type::kVoid:
       LOG(FATAL) << "Unreachable type " << instruction->GetType();
       UNREACHABLE();

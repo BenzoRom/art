@@ -32,36 +32,30 @@ public class Main {
   /// CHECK-DAG: ArraySet                                  loop:<<Loop>>      outer_loop:none
   //
   /// CHECK-START-ARM: void Main.doitByte(byte[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                  loop:<<Loop2>>      outer_loop:none
   //
   /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
   //
   /// CHECK-START-ARM64: void Main.doitByte(byte[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                  loop:<<Loop2>>      outer_loop:none
   //
   /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
   //
   /// CHECK-START-MIPS64: void Main.doitByte(byte[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                  loop:<<Loop2>>      outer_loop:none
   //
@@ -94,36 +88,30 @@ public class Main {
   /// CHECK-DAG: ArraySet                                  loop:<<Loop>>      outer_loop:none
   //
   /// CHECK-START-ARM: void Main.doitShort(short[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                  loop:<<Loop2>>      outer_loop:none
   //
   /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
   //
   /// CHECK-START-ARM64: void Main.doitShort(short[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                  loop:<<Loop2>>      outer_loop:none
   //
   /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
   //
   /// CHECK-START-MIPS64: void Main.doitShort(short[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                  loop:<<Loop2>>      outer_loop:none
   //
@@ -141,12 +129,12 @@ public class Main {
   /// CHECK-DAG: ArraySet                                  loop:<<Loop>>      outer_loop:none
   //
   /// CHECK-START-ARM64: void Main.doitCastedChar(char[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2:B\d+>> outer_loop:none
+  /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArraySet                                  loop:<<Loop2>>      outer_loop:none
   //
   /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
   //
@@ -163,36 +151,30 @@ public class Main {
   /// CHECK-DAG: ArraySet                                  loop:<<Loop>>      outer_loop:none
   //
   /// CHECK-START-ARM: void Main.doitInt(int[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                  loop:<<Loop2>>      outer_loop:none
   //
   /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
   //
   /// CHECK-START-ARM64: void Main.doitInt(int[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                  loop:<<Loop2>>      outer_loop:none
   //
   /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
   //
   /// CHECK-START-MIPS64: void Main.doitInt(int[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                  loop:<<Loop2>>      outer_loop:none
   //
@@ -210,24 +192,20 @@ public class Main {
   /// CHECK-DAG: ArraySet                                   loop:<<Loop>>      outer_loop:none
   //
   /// CHECK-START-ARM64: void Main.doitLong(long[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                        loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                    loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                    loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                     loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                   loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                        loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                   loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                   loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsLong loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                   loop:<<Loop2>>      outer_loop:none
   //
   /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
   //
   /// CHECK-START-MIPS64: void Main.doitLong(long[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                        loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                    loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                    loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                     loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                   loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                        loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                   loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                   loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsLong loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                   loop:<<Loop2>>      outer_loop:none
   //
@@ -242,27 +220,23 @@ public class Main {
   /// CHECK-DAG: Phi                                         loop:<<Loop:B\d+>> outer_loop:none
   /// CHECK-DAG: ArrayGet                                    loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsFloat loop:<<Loop>>      outer_loop:none
-  /// CHECK-DAG: ArraySet                                     loop:<<Loop>>      outer_loop:none
+  /// CHECK-DAG: ArraySet                                    loop:<<Loop>>      outer_loop:none
   //
   /// CHECK-START-ARM64: void Main.doitFloat(float[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                         loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                     loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                     loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                      loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                    loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                         loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                    loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                    loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsFloat loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                    loop:<<Loop2>>      outer_loop:none
   //
   /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
   //
   /// CHECK-START-MIPS64: void Main.doitFloat(float[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                         loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                     loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                     loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                      loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                    loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                         loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                    loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                    loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsFloat loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                    loop:<<Loop2>>      outer_loop:none
   //
@@ -280,24 +254,20 @@ public class Main {
   /// CHECK-DAG: ArraySet                                     loop:<<Loop>>      outer_loop:none
   //
   /// CHECK-START-ARM64: void Main.doitDouble(double[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                          loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                      loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                      loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                       loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                     loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                          loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                     loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                     loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsDouble loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                     loop:<<Loop2>>      outer_loop:none
   //
   /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
   //
   /// CHECK-START-MIPS64: void Main.doitDouble(double[]) loop_optimization (after)
-  /// CHECK-DAG: Phi                                          loop:<<Loop1:B\d+>> outer_loop:none
-  /// CHECK-DAG: VecLoad                                      loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecLoad                                      loop:<<Loop1:B\d+>> outer_loop:none
   /// CHECK-DAG: VecAbs                                       loop:<<Loop1>>      outer_loop:none
   /// CHECK-DAG: VecStore                                     loop:<<Loop1>>      outer_loop:none
-  /// CHECK-DAG: Phi                                          loop:<<Loop2:B\d+>> outer_loop:none
-  /// CHECK-DAG: ArrayGet                                     loop:<<Loop2>>      outer_loop:none
+  /// CHECK-DAG: ArrayGet                                     loop:<<Loop2:B\d+>> outer_loop:none
   /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsDouble loop:<<Loop2>>      outer_loop:none
   /// CHECK-DAG: ArraySet                                     loop:<<Loop2>>      outer_loop:none
   //
