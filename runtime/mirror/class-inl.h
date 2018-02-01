@@ -303,18 +303,23 @@ inline bool Class::HasVTable() {
   return GetVTable() != nullptr || ShouldHaveEmbeddedVTable();
 }
 
+  template<VerifyObjectFlags kVerifyFlags,
+           ReadBarrierOption kReadBarrierOption>
 inline int32_t Class::GetVTableLength() {
-  if (ShouldHaveEmbeddedVTable()) {
+  if (ShouldHaveEmbeddedVTable<kDefaultVerifyFlags, kWithoutReadBarrier>()) {
     return GetEmbeddedVTableLength();
   }
-  return GetVTable() != nullptr ? GetVTable()->GetLength() : 0;
+  return GetVTable<kDefaultVerifyFlags, kWithoutReadBarrier>() != nullptr ?
+      GetVTable<kDefaultVerifyFlags, kWithoutReadBarrier>()->GetLength() : 0;
 }
 
+  template<VerifyObjectFlags kVerifyFlags,
+           ReadBarrierOption kReadBarrierOption>
 inline ArtMethod* Class::GetVTableEntry(uint32_t i, PointerSize pointer_size) {
-  if (ShouldHaveEmbeddedVTable()) {
+  if (ShouldHaveEmbeddedVTable<kDefaultVerifyFlags, kWithoutReadBarrier>()) {
     return GetEmbeddedVTableEntry(i, pointer_size);
   }
-  auto* vtable = GetVTable();
+  auto* vtable = GetVTable<kDefaultVerifyFlags, kWithoutReadBarrier>();
   DCHECK(vtable != nullptr);
   return vtable->GetElementPtrSize<ArtMethod*>(i, pointer_size);
 }
@@ -626,8 +631,10 @@ inline IfTable* Class::GetIfTable() {
   return ret.Ptr();
 }
 
+template<VerifyObjectFlags kVerifyFlags,
+         ReadBarrierOption kReadBarrierOption>
 inline int32_t Class::GetIfTableCount() {
-  return GetIfTable()->Count();
+  return GetIfTable<kVerifyFlags, kReadBarrierOption>()->Count();
 }
 
 inline void Class::SetIfTable(ObjPtr<IfTable> new_iftable) {
