@@ -1410,6 +1410,7 @@ bool HInliner::TryBuildAndInline(HInvoke* invoke_instruction,
     LOG_FAIL(stats_, MethodCompilationStat::kNotInlinedNotVerified)
         << "Method " << method->PrettyMethod()
         << " has soft failures un-handled by the compiler, so it cannot be inlined";
+    return false;
   }
 
   if (!method->GetDeclaringClass()->IsVerified()) {
