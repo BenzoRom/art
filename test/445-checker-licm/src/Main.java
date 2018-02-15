@@ -126,7 +126,6 @@ public class Main {
     return result;
   }
 
-
   /// CHECK-START: int Main.invariantBoundIntrinsic(int) instruction_simplifier (before)
   /// CHECK-DAG: InvokeStaticOrDirect loop:{{B\d+}}
   //
@@ -149,14 +148,17 @@ public class Main {
     return result;
   }
 
-  /// CHECK-START: int Main.invariantBodyIntrinsic(int, int) licm (before)
+  /// CHECK-START: int Main.invariantBodyIntrinsic(int, int) instruction_simplifier (before)
   /// CHECK-DAG: InvokeStaticOrDirect loop:{{B\d+}}
 
-  /// CHECK-START: int Main.invariantBodyIntrinsic(int, int) licm (after)
-  /// CHECK-NOT: InvokeStaticOrDirect loop:{{B\d+}}
+  /// CHECK-START: int Main.invariantBodyIntrinsic(int, int) licm (before)
+  /// CHECK-DAG: Max loop:{{B\d+}}
 
   /// CHECK-START: int Main.invariantBodyIntrinsic(int, int) licm (after)
-  /// CHECK-DAG: InvokeStaticOrDirect loop:none
+  /// CHECK-NOT: Max loop:{{B\d+}}
+
+  /// CHECK-START: int Main.invariantBodyIntrinsic(int, int) licm (after)
+  /// CHECK-DAG: Max loop:none
 
   public static int invariantBodyIntrinsic(int x, int y) {
     int result = 0;

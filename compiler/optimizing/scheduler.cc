@@ -684,6 +684,8 @@ bool HScheduler::IsSchedulable(const HInstruction* instruction) const {
            instruction->IsCompare() ||
            instruction->IsCondition() ||
            instruction->IsDiv() ||
+           instruction->IsMin() ||
+           instruction->IsMax() ||
            instruction->IsMul() ||
            instruction->IsOr() ||
            instruction->IsRem() ||
