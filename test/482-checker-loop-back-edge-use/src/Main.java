@@ -17,7 +17,7 @@
 
 public class Main {
 
-  /// CHECK-START: void Main.loop1(boolean) liveness (after)
+  /// CHECK-START-{ARM,MIPS,MIPS64,X86,X86_64}: void Main.loop1(boolean) liveness (after)
   /// CHECK:         <<Arg:z\d+>>  ParameterValue  liveness:<<ArgLiv:\d+>>  ranges:{[<<ArgLiv>>,<<ArgLoopUse:\d+>>)} uses:[<<ArgUse:\d+>>,<<ArgLoopUse>>]
   /// CHECK:                       If [<<Arg>>]    liveness:<<IfLiv:\d+>>
   /// CHECK:                       Goto            liveness:<<GotoLiv:\d+>>
@@ -25,11 +25,20 @@ public class Main {
   /// CHECK-EVAL:    <<IfLiv>> + 1 == <<ArgUse>>
   /// CHECK-EVAL:    <<GotoLiv>> + 2 == <<ArgLoopUse>>
 
+  /// CHECK-START-ARM64: void Main.loop1(boolean) liveness (after)
+  /// CHECK-DAG:     <<Arg:z\d+>>  ParameterValue  liveness:<<ArgLiv:\d+>>  ranges:{[<<ArgLiv>>,<<ArgUse:\d+>>)} uses:[<<ArgUse>>]
+  /// CHECK-DAG:                   If [<<Arg>>]    liveness:<<IfLiv:\d+>> loop:none
+  /// CHECK-DAG:                   Goto                                   loop:B{{\d+}}
+  /// CHECK-DAG:                   Exit
+  /// CHECK-EVAL:    <<IfLiv>> + 1 == <<ArgUse>>
+  //
+  // Loop invariant exit check is hoisted from the loop by peeling.
+
   public static void loop1(boolean incoming) {
     while (incoming) {}
   }
 
-  /// CHECK-START: void Main.loop2(boolean) liveness (after)
+  /// CHECK-START-{ARM,MIPS,MIPS64,X86,X86_64}: void Main.loop2(boolean) liveness (after)
   /// CHECK:         <<Arg:z\d+>>  ParameterValue  liveness:<<ArgLiv:\d+>> ranges:{[<<ArgLiv>>,<<ArgLoopUse2:\d+>>)} uses:[<<ArgUse:\d+>>,<<ArgLoopUse1:\d+>>,<<ArgLoopUse2>>]
   /// CHECK:                       If [<<Arg>>]    liveness:<<IfLiv:\d+>>
   /// CHECK:                       Goto            liveness:<<GotoLiv1:\d+>>
@@ -38,6 +47,17 @@ public class Main {
   /// CHECK-EVAL:    <<GotoLiv1>> < <<GotoLiv2>>
   /// CHECK-EVAL:    <<GotoLiv1>> + 2 == <<ArgLoopUse1>>
   /// CHECK-EVAL:    <<GotoLiv2>> + 2 == <<ArgLoopUse2>>
+
+  /// CHECK-START-ARM64: void Main.loop2(boolean) liveness (after)
+  /// CHECK-DAG:     <<Arg:z\d+>>  ParameterValue  liveness:<<ArgLiv:\d+>> ranges:{[<<ArgLiv>>,<<ArgLoopUse:\d+>>)} uses:[<<ArgUse:\d+>>,<<ArgLoopUse>>]
+  /// CHECK-DAG:                   If [<<Arg>>]    liveness:<<IfLiv:\d+>>    loop:<<Loop1:B\d+>>
+  /// CHECK-DAG:                   Goto            liveness:<<GotoLiv1:\d+>> loop:<<Loop1>>
+  /// CHECK-DAG:                   Goto            liveness:<<GotoLiv2:\d+>> loop:<<Loop2:B\d+>>
+  /// CHECK-EVAL:    <<IfLiv>> + 1 == <<ArgUse>>
+  /// CHECK-EVAL:    <<GotoLiv1>> < <<GotoLiv2>>
+  /// CHECK-EVAL:    <<GotoLiv1>> + 2 == <<ArgLoopUse>>
+  //
+  // Loop invariant exit check is hoisted from the loop by peeling.
 
   public static void loop2(boolean incoming) {
     // Add some code at entry to avoid having the entry block be a pre header.
@@ -121,7 +141,7 @@ public class Main {
     }
   }
 
-  /// CHECK-START: void Main.loop7(boolean) liveness (after)
+  /// CHECK-START-{ARM,MIPS,MIPS64,X86,X86_64}: void Main.loop7(boolean) liveness (after)
   /// CHECK:         <<Arg:z\d+>>  ParameterValue  liveness:<<ArgLiv:\d+>> ranges:{[<<ArgLiv>>,<<ArgLoopUse2:\d+>>)} uses:[<<ArgUse1:\d+>>,<<ArgUse2:\d+>>,<<ArgLoopUse1:\d+>>,<<ArgLoopUse2>>]
   /// CHECK:                       InvokeVirtual   [{{l\d+}},<<Arg>>] method_name:java.io.PrintStream.println liveness:<<InvokeLiv:\d+>>
   /// CHECK:                       If              [<<Arg>>] liveness:<<IfLiv:\d+>>
@@ -134,6 +154,20 @@ public class Main {
   /// CHECK-EVAL:    <<GotoLiv1>> + 2 == <<ArgLoopUse1>>
   /// CHECK-EVAL:    <<GotoLiv2>> + 2 == <<ArgLoopUse2>>
 
+  /// CHECK-START-ARM64: void Main.loop7(boolean) liveness (after)
+  /// CHECK-DAG:     <<Arg:z\d+>>  ParameterValue  liveness:<<ArgLiv:\d+>> ranges:{[<<ArgLiv>>,<<ArgLoopUse:\d+>>)} uses:[<<ArgUse1:\d+>>,<<ArgUse2:\d+>>,<<ArgLoopUse>>]
+  /// CHECK-DAG:                   InvokeVirtual   [{{l\d+}},<<Arg>>] method_name:java.io.PrintStream.println liveness:<<InvokeLiv:\d+>>
+  /// CHECK-DAG:                   If              [<<Arg>>] liveness:<<IfLiv:\d+>> loop:<<Loop1:B\d+>>
+  /// CHECK-DAG:                   Goto            liveness:<<GotoLiv1:\d+>>        loop:<<Loop1>>
+  /// CHECK-DAG:                   Goto            liveness:<<GotoLiv2:\d+>>        loop:<<Loop2:B\d+>>
+  /// CHECK-DAG:                   Exit
+  /// CHECK-EVAL:    <<InvokeLiv>> == <<ArgUse1>>
+  /// CHECK-EVAL:    <<IfLiv>> + 1 == <<ArgUse2>>
+  /// CHECK-EVAL:    <<GotoLiv1>> < <<GotoLiv2>>
+  /// CHECK-EVAL:    <<GotoLiv1>> + 2 == <<ArgLoopUse>>
+  //
+  // Loop invariant exit check is hoisted from the loop by peeling.
+
   public static void loop7(boolean incoming) {
     // 'incoming' must have a use at both back edges.
     while (Runtime.getRuntime() != null) {
@@ -142,8 +176,7 @@ public class Main {
       System.nanoTime();  // beat back edge splitting
     }
   }
-
-  /// CHECK-START: void Main.loop8() liveness (after)
+  /// CHECK-START-{ARM,MIPS,MIPS64,X86,X86_64}: void Main.loop8() liveness (after)
   /// CHECK:         <<Arg:z\d+>>  StaticFieldGet  liveness:<<ArgLiv:\d+>> ranges:{[<<ArgLiv>>,<<ArgLoopUse2:\d+>>)} uses:[<<ArgUse:\d+>>,<<ArgLoopUse1:\d+>>,<<ArgLoopUse2>>]
   /// CHECK:                       If [<<Arg>>]    liveness:<<IfLiv:\d+>>
   /// CHECK:                       Goto            liveness:<<GotoLiv1:\d+>>
@@ -153,6 +186,18 @@ public class Main {
   /// CHECK-EVAL:    <<GotoLiv1>> < <<GotoLiv2>>
   /// CHECK-EVAL:    <<GotoLiv1>> + 2 == <<ArgLoopUse1>>
   /// CHECK-EVAL:    <<GotoLiv2>> + 2 == <<ArgLoopUse2>>
+
+  /// CHECK-START-ARM64: void Main.loop8() liveness (after)
+  /// CHECK-DAG:     <<Arg:z\d+>>  StaticFieldGet  liveness:<<ArgLiv:\d+>> ranges:{[<<ArgLiv>>,<<ArgLoopUse:\d+>>)} uses:[<<ArgUse:\d+>>,<<ArgLoopUse>>]
+  /// CHECK-DAG:                   If [<<Arg>>]    liveness:<<IfLiv:\d+>>     loop:<<Loop1:B\d+>>
+  /// CHECK-DAG:                   Goto            liveness:<<GotoLiv1:\d+>>  loop:<<Loop1>>
+  /// CHECK-DAG:                   Goto            liveness:<<GotoLiv2:\d+>>  loop:<<Loop2:B\d+>>
+  /// CHECK-DAG:                   Exit
+  /// CHECK-EVAL:    <<IfLiv>> + 1 == <<ArgUse>>
+  /// CHECK-EVAL:    <<GotoLiv1>> < <<GotoLiv2>>
+  /// CHECK-EVAL:    <<GotoLiv1>> + 2 == <<ArgLoopUse>>
+  //
+  // Loop invariant exit check is hoisted from the loop by peeling.
 
   public static void loop8() {
     // 'incoming' must have a use at both back edges.
@@ -170,7 +215,7 @@ public class Main {
     return true;
   }
 
-  /// CHECK-START: void Main.loop9() liveness (after)
+  /// CHECK-START-{ARM,MIPS,MIPS64,X86,X86_64}: void Main.loop9() liveness (after)
   /// CHECK:         <<Arg:z\d+>>  StaticFieldGet  liveness:<<ArgLiv:\d+>> ranges:{[<<ArgLiv>>,<<ArgLoopUse:\d+>>)} uses:[<<ArgUse:\d+>>,<<ArgLoopUse>>]
   /// CHECK:                       If [<<Arg>>]    liveness:<<IfLiv:\d+>>
   /// CHECK:                       Goto            liveness:<<GotoLiv1:\d+>>
@@ -179,6 +224,17 @@ public class Main {
   /// CHECK-EVAL:    <<IfLiv>> + 1 == <<ArgUse>>
   /// CHECK-EVAL:    <<GotoLiv1>> < <<GotoLiv2>>
   /// CHECK-EVAL:    <<GotoLiv1>> + 2 == <<ArgLoopUse>>
+
+  /// CHECK-START-ARM64: void Main.loop9() liveness (after)
+  /// CHECK-DAG:     <<Arg:z\d+>>  StaticFieldGet  liveness:<<ArgLiv:\d+>> ranges:{[<<ArgLiv>>,<<ArgUse:\d+>>)} uses:[<<ArgUse>>]
+  /// CHECK-DAG:                   If [<<Arg>>]    liveness:<<IfLiv:\d+>>     loop:<<Loop1:B\d+>>
+  /// CHECK-DAG:                   Goto            liveness:<<GotoLiv1:\d+>>  loop:<<Loop1>>
+  /// CHECK-DAG:                   Goto            liveness:<<GotoLiv2:\d+>>  loop:<<Loop2:B\d+>>
+  /// CHECK-DAG:                   Exit
+  /// CHECK-EVAL:    <<IfLiv>> + 1 == <<ArgUse>>
+  /// CHECK-EVAL:    <<GotoLiv1>> < <<GotoLiv2>>
+  //
+  // Loop invariant exit check is hoisted from the loop by peeling.
 
   public static void loop9() {
     // Add some code at entry to avoid having the entry block be a pre header.

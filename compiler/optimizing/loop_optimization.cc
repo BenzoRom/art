@@ -33,9 +33,6 @@ namespace art {
 // Enables vectorization (SIMDization) in the loop optimizer.
 static constexpr bool kEnableVectorization = true;
 
-// Enables scalar loop unrolling in the loop optimizer.
-static constexpr bool kEnableScalarPeelingUnrolling = false;
-
 //
 // Static helpers.
 //
@@ -754,7 +751,7 @@ bool HLoopOptimization::OptimizeInnerLoop(LoopNode* node) {
 bool HLoopOptimization::TryUnrollingForBranchPenaltyReduction(LoopNode* node) {
   // Don't run peeling/unrolling if compiler_driver_ is nullptr (i.e., running under tests)
   // as InstructionSet is needed.
-  if (!kEnableScalarPeelingUnrolling || compiler_driver_ == nullptr) {
+  if (compiler_driver_ == nullptr) {
     return false;
   }
 
@@ -800,7 +797,7 @@ bool HLoopOptimization::TryUnrollingForBranchPenaltyReduction(LoopNode* node) {
 bool HLoopOptimization::TryPeelingForLoopInvariantExitsElimination(LoopNode* node) {
   // Don't run peeling/unrolling if compiler_driver_ is nullptr (i.e., running under tests)
   // as InstructionSet is needed.
-  if (!kEnableScalarPeelingUnrolling || compiler_driver_ == nullptr) {
+  if (compiler_driver_ == nullptr) {
     return false;
   }
 
