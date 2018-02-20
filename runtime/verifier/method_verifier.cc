@@ -2032,6 +2032,14 @@ static void AdjustReturnLine(MethodVerifier* verifier,
   }
 }
 
+const RegType* MethodVerifier::ResolveReturnType(uint32_t method_idx) {
+  const DexFile::MethodId& method_id = dex_file_->GetMethodId(method_idx);
+  dex::TypeIndex return_type_idx =
+      dex_file_->GetProtoId(method_id.proto_idx_).return_type_idx_;
+  const char* descriptor = dex_file_->StringByTypeIdx(return_type_idx);
+  return &reg_types_.FromDescriptor(GetClassLoader(), descriptor, false);
+}
+
 bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
   // If we're doing FindLocksAtDexPc, check whether we're at the dex pc we care about.
   // We want the state _before_ the instruction, for the case where the dex pc we're
@@ -2934,29 +2942,9 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
       bool is_super = (inst->Opcode() == Instruction::INVOKE_SUPER ||
                        inst->Opcode() == Instruction::INVOKE_SUPER_RANGE);
       MethodType type = is_super ? METHOD_SUPER : METHOD_VIRTUAL;
-      ArtMethod* called_method = VerifyInvocationArgs(inst, type, is_range);
-      const RegType* return_type = nullptr;
-      if (called_method != nullptr) {
-        ObjPtr<mirror::Class> return_type_class = can_load_classes_
-            ? called_method->ResolveReturnType()
-            : called_method->LookupResolvedReturnType();
-        if (return_type_class != nullptr) {
-          return_type = &FromClass(called_method->GetReturnTypeDescriptor(),
-                                   return_type_class.Ptr(),
-                                   return_type_class->CannotBeAssignedFromOtherTypes());
-        } else {
-          DCHECK(!can_load_classes_ || self_->IsExceptionPending());
-          self_->ClearException();
-        }
-      }
-      if (return_type == nullptr) {
-        uint32_t method_idx = (is_range) ? inst->VRegB_3rc() : inst->VRegB_35c();
-        const DexFile::MethodId& method_id = dex_file_->GetMethodId(method_idx);
-        dex::TypeIndex return_type_idx =
-            dex_file_->GetProtoId(method_id.proto_idx_).return_type_idx_;
-        const char* descriptor = dex_file_->StringByTypeIdx(return_type_idx);
-        return_type = &reg_types_.FromDescriptor(GetClassLoader(), descriptor, false);
-      }
+      VerifyInvocationArgs(inst, type, is_range);
+      uint32_t method_idx = (is_range) ? inst->VRegB_3rc() : inst->VRegB_35c();
+      const RegType* return_type = ResolveReturnType(method_idx);
       if (!return_type->IsLowHalf()) {
         work_line_->SetResultRegisterType(this, *return_type);
       } else {
@@ -2968,32 +2956,11 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
     case Instruction::INVOKE_DIRECT:
     case Instruction::INVOKE_DIRECT_RANGE: {
       bool is_range = (inst->Opcode() == Instruction::INVOKE_DIRECT_RANGE);
-      ArtMethod* called_method = VerifyInvocationArgs(inst, METHOD_DIRECT, is_range);
-      const char* return_type_descriptor;
-      bool is_constructor;
-      const RegType* return_type = nullptr;
-      if (called_method == nullptr) {
-        uint32_t method_idx = (is_range) ? inst->VRegB_3rc() : inst->VRegB_35c();
-        const DexFile::MethodId& method_id = dex_file_->GetMethodId(method_idx);
-        is_constructor = strcmp("<init>", dex_file_->StringDataByIdx(method_id.name_idx_)) == 0;
-        dex::TypeIndex return_type_idx =
-            dex_file_->GetProtoId(method_id.proto_idx_).return_type_idx_;
-        return_type_descriptor =  dex_file_->StringByTypeIdx(return_type_idx);
-      } else {
-        is_constructor = called_method->IsConstructor();
-        return_type_descriptor = called_method->GetReturnTypeDescriptor();
-        ObjPtr<mirror::Class> return_type_class = can_load_classes_
-            ? called_method->ResolveReturnType()
-            : called_method->LookupResolvedReturnType();
-        if (return_type_class != nullptr) {
-          return_type = &FromClass(return_type_descriptor,
-                                   return_type_class.Ptr(),
-                                   return_type_class->CannotBeAssignedFromOtherTypes());
-        } else {
-          DCHECK(!can_load_classes_ || self_->IsExceptionPending());
-          self_->ClearException();
-        }
-      }
+      VerifyInvocationArgs(inst, METHOD_DIRECT, is_range);
+      uint32_t method_idx = (is_range) ? inst->VRegB_3rc() : inst->VRegB_35c();
+      const DexFile::MethodId& method_id = dex_file_->GetMethodId(method_idx);
+      bool is_constructor = strcmp("<init>", dex_file_->StringDataByIdx(method_id.name_idx_)) == 0;
+      const RegType* return_type = ResolveReturnType(method_idx);
       if (is_constructor) {
         /*
          * Some additional checks when calling a constructor. We know from the invocation arg check
@@ -3034,9 +3001,6 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
          */
         work_line_->MarkRefsAsInitialized(this, this_type);
       }
-      if (return_type == nullptr) {
-        return_type = &reg_types_.FromDescriptor(GetClassLoader(), return_type_descriptor, false);
-      }
       if (!return_type->IsLowHalf()) {
         work_line_->SetResultRegisterType(this, *return_type);
       } else {
@@ -3048,18 +3012,9 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
     case Instruction::INVOKE_STATIC:
     case Instruction::INVOKE_STATIC_RANGE: {
         bool is_range = (inst->Opcode() == Instruction::INVOKE_STATIC_RANGE);
-        ArtMethod* called_method = VerifyInvocationArgs(inst, METHOD_STATIC, is_range);
-        const char* descriptor;
-        if (called_method == nullptr) {
-          uint32_t method_idx = (is_range) ? inst->VRegB_3rc() : inst->VRegB_35c();
-          const DexFile::MethodId& method_id = dex_file_->GetMethodId(method_idx);
-          dex::TypeIndex return_type_idx =
-              dex_file_->GetProtoId(method_id.proto_idx_).return_type_idx_;
-          descriptor = dex_file_->StringByTypeIdx(return_type_idx);
-        } else {
-          descriptor = called_method->GetReturnTypeDescriptor();
-        }
-        const RegType& return_type = reg_types_.FromDescriptor(GetClassLoader(), descriptor, false);
+        VerifyInvocationArgs(inst, METHOD_STATIC, is_range);
+        uint32_t method_idx = (is_range) ? inst->VRegB_3rc() : inst->VRegB_35c();
+        const RegType& return_type = *ResolveReturnType(method_idx);
         if (!return_type.IsLowHalf()) {
           work_line_->SetResultRegisterType(this, return_type);
         } else {
@@ -3104,17 +3059,8 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
        * We don't have an object instance, so we can't find the concrete method. However, all of
        * the type information is in the abstract method, so we're good.
        */
-      const char* descriptor;
-      if (abs_method == nullptr) {
-        uint32_t method_idx = (is_range) ? inst->VRegB_3rc() : inst->VRegB_35c();
-        const DexFile::MethodId& method_id = dex_file_->GetMethodId(method_idx);
-        dex::TypeIndex return_type_idx =
-            dex_file_->GetProtoId(method_id.proto_idx_).return_type_idx_;
-        descriptor = dex_file_->StringByTypeIdx(return_type_idx);
-      } else {
-        descriptor = abs_method->GetReturnTypeDescriptor();
-      }
-      const RegType& return_type = reg_types_.FromDescriptor(GetClassLoader(), descriptor, false);
+      uint32_t method_idx = (is_range) ? inst->VRegB_3rc() : inst->VRegB_35c();
+      const RegType& return_type = *ResolveReturnType(method_idx);
       if (!return_type.IsLowHalf()) {
         work_line_->SetResultRegisterType(this, return_type);
       } else {
@@ -5392,26 +5338,7 @@ InstructionFlags* MethodVerifier::CurrentInsnFlags() {
 
 const RegType& MethodVerifier::GetMethodReturnType() {
   if (return_type_ == nullptr) {
-    if (mirror_method_ != nullptr) {
-      ObjPtr<mirror::Class> return_type_class = can_load_classes_
-          ? mirror_method_->ResolveReturnType()
-          : mirror_method_->LookupResolvedReturnType();
-      if (return_type_class != nullptr) {
-        return_type_ = &FromClass(mirror_method_->GetReturnTypeDescriptor(),
-                                  return_type_class.Ptr(),
-                                  return_type_class->CannotBeAssignedFromOtherTypes());
-      } else {
-        DCHECK(!can_load_classes_ || self_->IsExceptionPending());
-        self_->ClearException();
-      }
-    }
-    if (return_type_ == nullptr) {
-      const DexFile::MethodId& method_id = dex_file_->GetMethodId(dex_method_idx_);
-      const DexFile::ProtoId& proto_id = dex_file_->GetMethodPrototype(method_id);
-      dex::TypeIndex return_type_idx = proto_id.return_type_idx_;
-      const char* descriptor = dex_file_->GetTypeDescriptor(dex_file_->GetTypeId(return_type_idx));
-      return_type_ = &reg_types_.FromDescriptor(GetClassLoader(), descriptor, false);
-    }
+    return_type_ = ResolveReturnType(dex_method_idx_);
   }
   return *return_type_;
 }

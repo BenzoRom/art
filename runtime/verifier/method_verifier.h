@@ -260,6 +260,9 @@ class MethodVerifier {
   static bool IsInstantiableOrPrimitive(ObjPtr<mirror::Class> klass)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
+  const RegType* ResolveReturnType(uint32_t method_idx)
+      REQUIRES_SHARED(Locks::mutator_lock_);
+
   // Is the method being verified a constructor? See the comment on the field.
   bool IsConstructor() const {
     return is_constructor_;
