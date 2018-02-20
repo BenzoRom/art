@@ -985,7 +985,7 @@ void CodeGeneratorX86_64::GenerateStaticOrDirectCall(
       DCHECK(GetCompilerOptions().IsBootImage());
       __ leal(temp.AsRegister<CpuRegister>(),
               Address::Absolute(kDummy32BitOffset, /* no_rip */ false));
-      RecordBootMethodPatch(invoke);
+      RecordBootImageMethodPatch(invoke);
       break;
     case HInvokeStaticOrDirect::MethodLoadKind::kDirectAddress:
       Load64BitValue(temp.AsRegister<CpuRegister>(), invoke->GetMethodAddress());
@@ -993,9 +993,7 @@ void CodeGeneratorX86_64::GenerateStaticOrDirectCall(
     case HInvokeStaticOrDirect::MethodLoadKind::kBssEntry: {
       __ movq(temp.AsRegister<CpuRegister>(),
               Address::Absolute(kDummy32BitOffset, /* no_rip */ false));
-      // Bind a new fixup label at the end of the "movl" insn.
-      __ Bind(NewMethodBssEntryPatch(
-          MethodReference(&GetGraph()->GetDexFile(), invoke->GetDexMethodIndex())));
+      RecordMethodBssEntryPatch(invoke);
       break;
     }
     case HInvokeStaticOrDirect::MethodLoadKind::kRuntimeCall: {
@@ -1053,38 +1051,39 @@ void CodeGeneratorX86_64::GenerateVirtualCall(
   RecordPcInfo(invoke, invoke->GetDexPc(), slow_path);
 }
 
-void CodeGeneratorX86_64::RecordBootMethodPatch(HInvokeStaticOrDirect* invoke) {
-  boot_image_method_patches_.emplace_back(*invoke->GetTargetMethod().dex_file,
-                                          invoke->GetTargetMethod().index);
+void CodeGeneratorX86_64::RecordBootImageMethodPatch(HInvokeStaticOrDirect* invoke) {
+  boot_image_method_patches_.emplace_back(
+      invoke->GetTargetMethod().dex_file, invoke->GetTargetMethod().index);
   __ Bind(&boot_image_method_patches_.back().label);
 }
 
-Label* CodeGeneratorX86_64::NewMethodBssEntryPatch(MethodReference target_method) {
-  // Add a patch entry and return the label.
-  method_bss_entry_patches_.emplace_back(*target_method.dex_file, target_method.index);
-  return &method_bss_entry_patches_.back().label;
+void CodeGeneratorX86_64::RecordMethodBssEntryPatch(HInvokeStaticOrDirect* invoke) {
+  method_bss_entry_patches_.emplace_back(&GetGraph()->GetDexFile(), invoke->GetDexMethodIndex());
+  __ Bind(&method_bss_entry_patches_.back().label);
 }
 
-void CodeGeneratorX86_64::RecordBootTypePatch(HLoadClass* load_class) {
-  boot_image_type_patches_.emplace_back(load_class->GetDexFile(),
-                                        load_class->GetTypeIndex().index_);
+void CodeGeneratorX86_64::RecordBootImageTypePatch(HLoadClass* load_class) {
+  boot_image_type_patches_.emplace_back(
+      &load_class->GetDexFile(), load_class->GetTypeIndex().index_);
   __ Bind(&boot_image_type_patches_.back().label);
 }
 
 Label* CodeGeneratorX86_64::NewTypeBssEntryPatch(HLoadClass* load_class) {
-  type_bss_entry_patches_.emplace_back(load_class->GetDexFile(), load_class->GetTypeIndex().index_);
+  type_bss_entry_patches_.emplace_back(
+      &load_class->GetDexFile(), load_class->GetTypeIndex().index_);
   return &type_bss_entry_patches_.back().label;
 }
 
-void CodeGeneratorX86_64::RecordBootStringPatch(HLoadString* load_string) {
-  string_patches_.emplace_back(load_string->GetDexFile(), load_string->GetStringIndex().index_);
-  __ Bind(&string_patches_.back().label);
+void CodeGeneratorX86_64::RecordBootImageStringPatch(HLoadString* load_string) {
+  boot_image_string_patches_.emplace_back(
+      &load_string->GetDexFile(), load_string->GetStringIndex().index_);
+  __ Bind(&boot_image_string_patches_.back().label);
 }
 
 Label* CodeGeneratorX86_64::NewStringBssEntryPatch(HLoadString* load_string) {
   DCHECK(!GetCompilerOptions().IsBootImage());
   string_bss_entry_patches_.emplace_back(
-      load_string->GetDexFile(), load_string->GetStringIndex().index_);
+      &load_string->GetDexFile(), load_string->GetStringIndex().index_);
   return &string_bss_entry_patches_.back().label;
 }
 
@@ -1099,7 +1098,7 @@ inline void CodeGeneratorX86_64::EmitPcRelativeLinkerPatches(
   for (const PatchInfo<Label>& info : infos) {
     uint32_t literal_offset = info.label.Position() - kLabelPositionToLiteralOffsetAdjustment;
     linker_patches->push_back(
-        Factory(literal_offset, &info.dex_file, info.label.Position(), info.index));
+        Factory(literal_offset, info.target_dex_file, info.label.Position(), info.offset_or_index));
   }
 }
 
@@ -1110,7 +1109,7 @@ void CodeGeneratorX86_64::EmitLinkerPatches(ArenaVector<linker::LinkerPatch>* li
       method_bss_entry_patches_.size() +
       boot_image_type_patches_.size() +
       type_bss_entry_patches_.size() +
-      string_patches_.size() +
+      boot_image_string_patches_.size() +
       string_bss_entry_patches_.size();
   linker_patches->reserve(size);
   if (GetCompilerOptions().IsBootImage()) {
@@ -1119,13 +1118,13 @@ void CodeGeneratorX86_64::EmitLinkerPatches(ArenaVector<linker::LinkerPatch>* li
     EmitPcRelativeLinkerPatches<linker::LinkerPatch::RelativeTypePatch>(
         boot_image_type_patches_, linker_patches);
     EmitPcRelativeLinkerPatches<linker::LinkerPatch::RelativeStringPatch>(
-        string_patches_, linker_patches);
+        boot_image_string_patches_, linker_patches);
   } else {
     DCHECK(boot_image_method_patches_.empty());
     EmitPcRelativeLinkerPatches<linker::LinkerPatch::TypeClassTablePatch>(
         boot_image_type_patches_, linker_patches);
     EmitPcRelativeLinkerPatches<linker::LinkerPatch::StringInternTablePatch>(
-        string_patches_, linker_patches);
+        boot_image_string_patches_, linker_patches);
   }
   EmitPcRelativeLinkerPatches<linker::LinkerPatch::MethodBssEntryPatch>(
       method_bss_entry_patches_, linker_patches);
@@ -1223,7 +1222,7 @@ CodeGeneratorX86_64::CodeGeneratorX86_64(HGraph* graph,
         method_bss_entry_patches_(graph->GetAllocator()->Adapter(kArenaAllocCodeGenerator)),
         boot_image_type_patches_(graph->GetAllocator()->Adapter(kArenaAllocCodeGenerator)),
         type_bss_entry_patches_(graph->GetAllocator()->Adapter(kArenaAllocCodeGenerator)),
-        string_patches_(graph->GetAllocator()->Adapter(kArenaAllocCodeGenerator)),
+        boot_image_string_patches_(graph->GetAllocator()->Adapter(kArenaAllocCodeGenerator)),
         string_bss_entry_patches_(graph->GetAllocator()->Adapter(kArenaAllocCodeGenerator)),
         jit_string_patches_(graph->GetAllocator()->Adapter(kArenaAllocCodeGenerator)),
         jit_class_patches_(graph->GetAllocator()->Adapter(kArenaAllocCodeGenerator)),
@@ -5712,7 +5711,7 @@ Label* CodeGeneratorX86_64::NewJitRootClassPatch(const DexFile& dex_file,
                                                  Handle<mirror::Class> handle) {
   ReserveJitClassRoot(TypeReference(&dex_file, type_index), handle);
   // Add a patch entry and return the label.
-  jit_class_patches_.emplace_back(dex_file, type_index.index_);
+  jit_class_patches_.emplace_back(&dex_file, type_index.index_);
   PatchInfo<Label>* info = &jit_class_patches_.back();
   return &info->label;
 }
@@ -5753,7 +5752,7 @@ void InstructionCodeGeneratorX86_64::VisitLoadClass(HLoadClass* cls) NO_THREAD_S
       DCHECK(codegen_->GetCompilerOptions().IsBootImage());
       DCHECK_EQ(read_barrier_option, kWithoutReadBarrier);
       __ leal(out, Address::Absolute(CodeGeneratorX86_64::kDummy32BitOffset, /* no_rip */ false));
-      codegen_->RecordBootTypePatch(cls);
+      codegen_->RecordBootImageTypePatch(cls);
       break;
     case HLoadClass::LoadKind::kBootImageAddress: {
       DCHECK_EQ(read_barrier_option, kWithoutReadBarrier);
@@ -5766,7 +5765,7 @@ void InstructionCodeGeneratorX86_64::VisitLoadClass(HLoadClass* cls) NO_THREAD_S
     case HLoadClass::LoadKind::kBootImageClassTable: {
       DCHECK(!codegen_->GetCompilerOptions().IsBootImage());
       __ movl(out, Address::Absolute(CodeGeneratorX86_64::kDummy32BitOffset, /* no_rip */ false));
-      codegen_->RecordBootTypePatch(cls);
+      codegen_->RecordBootImageTypePatch(cls);
       // Extract the reference from the slot data, i.e. clear the hash bits.
       int32_t masked_hash = ClassTable::TableSlot::MaskHash(
           ComputeModifiedUtf8Hash(cls->GetDexFile().StringByTypeIdx(cls->GetTypeIndex())));
@@ -5877,7 +5876,7 @@ Label* CodeGeneratorX86_64::NewJitRootStringPatch(const DexFile& dex_file,
                                                   Handle<mirror::String> handle) {
   ReserveJitStringRoot(StringReference(&dex_file, string_index), handle);
   // Add a patch entry and return the label.
-  jit_string_patches_.emplace_back(dex_file, string_index.index_);
+  jit_string_patches_.emplace_back(&dex_file, string_index.index_);
   PatchInfo<Label>* info = &jit_string_patches_.back();
   return &info->label;
 }
@@ -5893,7 +5892,7 @@ void InstructionCodeGeneratorX86_64::VisitLoadString(HLoadString* load) NO_THREA
     case HLoadString::LoadKind::kBootImageLinkTimePcRelative: {
       DCHECK(codegen_->GetCompilerOptions().IsBootImage());
       __ leal(out, Address::Absolute(CodeGeneratorX86_64::kDummy32BitOffset, /* no_rip */ false));
-      codegen_->RecordBootStringPatch(load);
+      codegen_->RecordBootImageStringPatch(load);
       return;
     }
     case HLoadString::LoadKind::kBootImageAddress: {
@@ -5906,7 +5905,7 @@ void InstructionCodeGeneratorX86_64::VisitLoadString(HLoadString* load) NO_THREA
     case HLoadString::LoadKind::kBootImageInternTable: {
       DCHECK(!codegen_->GetCompilerOptions().IsBootImage());
       __ movl(out, Address::Absolute(CodeGeneratorX86_64::kDummy32BitOffset, /* no_rip */ false));
-      codegen_->RecordBootStringPatch(load);
+      codegen_->RecordBootImageStringPatch(load);
       return;
     }
     case HLoadString::LoadKind::kBssEntry: {
@@ -7361,13 +7360,13 @@ void CodeGeneratorX86_64::PatchJitRootUse(uint8_t* code,
 
 void CodeGeneratorX86_64::EmitJitRootPatches(uint8_t* code, const uint8_t* roots_data) {
   for (const PatchInfo<Label>& info : jit_string_patches_) {
-    StringReference string_reference(&info.dex_file, dex::StringIndex(info.index));
+    StringReference string_reference(info.target_dex_file, dex::StringIndex(info.offset_or_index));
     uint64_t index_in_table = GetJitStringRootIndex(string_reference);
     PatchJitRootUse(code, roots_data, info, index_in_table);
   }
 
   for (const PatchInfo<Label>& info : jit_class_patches_) {
-    TypeReference type_reference(&info.dex_file, dex::TypeIndex(info.index));
+    TypeReference type_reference(info.target_dex_file, dex::TypeIndex(info.offset_or_index));
     uint64_t index_in_table = GetJitClassRootIndex(type_reference);
     PatchJitRootUse(code, roots_data, info, index_in_table);
   }
