@@ -1593,10 +1593,8 @@ void CodeGeneratorMIPS::EmitLinkerPatches(ArenaVector<linker::LinkerPatch>* link
   } else {
     EmitPcRelativeLinkerPatches<DataBimgRelRoPatchAdapter>(
         boot_image_method_patches_, linker_patches);
-    EmitPcRelativeLinkerPatches<linker::LinkerPatch::TypeClassTablePatch>(
-        boot_image_type_patches_, linker_patches);
-    EmitPcRelativeLinkerPatches<linker::LinkerPatch::StringInternTablePatch>(
-        boot_image_string_patches_, linker_patches);
+    DCHECK(boot_image_type_patches_.empty());
+    DCHECK(boot_image_string_patches_.empty());
   }
   EmitPcRelativeLinkerPatches<linker::LinkerPatch::MethodBssEntryPatch>(
       method_bss_entry_patches_, linker_patches);
@@ -7453,7 +7451,7 @@ HLoadString::LoadKind CodeGeneratorMIPS::GetSupportedLoadStringKind(
     HLoadString::LoadKind desired_string_load_kind) {
   switch (desired_string_load_kind) {
     case HLoadString::LoadKind::kBootImageLinkTimePcRelative:
-    case HLoadString::LoadKind::kBootImageInternTable:
+    case HLoadString::LoadKind::kBootImageRelRo:
     case HLoadString::LoadKind::kBssEntry:
       DCHECK(!Runtime::Current()->UseJitCompilation());
       break;
@@ -7476,7 +7474,7 @@ HLoadClass::LoadKind CodeGeneratorMIPS::GetSupportedLoadClassKind(
     case HLoadClass::LoadKind::kReferrersClass:
       break;
     case HLoadClass::LoadKind::kBootImageLinkTimePcRelative:
-    case HLoadClass::LoadKind::kBootImageClassTable:
+    case HLoadClass::LoadKind::kBootImageRelRo:
     case HLoadClass::LoadKind::kBssEntry:
       DCHECK(!Runtime::Current()->UseJitCompilation());
       break;
@@ -7564,7 +7562,7 @@ void CodeGeneratorMIPS::GenerateStaticOrDirectCall(
       __ LoadConst32(temp.AsRegister<Register>(), invoke->GetMethodAddress());
       break;
     case HInvokeStaticOrDirect::MethodLoadKind::kBootImageRelRo: {
-      uint32_t boot_image_offset = invoke->GetDispatchInfo().method_load_data;
+      uint32_t boot_image_offset = GetBootImageOffset(invoke);
       PcRelativePatchInfo* info_high = NewBootImageRelRoPatch(boot_image_offset);
       PcRelativePatchInfo* info_low = NewBootImageRelRoPatch(boot_image_offset, info_high);
       Register temp_reg = temp.AsRegister<Register>();
@@ -7693,7 +7691,7 @@ void LocationsBuilderMIPS::VisitLoadClass(HLoadClass* cls) {
     // We need an extra register for PC-relative literals on R2.
     case HLoadClass::LoadKind::kBootImageLinkTimePcRelative:
     case HLoadClass::LoadKind::kBootImageAddress:
-    case HLoadClass::LoadKind::kBootImageClassTable:
+    case HLoadClass::LoadKind::kBootImageRelRo:
     case HLoadClass::LoadKind::kBssEntry:
       if (isR6) {
         break;
@@ -7745,7 +7743,7 @@ void InstructionCodeGeneratorMIPS::VisitLoadClass(HLoadClass* cls) NO_THREAD_SAF
     // We need an extra register for PC-relative literals on R2.
     case HLoadClass::LoadKind::kBootImageLinkTimePcRelative:
     case HLoadClass::LoadKind::kBootImageAddress:
-    case HLoadClass::LoadKind::kBootImageClassTable:
+    case HLoadClass::LoadKind::kBootImageRelRo:
     case HLoadClass::LoadKind::kBssEntry:
       base_or_current_method_reg =
           (isR6 || has_irreducible_loops) ? ZERO : locations->InAt(0).AsRegister<Register>();
@@ -7802,22 +7800,17 @@ void InstructionCodeGeneratorMIPS::VisitLoadClass(HLoadClass* cls) NO_THREAD_SAF
       }
       break;
     }
-    case HLoadClass::LoadKind::kBootImageClassTable: {
+    case HLoadClass::LoadKind::kBootImageRelRo: {
       DCHECK(!codegen_->GetCompilerOptions().IsBootImage());
+      uint32_t boot_image_offset = codegen_->GetBootImageOffset(cls);
       CodeGeneratorMIPS::PcRelativePatchInfo* info_high =
-          codegen_->NewBootImageTypePatch(cls->GetDexFile(), cls->GetTypeIndex());
+          codegen_->NewBootImageRelRoPatch(boot_image_offset);
       CodeGeneratorMIPS::PcRelativePatchInfo* info_low =
-          codegen_->NewBootImageTypePatch(cls->GetDexFile(), cls->GetTypeIndex(), info_high);
+          codegen_->NewBootImageRelRoPatch(boot_image_offset, info_high);
       codegen_->EmitPcRelativeAddressPlaceholderHigh(info_high,
                                                      out,
                                                      base_or_current_method_reg);
       __ Lw(out, out, /* placeholder */ 0x5678, &info_low->label);
-      // Extract the reference from the slot data, i.e. clear the hash bits.
-      int32_t masked_hash = ClassTable::TableSlot::MaskHash(
-          ComputeModifiedUtf8Hash(cls->GetDexFile().StringByTypeIdx(cls->GetTypeIndex())));
-      if (masked_hash != 0) {
-        __ Addiu(out, out, -masked_hash);
-      }
       break;
     }
     case HLoadClass::LoadKind::kBssEntry: {
@@ -7908,7 +7901,7 @@ void LocationsBuilderMIPS::VisitLoadString(HLoadString* load) {
     // We need an extra register for PC-relative literals on R2.
     case HLoadString::LoadKind::kBootImageAddress:
     case HLoadString::LoadKind::kBootImageLinkTimePcRelative:
-    case HLoadString::LoadKind::kBootImageInternTable:
+    case HLoadString::LoadKind::kBootImageRelRo:
     case HLoadString::LoadKind::kBssEntry:
       if (isR6) {
         break;
@@ -7960,7 +7953,7 @@ void InstructionCodeGeneratorMIPS::VisitLoadString(HLoadString* load) NO_THREAD_
     // We need an extra register for PC-relative literals on R2.
     case HLoadString::LoadKind::kBootImageAddress:
     case HLoadString::LoadKind::kBootImageLinkTimePcRelative:
-    case HLoadString::LoadKind::kBootImageInternTable:
+    case HLoadString::LoadKind::kBootImageRelRo:
     case HLoadString::LoadKind::kBssEntry:
       base_or_current_method_reg =
           (isR6 || has_irreducible_loops) ? ZERO : locations->InAt(0).AsRegister<Register>();
@@ -7996,12 +7989,13 @@ void InstructionCodeGeneratorMIPS::VisitLoadString(HLoadString* load) NO_THREAD_
       }
       return;
     }
-    case HLoadString::LoadKind::kBootImageInternTable: {
+    case HLoadString::LoadKind::kBootImageRelRo: {
       DCHECK(!codegen_->GetCompilerOptions().IsBootImage());
+      uint32_t boot_image_offset = codegen_->GetBootImageOffset(load);
       CodeGeneratorMIPS::PcRelativePatchInfo* info_high =
-          codegen_->NewBootImageStringPatch(load->GetDexFile(), load->GetStringIndex());
+          codegen_->NewBootImageRelRoPatch(boot_image_offset);
       CodeGeneratorMIPS::PcRelativePatchInfo* info_low =
-          codegen_->NewBootImageStringPatch(load->GetDexFile(), load->GetStringIndex(), info_high);
+          codegen_->NewBootImageRelRoPatch(boot_image_offset, info_high);
       codegen_->EmitPcRelativeAddressPlaceholderHigh(info_high,
                                                      out,
                                                      base_or_current_method_reg);
