@@ -34,6 +34,14 @@ art_cc_library {
     name: "libart-dexlayout",
     defaults: ["libart-dexlayout-defaults"],
     shared_libs: ["libart"],
+
+    target: {
+        android: {
+            lto: {
+                 thin: true,
+            },
+        },
+    },
 }
 
 art_cc_library {

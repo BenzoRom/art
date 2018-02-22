@@ -143,6 +143,14 @@ art_cc_binary {
     static_libs: [
         "libart-dex2oat",
     ],
+    target: {
+        android: {
+            lto: {
+                thin: true,
+            },
+
+        },
+    },
 }
 
 art_cc_binary {

@@ -260,6 +260,15 @@ art_cc_library {
     shared_libs: [
         "libart",
     ],
+
+    target: {
+        android: {
+            lto: {
+                thin: true,
+            },
+
+        },
+    },
 }
 
 art_cc_library {
