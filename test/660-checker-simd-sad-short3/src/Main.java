@@ -29,7 +29,7 @@ public class Main {
   /// CHECK-DAG: <<Phi2:i\d+>>   Phi [<<Cons0>>,{{i\d+}}]       loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Get:s\d+>>    ArrayGet [{{l\d+}},<<Phi1>>]   loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Sub:i\d+>>    Sub [<<Get>>,<<Param>>]        loop:<<Loop>>      outer_loop:none
-  /// CHECK-DAG: <<Intrin:i\d+>> InvokeStaticOrDirect [<<Sub>>] intrinsic:MathAbsInt loop:<<Loop>> outer_loop:none
+  /// CHECK-DAG: <<Intrin:i\d+>> Abs [<<Sub>>]                  loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi2>>,<<Intrin>>]      loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi1>>,<<Cons1>>]       loop:<<Loop>>      outer_loop:none
   //
@@ -72,7 +72,7 @@ public class Main {
   /// CHECK-DAG: <<Phi2:i\d+>>   Phi [<<Cons0>>,{{i\d+}}]       loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Get:s\d+>>    ArrayGet [{{l\d+}},<<Phi1>>]   loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Sub:i\d+>>    Sub [<<Param>>,<<Get>>]        loop:<<Loop>>      outer_loop:none
-  /// CHECK-DAG: <<Intrin:i\d+>> InvokeStaticOrDirect [<<Sub>>] intrinsic:MathAbsInt loop:<<Loop>> outer_loop:none
+  /// CHECK-DAG: <<Intrin:i\d+>> Abs [<<Sub>>]                  loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi2>>,<<Intrin>>]      loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi1>>,<<Cons1>>]       loop:<<Loop>>      outer_loop:none
   //
@@ -115,7 +115,7 @@ public class Main {
   /// CHECK-DAG: <<Phi2:i\d+>>   Phi [<<Cons0>>,{{i\d+}}]       loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Get:s\d+>>    ArrayGet [{{l\d+}},<<Phi1>>]   loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Add:i\d+>>    Add [<<Get>>,<<ConsI>>]        loop:<<Loop>>      outer_loop:none
-  /// CHECK-DAG: <<Intrin:i\d+>> InvokeStaticOrDirect [<<Add>>] intrinsic:MathAbsInt loop:<<Loop>> outer_loop:none
+  /// CHECK-DAG: <<Intrin:i\d+>> Abs [<<Add>>]                  loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi2>>,<<Intrin>>]      loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi1>>,<<Cons1>>]       loop:<<Loop>>      outer_loop:none
   //
@@ -158,7 +158,7 @@ public class Main {
   /// CHECK-DAG: <<Phi2:i\d+>>   Phi [<<Cons0>>,{{i\d+}}]       loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Get:s\d+>>    ArrayGet [{{l\d+}},<<Phi1>>]   loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Sub:i\d+>>    Sub [<<ConsI>>,<<Get>>]        loop:<<Loop>>      outer_loop:none
-  /// CHECK-DAG: <<Intrin:i\d+>> InvokeStaticOrDirect [<<Sub>>] intrinsic:MathAbsInt loop:<<Loop>> outer_loop:none
+  /// CHECK-DAG: <<Intrin:i\d+>> Abs [<<Sub>>]                  loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi2>>,<<Intrin>>]      loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi1>>,<<Cons1>>]       loop:<<Loop>>      outer_loop:none
   //
@@ -201,7 +201,7 @@ public class Main {
   /// CHECK-DAG: <<Phi2:i\d+>>   Phi [<<Cons0>>,{{i\d+}}]       loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Get:s\d+>>    ArrayGet [{{l\d+}},<<Phi1>>]   loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Sub:i\d+>>    Sub [<<Get>>,<<Conv>>]         loop:<<Loop>>      outer_loop:none
-  /// CHECK-DAG: <<Intrin:i\d+>> InvokeStaticOrDirect [<<Sub>>] intrinsic:MathAbsInt loop:<<Loop>> outer_loop:none
+  /// CHECK-DAG: <<Intrin:i\d+>> Abs [<<Sub>>]                  loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi2>>,<<Intrin>>]      loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi1>>,<<Cons1>>]       loop:<<Loop>>      outer_loop:none
   //
@@ -245,7 +245,7 @@ public class Main {
   /// CHECK-DAG: <<Phi2:i\d+>>   Phi [<<Cons0>>,{{i\d+}}]       loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Get:s\d+>>    ArrayGet [{{l\d+}},<<Phi1>>]   loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Sub:i\d+>>    Sub [<<Conv>>,<<Get>>]         loop:<<Loop>>      outer_loop:none
-  /// CHECK-DAG: <<Intrin:i\d+>> InvokeStaticOrDirect [<<Sub>>] intrinsic:MathAbsInt loop:<<Loop>> outer_loop:none
+  /// CHECK-DAG: <<Intrin:i\d+>> Abs [<<Sub>>]                  loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi2>>,<<Intrin>>]      loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi1>>,<<Cons1>>]       loop:<<Loop>>      outer_loop:none
   //
@@ -289,7 +289,7 @@ public class Main {
   /// CHECK-DAG: <<Add:i\d+>>    [<<Get>>,<<ConsI>>]            loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Conv:s\d+>>   TypeConversion [<<Add>>]       loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Sub:i\d+>>    Sub [<<Get>>,<<Conv>>]         loop:<<Loop>>      outer_loop:none
-  /// CHECK-DAG: <<Intrin:i\d+>> InvokeStaticOrDirect [<<Sub>>] intrinsic:MathAbsInt loop:<<Loop>> outer_loop:none
+  /// CHECK-DAG: <<Intrin:i\d+>> Abs [<<Sub>>]                  loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi2>>,<<Intrin>>]      loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi1>>,<<Cons1>>]       loop:<<Loop>>      outer_loop:none
   //
@@ -335,7 +335,7 @@ public class Main {
   /// CHECK-DAG: <<Add:i\d+>>    [<<Get>>,<<ConsI>>]            loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Conv:s\d+>>   TypeConversion [<<Add>>]       loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Sub:i\d+>>    Sub [<<Conv>>,<<Get>>]         loop:<<Loop>>      outer_loop:none
-  /// CHECK-DAG: <<Intrin:i\d+>> InvokeStaticOrDirect [<<Sub>>] intrinsic:MathAbsInt loop:<<Loop>> outer_loop:none
+  /// CHECK-DAG: <<Intrin:i\d+>> Abs [<<Sub>>]                  loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi2>>,<<Intrin>>]      loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG:                 Add [<<Phi1>>,<<Cons1>>]       loop:<<Loop>>      outer_loop:none
   //
