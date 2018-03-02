@@ -466,6 +466,9 @@ std::vector<std::unique_ptr<const DexFile>> OatFileManager::OpenDexFilesFromOat(
 
   // Get the oat file on disk.
   std::unique_ptr<const OatFile> oat_file(oat_file_assistant.GetBestOatFile().release());
+  VLOG(oat) << "OatFileAssistant(" << dex_location << ").GetBestOatFile()="
+            << reinterpret_cast<uintptr_t>(oat_file.get())
+            << " (executable=" << (oat_file != nullptr ? oat_file->IsExecutable() : false) << ")";
 
   if (oat_file != nullptr && only_use_system_oat_files_ && !OatFileIsOnSystem(oat_file)) {
     // If the oat file is not on /system, don't use it.
