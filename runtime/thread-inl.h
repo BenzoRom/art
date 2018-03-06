@@ -247,6 +247,7 @@ inline ThreadState Thread::TransitionFromSuspendedToRunnable() {
       // Atomically change from suspended to runnable if no suspend request pending.
       CachedStateAndFlags new_state_and_flags(old_state_and_flags);
       new_state_and_flags.as_struct.state = kRunnable;
+
       // CAS the value with a memory barrier.
       if (LIKELY(tls32_.state_and_flags.as_atomic_int.compare_exchange_weak(
               old_state_and_flags.as_int,
