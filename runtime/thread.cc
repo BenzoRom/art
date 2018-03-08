@@ -1387,19 +1387,19 @@ void Thread::RunEmptyCheckpoint() {
 }
 
 bool Thread::RequestCheckpoint(Closure* function) {
-  union StateAndFlags old_state_and_flags;
-  old_state_and_flags.as_int = tls32_.state_and_flags.as_int;
+  CachedStateAndFlags old_state_and_flags(tls32_.state_and_flags);
   if (old_state_and_flags.as_struct.state != kRunnable) {
     return false;  // Fail, thread is suspended and so can't run a checkpoint.
   }
 
   // We must be runnable to request a checkpoint.
   DCHECK_EQ(old_state_and_flags.as_struct.state, kRunnable);
-  union StateAndFlags new_state_and_flags;
-  new_state_and_flags.as_int = old_state_and_flags.as_int;
+  CachedStateAndFlags new_state_and_flags(old_state_and_flags);
   new_state_and_flags.as_struct.flags |= kCheckpointRequest;
-  bool success = tls32_.state_and_flags.as_atomic_int.CompareAndSetStrongSequentiallyConsistent(
-      old_state_and_flags.as_int, new_state_and_flags.as_int);
+  bool success = tls32_.state_and_flags.as_atomic_int.compare_exchange_strong(
+      old_state_and_flags.as_int,
+      new_state_and_flags.as_int,
+      std::memory_order_seq_cst);
   if (success) {
     // Succeeded setting checkpoint flag, now insert the actual checkpoint.
     if (tlsPtr_.checkpoint_function == nullptr) {
@@ -1414,8 +1414,7 @@ bool Thread::RequestCheckpoint(Closure* function) {
 }
 
 bool Thread::RequestEmptyCheckpoint() {
-  union StateAndFlags old_state_and_flags;
-  old_state_and_flags.as_int = tls32_.state_and_flags.as_int;
+  CachedStateAndFlags old_state_and_flags(tls32_.state_and_flags);
   if (old_state_and_flags.as_struct.state != kRunnable) {
     // If it's not runnable, we don't need to do anything because it won't be in the middle of a
     // heap access (eg. the read barrier).
@@ -1424,11 +1423,12 @@ bool Thread::RequestEmptyCheckpoint() {
 
   // We must be runnable to request a checkpoint.
   DCHECK_EQ(old_state_and_flags.as_struct.state, kRunnable);
-  union StateAndFlags new_state_and_flags;
-  new_state_and_flags.as_int = old_state_and_flags.as_int;
+  CachedStateAndFlags new_state_and_flags(old_state_and_flags);
   new_state_and_flags.as_struct.flags |= kEmptyCheckpointRequest;
-  bool success = tls32_.state_and_flags.as_atomic_int.CompareAndSetStrongSequentiallyConsistent(
-      old_state_and_flags.as_int, new_state_and_flags.as_int);
+  bool success = tls32_.state_and_flags.as_atomic_int.compare_exchange_strong(
+      old_state_and_flags.as_int,
+      new_state_and_flags.as_int,
+      std::memory_order_seq_cst);
   if (success) {
     TriggerSuspend();
   }

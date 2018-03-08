@@ -110,8 +110,7 @@ inline ThreadState Thread::SetState(ThreadState new_state) {
     LOG(FATAL) << "Thread \"" << name << "\"(" << this << " != Thread::Current()="
                << Thread::Current() << ") changing state to " << new_state;
   }
-  union StateAndFlags old_state_and_flags;
-  old_state_and_flags.as_int = tls32_.state_and_flags.as_int;
+  CachedStateAndFlags old_state_and_flags(tls32_.state_and_flags);
   CHECK_NE(old_state_and_flags.as_struct.state, kRunnable);
   tls32_.state_and_flags.as_struct.state = new_state;
   return static_cast<ThreadState>(old_state_and_flags.as_struct.state);
@@ -181,10 +180,8 @@ inline void Thread::AssertThreadSuspensionIsAllowable(bool check_locks) const {
 inline void Thread::TransitionToSuspendedAndRunCheckpoints(ThreadState new_state) {
   DCHECK_NE(new_state, kRunnable);
   DCHECK_EQ(GetState(), kRunnable);
-  union StateAndFlags old_state_and_flags;
-  union StateAndFlags new_state_and_flags;
   while (true) {
-    old_state_and_flags.as_int = tls32_.state_and_flags.as_int;
+    CachedStateAndFlags old_state_and_flags(tls32_.state_and_flags);
     if (UNLIKELY((old_state_and_flags.as_struct.flags & kCheckpointRequest) != 0)) {
       RunCheckpointFunction();
       continue;
@@ -196,13 +193,14 @@ inline void Thread::TransitionToSuspendedAndRunCheckpoints(ThreadState new_state
     // Change the state but keep the current flags (kCheckpointRequest is clear).
     DCHECK_EQ((old_state_and_flags.as_struct.flags & kCheckpointRequest), 0);
     DCHECK_EQ((old_state_and_flags.as_struct.flags & kEmptyCheckpointRequest), 0);
-    new_state_and_flags.as_struct.flags = old_state_and_flags.as_struct.flags;
+    CachedStateAndFlags new_state_and_flags(old_state_and_flags);
     new_state_and_flags.as_struct.state = new_state;
 
-    // CAS the value with a memory ordering.
+    // CAS the value with a memory ordering (updates old_state_and_flags on failure).
     bool done =
-        tls32_.state_and_flags.as_atomic_int.CompareAndSetWeakRelease(old_state_and_flags.as_int,
-                                                                        new_state_and_flags.as_int);
+        tls32_.state_and_flags.as_atomic_int.compare_exchange_weak(old_state_and_flags.as_int,
+                                                                   new_state_and_flags.as_int,
+                                                                   std::memory_order_release);
     if (LIKELY(done)) {
       break;
     }
@@ -237,8 +235,7 @@ inline void Thread::TransitionFromRunnableToSuspended(ThreadState new_state) {
 }
 
 inline ThreadState Thread::TransitionFromSuspendedToRunnable() {
-  union StateAndFlags old_state_and_flags;
-  old_state_and_flags.as_int = tls32_.state_and_flags.as_int;
+  CachedStateAndFlags old_state_and_flags(tls32_.state_and_flags);
   int16_t old_state = old_state_and_flags.as_struct.state;
   DCHECK_NE(static_cast<ThreadState>(old_state), kRunnable);
   do {
@@ -248,13 +245,13 @@ inline ThreadState Thread::TransitionFromSuspendedToRunnable() {
     if (LIKELY(old_state_and_flags.as_struct.flags == 0)) {
       // Optimize for the return from native code case - this is the fast path.
       // Atomically change from suspended to runnable if no suspend request pending.
-      union StateAndFlags new_state_and_flags;
-      new_state_and_flags.as_int = old_state_and_flags.as_int;
+      CachedStateAndFlags new_state_and_flags(old_state_and_flags);
       new_state_and_flags.as_struct.state = kRunnable;
       // CAS the value with a memory barrier.
-      if (LIKELY(tls32_.state_and_flags.as_atomic_int.CompareAndSetWeakAcquire(
-                                                 old_state_and_flags.as_int,
-                                                 new_state_and_flags.as_int))) {
+      if (LIKELY(tls32_.state_and_flags.as_atomic_int.compare_exchange_weak(
+              old_state_and_flags.as_int,
+              new_state_and_flags.as_int,
+              std::memory_order_acquire))) {
         // Mark the acquisition of a share of the mutator_lock_.
         Locks::mutator_lock_->TransitionFromSuspendedToRunnable(this);
         break;
