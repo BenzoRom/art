@@ -1443,6 +1443,8 @@ class HLoopInformationOutwardIterator : public ValueObject {
   M(VecAndNot, VecBinaryOperation)                                      \
   M(VecOr, VecBinaryOperation)                                          \
   M(VecXor, VecBinaryOperation)                                         \
+  M(VecSaturationAdd, VecBinaryOperation)                               \
+  M(VecSaturationSub, VecBinaryOperation)                               \
   M(VecShl, VecBinaryOperation)                                         \
   M(VecShr, VecBinaryOperation)                                         \
   M(VecUShr, VecBinaryOperation)                                        \
