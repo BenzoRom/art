@@ -266,6 +266,9 @@ cc_defaults {
         "entrypoints/quick/quick_trampoline_entrypoints.cc",
     ],
 
+    // Cannot link with lld: arm, arm64, x86, x86_64
+    use_clang_lld: false,
+
     arch: {
         arm: {
             clang_asflags: ["-no-integrated-as"],
