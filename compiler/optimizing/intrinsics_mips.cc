@@ -2671,6 +2671,14 @@ void IntrinsicCodeGeneratorMIPS::VisitThreadInterrupted(HInvoke* invoke) {
   __ Bind(&done);
 }
 
+void IntrinsicLocationsBuilderMIPS::VisitReachabilityFence(HInvoke* invoke) {
+  LocationSummary* locations =
+      new (allocator_) LocationSummary(invoke, LocationSummary::kNoCall, kIntrinsified);
+  locations->SetInAt(0, Location::RequiresRegister());
+}
+
+void IntrinsicCodeGeneratorMIPS::VisitReachabilityFence(HInvoke* invoke ATTRIBUTE_UNUSED) { }
+
 // Unimplemented intrinsics.
 
 UNIMPLEMENTED_INTRINSIC(MIPS, MathCeil)
