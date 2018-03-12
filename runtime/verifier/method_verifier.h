@@ -77,6 +77,10 @@ class PcToRegisterLineTable {
   void Init(RegisterTrackingMode mode, InstructionFlags* flags, uint32_t insns_size,
             uint16_t registers_size, MethodVerifier* verifier);
 
+  bool IsInitialized() const {
+    return !register_lines_.empty();
+  }
+
   RegisterLine* GetLine(size_t idx) const {
     return register_lines_[idx].get();
   }
@@ -719,6 +723,8 @@ class MethodVerifier {
   //       actually touched.
   const RegType& FromClass(const char* descriptor, mirror::Class* klass, bool precise)
       REQUIRES_SHARED(Locks::mutator_lock_);
+
+  ALWAYS_INLINE bool FailOrAbort(bool condition, const char* error_msg, uint32_t work_insn_idx);
 
   // The thread we're verifying on.
   Thread* const self_;
