@@ -270,6 +270,7 @@ cc_defaults {
 
     arch: {
         arm: {
+            instruction_set: "arm",
             clang_asflags: ["-no-integrated-as"],
             srcs: [
                 "interpreter/mterp/mterp.cc",
@@ -494,6 +495,13 @@ gensrcs {
 art_cc_library {
     name: "libart",
     defaults: ["libart_defaults"],
+    target: {
+        android: {
+            lto: {
+                 thin: true,
+            },
+        },
+    },
 }
 
 art_cc_library {
