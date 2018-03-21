@@ -46,6 +46,14 @@ inline MirrorType* ReadBarrier::Barrier(
       }
     }
     if (kUseBakerReadBarrier) {
+      // If the GC is not marking, `ref` does not need to be marked and can be returned directly.
+      Thread* const self = Thread::Current();
+      if (self != nullptr && !self->GetIsGcMarking()) {
+        MirrorType* ref = ref_addr->template AsMirrorPtr<kIsVolatile>();
+        AssertToSpaceInvariant(obj, offset, ref);
+        return ref;
+      }
+
       // fake_address_dependency (must be zero) is used to create artificial data dependency from
       // the is_gray load to the ref field (ptr) load to avoid needing a load-load barrier between
       // the two.
