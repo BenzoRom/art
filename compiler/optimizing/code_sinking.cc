@@ -212,6 +212,11 @@ static HInstruction* FindIdealPosition(HInstruction* instruction,
     DCHECK(target_block != nullptr);
   }
 
+  // Bail if the instruction can throw and we are about to move into a catch block.
+  if (instruction->CanThrow() && target_block->GetTryCatchInformation()) {
+    return nullptr;
+  }
+
   // Find insertion position. No need to filter anymore, as we have found a
   // target block.
   HInstruction* insert_pos = nullptr;
