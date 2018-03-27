@@ -17,9 +17,9 @@
 /**
  * Tests for MIN/MAX vectorization.
  */
-public class Main {
+public class LongSimdMinMax {
 
-  /// CHECK-START: void Main.doitMin(long[], long[], long[]) loop_optimization (before)
+  /// CHECK-START: void LongSimdMinMax.doitMin(long[], long[], long[]) loop_optimization (before)
   /// CHECK-DAG: <<Phi:i\d+>>  Phi                                 loop:<<Loop:B\d+>> outer_loop:none
   /// CHECK-DAG: <<Get1:j\d+>> ArrayGet                            loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Get2:j\d+>> ArrayGet                            loop:<<Loop>>      outer_loop:none
@@ -28,10 +28,10 @@ public class Main {
   //
   // Not directly supported for longs.
   //
-  /// CHECK-START-ARM64: void Main.doitMin(long[], long[], long[]) loop_optimization (after)
+  /// CHECK-START-ARM64: void LongSimdMinMax.doitMin(long[], long[], long[]) loop_optimization (after)
   /// CHECK-NOT: VecMin
   //
-  /// CHECK-START-MIPS64: void Main.doitMin(long[], long[], long[]) loop_optimization (after)
+  /// CHECK-START-MIPS64: void LongSimdMinMax.doitMin(long[], long[], long[]) loop_optimization (after)
   /// CHECK-DAG: <<Get1:d\d+>> VecLoad                              loop:<<Loop:B\d+>> outer_loop:none
   /// CHECK-DAG: <<Get2:d\d+>> VecLoad                              loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Min:d\d+>>  VecMin [<<Get1>>,<<Get2>>]           loop:<<Loop>>      outer_loop:none
@@ -44,7 +44,7 @@ public class Main {
     }
   }
 
-  /// CHECK-START: void Main.doitMax(long[], long[], long[]) loop_optimization (before)
+  /// CHECK-START: void LongSimdMinMax.doitMax(long[], long[], long[]) loop_optimization (before)
   /// CHECK-DAG: <<Phi:i\d+>>  Phi                                 loop:<<Loop:B\d+>> outer_loop:none
   /// CHECK-DAG: <<Get1:j\d+>> ArrayGet                            loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Get2:j\d+>> ArrayGet                            loop:<<Loop>>      outer_loop:none
@@ -53,14 +53,14 @@ public class Main {
   //
   // Not directly supported for longs.
   //
-  /// CHECK-START-ARM64: void Main.doitMax(long[], long[], long[]) loop_optimization (after)
+  /// CHECK-START-ARM64: void LongSimdMinMax.doitMax(long[], long[], long[]) loop_optimization (after)
   /// CHECK-NOT: VecMax
   //
-  /// CHECK-START-MIPS64: void Main.doitMax(long[], long[], long[]) loop_optimization (after)
+  /// CHECK-START-MIPS64: void LongSimdMinMax.doitMax(long[], long[], long[]) loop_optimization (after)
   /// CHECK-DAG: <<Get1:d\d+>> VecLoad                              loop:<<Loop:B\d+>> outer_loop:none
   /// CHECK-DAG: <<Get2:d\d+>> VecLoad                              loop:<<Loop>>      outer_loop:none
   /// CHECK-DAG: <<Max:d\d+>>  VecMax [<<Get1>>,<<Get2>>]           loop:<<Loop>>      outer_loop:none
-  /// CHECK-DAG:               VecStore [{{l\d+}},{{i\d+}},<<Min>>] loop:<<Loop>>      outer_loop:none
+  /// CHECK-DAG:               VecStore [{{l\d+}},{{i\d+}},<<Max>>] loop:<<Loop>>      outer_loop:none
   private static void doitMax(long[] x, long[] y, long[] z) {
     int min = Math.min(x.length, Math.min(y.length, z.length));
     for (int i = 0; i < min; i++) {
@@ -68,7 +68,7 @@ public class Main {
     }
   }
 
-  public static void main(String[] args) {
+  public static void main() {
     long[] interesting = {
       0x0000000000000000L, 0x0000000000000001L, 0x000000007fffffffL,
       0x0000000080000000L, 0x0000000080000001L, 0x00000000ffffffffL,
@@ -110,7 +110,7 @@ public class Main {
       expectEquals(expected, x[i]);
     }
 
-    System.out.println("passed");
+    System.out.println("LongSimdMinMax passed");
   }
 
   private static void expectEquals(long expected, long result) {
