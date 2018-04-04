@@ -61,7 +61,7 @@ class JNICFITest : public CFITest {
     const bool is_synchronized = false;
     const char* shorty = "IIFII";
 
-    ArenaPool pool;
+    MallocArenaPool pool;
     ArenaAllocator allocator(&pool);
 
     std::unique_ptr<JniCallingConvention> jni_conv(

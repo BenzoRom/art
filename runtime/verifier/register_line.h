@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/mutex.h"
 #include "base/scoped_arena_containers.h"
 #include "safe_map.h"
 

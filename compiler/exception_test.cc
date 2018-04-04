@@ -60,7 +60,7 @@ class ExceptionTest : public CommonRuntimeTest {
       fake_code_.push_back(0x70 | i);
     }
 
-    ArenaPool pool;
+    MallocArenaPool pool;
     ArenaStack arena_stack(&pool);
     ScopedArenaAllocator allocator(&arena_stack);
     StackMapStream stack_maps(&allocator, kRuntimeISA);

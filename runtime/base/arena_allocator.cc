@@ -24,10 +24,6 @@
 #include <numeric>
 
 #include "logging.h"
-#include "mem_map.h"
-#include "mutex.h"
-#include "systrace.h"
-#include "thread-current-inl.h"
 
 namespace art {
 
@@ -235,42 +231,6 @@ MallocArena::~MallocArena() {
   free(reinterpret_cast<void*>(unaligned_memory_));
 }
 
-class MemMapArena FINAL : public Arena {
- public:
-  MemMapArena(size_t size, bool low_4gb, const char* name);
-  virtual ~MemMapArena();
-  void Release() OVERRIDE;
-
- private:
-  std::unique_ptr<MemMap> map_;
-};
-
-MemMapArena::MemMapArena(size_t size, bool low_4gb, const char* name) {
-  // Round up to a full page as that's the smallest unit of allocation for mmap()
-  // and we want to be able to use all memory that we actually allocate.
-  size = RoundUp(size, kPageSize);
-  std::string error_msg;
-  map_.reset(MemMap::MapAnonymous(
-      name, nullptr, size, PROT_READ | PROT_WRITE, low_4gb, false, &error_msg));
-  CHECK(map_.get() != nullptr) << error_msg;
-  memory_ = map_->Begin();
-  static_assert(ArenaAllocator::kArenaAlignment <= kPageSize,
-                "Arena should not need stronger alignment than kPageSize.");
-  DCHECK_ALIGNED(memory_, ArenaAllocator::kArenaAlignment);
-  size_ = map_->Size();
-}
-
-MemMapArena::~MemMapArena() {
-  // Destroys MemMap via std::unique_ptr<>.
-}
-
-void MemMapArena::Release() {
-  if (bytes_allocated_ > 0) {
-    map_->MadviseDontNeedAndZero();
-    bytes_allocated_ = 0;
-  }
-}
-
 void Arena::Reset() {
   if (bytes_allocated_ > 0) {
     memset(Begin(), 0, bytes_allocated_);
@@ -278,25 +238,20 @@ void Arena::Reset() {
   }
 }
 
-ArenaPool::ArenaPool(bool use_malloc, bool low_4gb, const char* name)
-    : use_malloc_(use_malloc),
-      lock_("Arena pool lock", kArenaPoolLock),
-      free_arenas_(nullptr),
-      low_4gb_(low_4gb),
-      name_(name) {
-  if (low_4gb) {
-    CHECK(!use_malloc) << "low4gb must use map implementation";
-  }
-  if (!use_malloc) {
-    MemMap::Init();
-  }
+ArenaPool::ArenaPool() : free_arenas_(nullptr) {
 }
 
 ArenaPool::~ArenaPool() {
+}
+
+MallocArenaPool::MallocArenaPool() {
+}
+
+MallocArenaPool::~MallocArenaPool() {
   ReclaimMemory();
 }
 
-void ArenaPool::ReclaimMemory() {
+void MallocArenaPool::ReclaimMemory() {
   while (free_arenas_ != nullptr) {
     Arena* arena = free_arenas_;
     free_arenas_ = free_arenas_->next_;
@@ -304,50 +259,40 @@ void ArenaPool::ReclaimMemory() {
   }
 }
 
-void ArenaPool::LockReclaimMemory() {
-  MutexLock lock(Thread::Current(), lock_);
+void MallocArenaPool::LockReclaimMemory() {
+  std::lock_guard<std::mutex> lock(lock_);
   ReclaimMemory();
 }
 
-Arena* ArenaPool::AllocArena(size_t size) {
-  Thread* self = Thread::Current();
+Arena* MallocArenaPool::AllocArena(size_t size) {
   Arena* ret = nullptr;
   {
-    MutexLock lock(self, lock_);
+    std::lock_guard<std::mutex> lock(lock_);
     if (free_arenas_ != nullptr && LIKELY(free_arenas_->Size() >= size)) {
       ret = free_arenas_;
       free_arenas_ = free_arenas_->next_;
     }
   }
   if (ret == nullptr) {
-    ret = use_malloc_ ? static_cast<Arena*>(new MallocArena(size)) :
-        new MemMapArena(size, low_4gb_, name_);
+    ret = static_cast<Arena*>(new MallocArena(size));
   }
   ret->Reset();
   return ret;
 }
 
-void ArenaPool::TrimMaps() {
-  if (!use_malloc_) {
-    ScopedTrace trace(__PRETTY_FUNCTION__);
-    // Doesn't work for malloc.
-    MutexLock lock(Thread::Current(), lock_);
-    for (Arena* arena = free_arenas_; arena != nullptr; arena = arena->next_) {
-      arena->Release();
-    }
-  }
+void MallocArenaPool::TrimMaps() {
 }
 
-size_t ArenaPool::GetBytesAllocated() const {
+size_t MallocArenaPool::GetBytesAllocated() const {
   size_t total = 0;
-  MutexLock lock(Thread::Current(), lock_);
+  std::lock_guard<std::mutex> lock(lock_);
   for (Arena* arena = free_arenas_; arena != nullptr; arena = arena->next_) {
     total += arena->GetBytesAllocated();
   }
   return total;
 }
 
-void ArenaPool::FreeArenaChain(Arena* first) {
+void MallocArenaPool::FreeArenaChain(Arena* first) {
   if (UNLIKELY(RUNNING_ON_MEMORY_TOOL > 0)) {
     for (Arena* arena = first; arena != nullptr; arena = arena->next_) {
       MEMORY_TOOL_MAKE_UNDEFINED(arena->memory_, arena->bytes_allocated_);
@@ -369,8 +314,7 @@ void ArenaPool::FreeArenaChain(Arena* first) {
     while (last->next_ != nullptr) {
       last = last->next_;
     }
-    Thread* self = Thread::Current();
-    MutexLock lock(self, lock_);
+    std::lock_guard<std::mutex> lock(lock_);
     last->next_ = free_arenas_;
     free_arenas_ = first;
   }

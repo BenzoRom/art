@@ -1606,7 +1606,7 @@ class AssemblerTest : public testing::Test {
 
   static constexpr size_t kWarnManyCombinationsThreshold = 500;
 
-  ArenaPool pool_;
+  MallocArenaPool pool_;
   std::unique_ptr<ArenaAllocator> allocator_;
   std::unique_ptr<Ass> assembler_;
   std::unique_ptr<AssemblerTestInfrastructure> test_helper_;

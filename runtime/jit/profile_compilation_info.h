@@ -697,7 +697,7 @@ class ProfileCompilationInfo {
   friend class ProfileAssistantTest;
   friend class Dex2oatLayoutTest;
 
-  ArenaPool default_arena_pool_;
+  std::unique_ptr<ArenaPool> default_arena_pool_;
   ArenaAllocator allocator_;
 
   // Vector containing the actual profile info.

@@ -169,7 +169,7 @@ class ArmVIXLAssemblerTest : public ::testing::Test {
  public:
   ArmVIXLAssemblerTest() : pool(), allocator(&pool), assembler(&allocator) { }
 
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaAllocator allocator;
   ArmVIXLJNIMacroAssembler assembler;
 };

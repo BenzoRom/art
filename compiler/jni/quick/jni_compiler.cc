@@ -174,7 +174,7 @@ static JniCompiledMethod ArtJniCompileMethodInternal(CompilerDriver* driver,
     }
   }
 
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaAllocator allocator(&pool);
 
   // Calling conventions used to iterate over parameters to method

@@ -139,7 +139,7 @@ class JNIMacroAssemblerTest : public testing::Test {
     test_helper_->Driver(*data, assembly_text, test_name);
   }
 
-  ArenaPool pool_;
+  MallocArenaPool pool_;
   std::unique_ptr<ArenaAllocator> allocator_;
   std::unique_ptr<Ass> assembler_;
   std::unique_ptr<AssemblerTestInfrastructure> test_helper_;

@@ -38,6 +38,7 @@ cc_defaults {
         "base/file_utils.cc",
         "base/hex_dump.cc",
         "base/logging.cc",
+        "base/mem_map_arena_pool.cc",
         "base/mutex.cc",
         "base/safe_copy.cc",
         "base/scoped_arena_allocator.cc",

@@ -46,7 +46,7 @@ static bool CheckStackMask(
 using Kind = DexRegisterLocation::Kind;
 
 TEST(StackMapTest, Test1) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaStack arena_stack(&pool);
   ScopedArenaAllocator allocator(&arena_stack);
   StackMapStream stream(&allocator, kRuntimeISA);
@@ -128,7 +128,7 @@ TEST(StackMapTest, Test1) {
 }
 
 TEST(StackMapTest, Test2) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaStack arena_stack(&pool);
   ScopedArenaAllocator allocator(&arena_stack);
   StackMapStream stream(&allocator, kRuntimeISA);
@@ -413,7 +413,7 @@ TEST(StackMapTest, Test2) {
 }
 
 TEST(StackMapTest, TestDeduplicateInlineInfoDexRegisterMap) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaStack arena_stack(&pool);
   ScopedArenaAllocator allocator(&arena_stack);
   StackMapStream stream(&allocator, kRuntimeISA);
@@ -508,7 +508,7 @@ TEST(StackMapTest, TestDeduplicateInlineInfoDexRegisterMap) {
 }
 
 TEST(StackMapTest, TestNonLiveDexRegisters) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaStack arena_stack(&pool);
   ScopedArenaAllocator allocator(&arena_stack);
   StackMapStream stream(&allocator, kRuntimeISA);
@@ -588,7 +588,7 @@ TEST(StackMapTest, TestNonLiveDexRegisters) {
 // StackMap::kNoDexRegisterMapSmallEncoding, and ensure we do
 // not treat it as kNoDexRegisterMap.
 TEST(StackMapTest, DexRegisterMapOffsetOverflow) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaStack arena_stack(&pool);
   ScopedArenaAllocator allocator(&arena_stack);
   StackMapStream stream(&allocator, kRuntimeISA);
@@ -652,7 +652,7 @@ TEST(StackMapTest, DexRegisterMapOffsetOverflow) {
 }
 
 TEST(StackMapTest, TestShareDexRegisterMap) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaStack arena_stack(&pool);
   ScopedArenaAllocator allocator(&arena_stack);
   StackMapStream stream(&allocator, kRuntimeISA);
@@ -711,7 +711,7 @@ TEST(StackMapTest, TestShareDexRegisterMap) {
 }
 
 TEST(StackMapTest, TestNoDexRegisterMap) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaStack arena_stack(&pool);
   ScopedArenaAllocator allocator(&arena_stack);
   StackMapStream stream(&allocator, kRuntimeISA);
@@ -761,7 +761,7 @@ TEST(StackMapTest, TestNoDexRegisterMap) {
 }
 
 TEST(StackMapTest, InlineTest) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaStack arena_stack(&pool);
   ScopedArenaAllocator allocator(&arena_stack);
   StackMapStream stream(&allocator, kRuntimeISA);
@@ -949,7 +949,7 @@ TEST(StackMapTest, CodeOffsetTest) {
 }
 
 TEST(StackMapTest, TestDeduplicateStackMask) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaStack arena_stack(&pool);
   ScopedArenaAllocator allocator(&arena_stack);
   StackMapStream stream(&allocator, kRuntimeISA);
@@ -978,7 +978,7 @@ TEST(StackMapTest, TestDeduplicateStackMask) {
 }
 
 TEST(StackMapTest, TestInvokeInfo) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaStack arena_stack(&pool);
   ScopedArenaAllocator allocator(&arena_stack);
   StackMapStream stream(&allocator, kRuntimeISA);

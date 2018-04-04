@@ -84,8 +84,8 @@ ProfileCompilationInfo::ProfileCompilationInfo(ArenaPool* custom_arena_pool)
 }
 
 ProfileCompilationInfo::ProfileCompilationInfo()
-    : default_arena_pool_(/*use_malloc*/true, /*low_4gb*/false, "ProfileCompilationInfo"),
-      allocator_(&default_arena_pool_),
+    : default_arena_pool_(new MallocArenaPool()),
+      allocator_(default_arena_pool_.get()),
       info_(allocator_.Adapter(kArenaAllocProfile)),
       profile_key_map_(std::less<const std::string>(), allocator_.Adapter(kArenaAllocProfile)) {
 }

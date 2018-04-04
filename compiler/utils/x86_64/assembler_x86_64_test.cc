@@ -29,7 +29,7 @@
 namespace art {
 
 TEST(AssemblerX86_64, CreateBuffer) {
-  ArenaPool pool;
+  MallocArenaPool pool;
   ArenaAllocator allocator(&pool);
   AssemblerBuffer buffer(&allocator);
   AssemblerBuffer::EnsureCapacity ensured(&buffer);
