@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef ART_RUNTIME_BASE_MALLOC_ARENA_POOL_H_
-#define ART_RUNTIME_BASE_MALLOC_ARENA_POOL_H_
+#ifndef ART_LIBARTBASE_BASE_MALLOC_ARENA_POOL_H_
+#define ART_LIBARTBASE_BASE_MALLOC_ARENA_POOL_H_
 
 #include <mutex>
 
-#include "base/arena_allocator.h"
+#include "arena_allocator.h"
 
 namespace art {
 
@@ -45,4 +45,4 @@ class MallocArenaPool FINAL : public ArenaPool {
 
 }  // namespace art
 
-#endif  // ART_RUNTIME_BASE_MALLOC_ARENA_POOL_H_
+#endif  // ART_LIBARTBASE_BASE_MALLOC_ARENA_POOL_H_

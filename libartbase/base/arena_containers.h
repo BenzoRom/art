@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ART_RUNTIME_BASE_ARENA_CONTAINERS_H_
-#define ART_RUNTIME_BASE_ARENA_CONTAINERS_H_
+#ifndef ART_LIBARTBASE_BASE_ARENA_CONTAINERS_H_
+#define ART_LIBARTBASE_BASE_ARENA_CONTAINERS_H_
 
 #include <deque>
 #include <queue>
@@ -25,10 +25,10 @@
 #include <utility>
 
 #include "arena_allocator.h"
-#include "base/dchecked_vector.h"
-#include "base/hash_map.h"
-#include "base/hash_set.h"
-#include "base/safe_map.h"
+#include "dchecked_vector.h"
+#include "hash_map.h"
+#include "hash_set.h"
+#include "safe_map.h"
 
 namespace art {
 
@@ -241,4 +241,4 @@ inline ArenaAllocatorAdapter<void> ArenaAllocator::Adapter(ArenaAllocKind kind) 
 
 }  // namespace art
 
-#endif  // ART_RUNTIME_BASE_ARENA_CONTAINERS_H_
+#endif  // ART_LIBARTBASE_BASE_ARENA_CONTAINERS_H_

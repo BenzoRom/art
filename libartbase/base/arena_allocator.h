@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-#ifndef ART_RUNTIME_BASE_ARENA_ALLOCATOR_H_
-#define ART_RUNTIME_BASE_ARENA_ALLOCATOR_H_
+#ifndef ART_LIBARTBASE_BASE_ARENA_ALLOCATOR_H_
+#define ART_LIBARTBASE_BASE_ARENA_ALLOCATOR_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
-#include "base/bit_utils.h"
-#include "base/debug_stack.h"
-#include "base/dchecked_vector.h"
-#include "base/macros.h"
-#include "base/memory_tool.h"
+#include "bit_utils.h"
+#include "debug_stack.h"
+#include "dchecked_vector.h"
+#include "macros.h"
+#include "memory_tool.h"
 
 namespace art {
 
@@ -423,4 +423,4 @@ class MemStats {
 
 }  // namespace art
 
-#endif  // ART_RUNTIME_BASE_ARENA_ALLOCATOR_H_
+#endif  // ART_LIBARTBASE_BASE_ARENA_ALLOCATOR_H_
