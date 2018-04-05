@@ -1955,12 +1955,12 @@ ENTRY art_quick_test_suspend
 END art_quick_test_suspend
 
 ENTRY art_quick_implicit_suspend
+    SETUP_SAVE_EVERYTHING_FRAME RUNTIME_SAVE_EVERYTHING_FOR_SUSPEND_CHECK_METHOD_OFFSET  // save callee saves for stack crawl
     mov    x0, xSELF
-    SETUP_SAVE_REFS_ONLY_FRAME                // save callee saves for stack crawl
     bl     artTestSuspendFromCode             // (Thread*)
-    RESTORE_SAVE_REFS_ONLY_FRAME
+    RESTORE_SAVE_EVERYTHING_FRAME
     REFRESH_MARKING_REGISTER
-    ret
+    br     lr  // Do not use RET as we do not enter the entrypoint with "BL".
 END art_quick_implicit_suspend
 
      /*

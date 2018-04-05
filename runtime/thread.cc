@@ -125,6 +125,55 @@ constexpr size_t kStackOverflowProtectedSize = 4 * kMemoryToolStackGuardSizeScal
 
 static const char* kThreadNameDuringStartup = "<native thread without managed peer>";
 
+Thread* Thread::CreateThreadObject(bool daemon) {
+#if defined(__aarch64__)
+  static_assert(sizeof(Thread) <= kPageSize, "Thread object size should not exceed page size.");
+  void* storage =
+      mmap(nullptr, 2 * kPageSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0u);
+  CHECK(storage != MAP_FAILED);
+#else
+  void* storage = malloc(sizeof(Thread));
+  CHECK(storage != nullptr);
+#endif
+  return new(storage) Thread(daemon);
+}
+
+void Thread::DestroyThreadObject(Thread* thread) {
+  thread->~Thread();
+#if defined(__aarch64__)
+  DCHECK_ALIGNED(thread, kPageSize);
+  munmap(thread, 2 * kPageSize);
+#else
+  free(thread);
+#endif
+}
+
+void Thread::RemoveSuspendTrigger() {
+#if defined(__aarch64__)
+  // Remove the suspend trigger for this thread by making the suspend trigger page read-write.
+  void* suspend_page = reinterpret_cast<uint8_t*>(this) + kPageSize;
+  CheckedCall(mprotect, __FUNCTION__, suspend_page, kPageSize, PROT_READ | PROT_WRITE);
+#else
+  // Remove the suspend trigger for this thread by making the suspend_trigger_ TLS value
+  // equal to a valid pointer.
+  // TODO: does this need to atomic?  I don't think so.
+  tlsPtr_.suspend_trigger = reinterpret_cast<uintptr_t*>(&tlsPtr_.suspend_trigger);
+#endif
+}
+
+void Thread::TriggerSuspend() {
+#if defined(__aarch64__)
+  // Trigger a suspend check by making the suspend trigger page read-only.
+  void* suspend_page = reinterpret_cast<uint8_t*>(this) + kPageSize;
+  CheckedCall(mprotect, __FUNCTION__, suspend_page, kPageSize, PROT_READ);
+#else
+  // Trigger a suspend check by making the suspend_trigger_ TLS value an invalid pointer.
+  // The next time a suspend check is done, it will load from the value at this address
+  // and trigger a SIGSEGV.
+  tlsPtr_.suspend_trigger = nullptr;
+#endif
+}
+
 void Thread::InitCardTable() {
   tlsPtr_.card_table = Runtime::Current()->GetHeap()->GetCardTable()->GetBiasedBegin();
 }
@@ -657,7 +706,7 @@ void Thread::CreateNativeThread(JNIEnv* env, jobject java_peer, size_t stack_siz
     return;
   }
 
-  Thread* child_thread = new Thread(is_daemon);
+  Thread* child_thread = CreateThreadObject(is_daemon);
   // Use global JNI ref to hold peer live while child thread starts.
   child_thread->tlsPtr_.jpeer = env->NewGlobalRef(java_peer);
   stack_size = FixStackSize(stack_size);
@@ -706,7 +755,7 @@ void Thread::CreateNativeThread(JNIEnv* env, jobject java_peer, size_t stack_siz
   // Manually delete the global reference since Thread::Init will not have been run.
   env->DeleteGlobalRef(child_thread->tlsPtr_.jpeer);
   child_thread->tlsPtr_.jpeer = nullptr;
-  delete child_thread;
+  DestroyThreadObject(child_thread);
   child_thread = nullptr;
   // TODO: remove from thread group?
   env->SetLongField(java_peer, WellKnownClasses::java_lang_Thread_nativePeer, 0);
@@ -784,11 +833,11 @@ Thread* Thread::Attach(const char* thread_name, bool as_daemon, PeerAction peer_
       return nullptr;
     } else {
       Runtime::Current()->StartThreadBirth();
-      self = new Thread(as_daemon);
+      self = CreateThreadObject(as_daemon);
       bool init_success = self->Init(runtime->GetThreadList(), runtime->GetJavaVM());
       Runtime::Current()->EndThreadBirth();
       if (!init_success) {
-        delete self;
+        DestroyThreadObject(self);
         return nullptr;
       }
     }

@@ -2201,6 +2201,15 @@ void CodeGeneratorARM64::GenerateMemoryBarrier(MemBarrierKind kind) {
 
 void InstructionCodeGeneratorARM64::GenerateSuspendCheck(HSuspendCheck* instruction,
                                                          HBasicBlock* successor) {
+  bool use_implicit_check =
+      codegen_->GetCompilerOptions().GetImplicitSuspendChecks() && !GetGraph()->HasSIMD();
+  if (use_implicit_check) {
+    DCHECK(instruction->IsSuspendCheck());
+    __ Str(xzr, MemOperand(tr, kPageSize));
+    codegen_->RecordPcInfo(instruction, instruction->GetDexPc());
+    return;
+  }
+
   SuspendCheckSlowPathARM64* slow_path =
       down_cast<SuspendCheckSlowPathARM64*>(instruction->GetSlowPath());
   if (slow_path == nullptr) {
@@ -3560,13 +3569,19 @@ void InstructionCodeGeneratorARM64::HandleGoto(HInstruction* got, HBasicBlock* s
   HInstruction* previous = got->GetPrevious();
   HLoopInformation* info = block->GetLoopInformation();
 
+  bool use_implicit_check =
+      codegen_->GetCompilerOptions().GetImplicitSuspendChecks() && !GetGraph()->HasSIMD();
   if (info != nullptr && info->IsBackEdge(*block) && info->HasSuspendCheck()) {
-    GenerateSuspendCheck(info->GetSuspendCheck(), successor);
-    return;
+    if (!use_implicit_check) {
+      GenerateSuspendCheck(info->GetSuspendCheck(), successor);
+      return;
+    }
   }
   if (block->IsEntryBlock() && (previous != nullptr) && previous->IsSuspendCheck()) {
-    GenerateSuspendCheck(previous->AsSuspendCheck(), nullptr);
-    codegen_->MaybeGenerateMarkingRegisterCheck(/* code */ __LINE__);
+    if (!use_implicit_check) {
+      GenerateSuspendCheck(previous->AsSuspendCheck(), nullptr);
+      codegen_->MaybeGenerateMarkingRegisterCheck(/* code */ __LINE__);
+    }
   }
   if (!codegen_->GoesToNextBlock(block, successor)) {
     __ B(codegen_->GetLabelOf(successor));
@@ -5864,15 +5879,19 @@ void LocationsBuilderARM64::VisitSuspendCheck(HSuspendCheck* instruction) {
 }
 
 void InstructionCodeGeneratorARM64::VisitSuspendCheck(HSuspendCheck* instruction) {
-  HBasicBlock* block = instruction->GetBlock();
-  if (block->GetLoopInformation() != nullptr) {
-    DCHECK(block->GetLoopInformation()->GetSuspendCheck() == instruction);
-    // The back edge will generate the suspend check.
-    return;
-  }
-  if (block->IsEntryBlock() && instruction->GetNext()->IsGoto()) {
-    // The goto will generate the suspend check.
-    return;
+  bool use_implicit_check =
+      codegen_->GetCompilerOptions().GetImplicitSuspendChecks() && !GetGraph()->HasSIMD();
+  if (!use_implicit_check) {
+    HBasicBlock* block = instruction->GetBlock();
+    if (block->GetLoopInformation() != nullptr) {
+      DCHECK(block->GetLoopInformation()->GetSuspendCheck() == instruction);
+      // The back edge will generate the suspend check.
+      return;
+    }
+    if (block->IsEntryBlock() && instruction->GetNext()->IsGoto()) {
+      // The goto will generate the suspend check.
+      return;
+    }
   }
   GenerateSuspendCheck(instruction, nullptr);
   codegen_->MaybeGenerateMarkingRegisterCheck(/* code */ __LINE__);
