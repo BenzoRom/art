@@ -580,8 +580,7 @@ static jobject Class_getEnclosingConstructorNative(JNIEnv* env, jobject javaThis
   }
   ObjPtr<mirror::Object> method = annotations::GetEnclosingMethod(klass);
   if (method != nullptr) {
-    if (soa.Decode<mirror::Class>(WellKnownClasses::java_lang_reflect_Constructor) ==
-        method->GetClass()) {
+    if (mirror::Constructor::StaticClass() == method->GetClass()) {
       return soa.AddLocalReference<jobject>(method);
     }
   }
@@ -597,8 +596,7 @@ static jobject Class_getEnclosingMethodNative(JNIEnv* env, jobject javaThis) {
   }
   ObjPtr<mirror::Object> method = annotations::GetEnclosingMethod(klass);
   if (method != nullptr) {
-    if (soa.Decode<mirror::Class>(WellKnownClasses::java_lang_reflect_Method) ==
-        method->GetClass()) {
+    if (mirror::Method::StaticClass() == method->GetClass()) {
       return soa.AddLocalReference<jobject>(method);
     }
   }

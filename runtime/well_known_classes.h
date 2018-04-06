@@ -68,10 +68,6 @@ struct WellKnownClasses {
   static jclass java_lang_NoClassDefFoundError;
   static jclass java_lang_Object;
   static jclass java_lang_OutOfMemoryError;
-  static jclass java_lang_reflect_Constructor;
-  static jclass java_lang_reflect_Executable;
-  static jclass java_lang_reflect_Field;
-  static jclass java_lang_reflect_Method;
   static jclass java_lang_reflect_Parameter;
   static jclass java_lang_reflect_Parameter__array;
   static jclass java_lang_reflect_Proxy;
