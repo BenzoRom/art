@@ -681,13 +681,13 @@ bool PatchOat::WriteImage(File* out) {
   TimingLogger::ScopedTiming t("Writing image File", timings_);
   std::string error_msg;
 
+  CHECK(out != nullptr);
   // No error checking here, this is best effort. The locking may or may not
   // succeed and we don't really care either way.
   ScopedFlock img_flock = LockedFile::DupOf(out->Fd(), out->GetPath(),
                                             true /* read_only_mode */, &error_msg);
 
   CHECK(image_ != nullptr);
-  CHECK(out != nullptr);
   size_t expect = image_->Size();
   if (out->WriteFully(reinterpret_cast<char*>(image_->Begin()), expect) &&
       out->SetLength(expect) == 0) {
