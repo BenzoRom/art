@@ -6514,7 +6514,7 @@ class HClinitCheck FINAL : public HExpression<1> {
       : HExpression(
             kClinitCheck,
             DataType::Type::kReference,
-            SideEffects::AllChanges(),  // Assume write/read on all fields/arrays.
+            SideEffects::AllExceptGCDependency(),  // Assume write/read on all fields/arrays.
             dex_pc) {
     SetRawInputAt(0, constant);
   }
