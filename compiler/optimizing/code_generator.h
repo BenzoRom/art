@@ -564,6 +564,11 @@ class CodeGenerator : public DeletableArenaObject<kArenaAllocCodeGenerator> {
                                                         Location runtime_return_location);
   void GenerateLoadClassRuntimeCall(HLoadClass* cls);
 
+  static void CreateLoadMethodTypeRuntimeCallLocationSummary(HLoadMethodType* method_type,
+                                                             Location runtime_type_index_location,
+                                                             Location runtime_return_location);
+  void GenerateLoadMethodTypeRuntimeCall(HLoadMethodType* method_type);
+
   static void CreateSystemArrayCopyLocationSummary(HInvoke* invoke);
 
   void SetDisassemblyInformation(DisassemblyInformation* info) { disasm_info_ = info; }

@@ -734,6 +734,26 @@ void CodeGenerator::GenerateLoadClassRuntimeCall(HLoadClass* cls) {
   }
 }
 
+void CodeGenerator::CreateLoadMethodTypeRuntimeCallLocationSummary(
+    HLoadMethodType* method_type,
+    Location runtime_proto_index_location,
+    Location runtime_return_location) {
+  DCHECK_EQ(method_type->InputCount(), 1u);
+  LocationSummary* locations =
+      new (method_type->GetBlock()->GetGraph()->GetAllocator()) LocationSummary(
+          method_type, LocationSummary::kCallOnMainOnly);
+  locations->SetInAt(0, Location::NoLocation());
+  locations->AddTemp(runtime_proto_index_location);
+  locations->SetOut(runtime_return_location);
+}
+
+void CodeGenerator::GenerateLoadMethodTypeRuntimeCall(HLoadMethodType* method_type) {
+  LocationSummary* locations = method_type->GetLocations();
+  MoveConstant(locations->GetTemp(0), method_type->GetProtoIndex());
+  CheckEntrypointTypes<kQuickResolveMethodType, void*, uint32_t>();
+  InvokeRuntime(kQuickResolveMethodType, method_type, method_type->GetDexPc());
+}
+
 void CodeGenerator::BlockIfInRegister(Location location, bool is_out) const {
   // The DCHECKS below check that a register is not specified twice in
   // the summary. The out location can overlap with an input, so we need
