@@ -1052,73 +1052,6 @@ public class Main {
     return array[1] + array[i];
   }
 
-  /// CHECK-START: int Main.testAllocationEliminationOfArray5(int) load_store_elimination (before)
-  /// CHECK: NewArray
-  /// CHECK: ArraySet
-  /// CHECK: ArrayGet
-
-  /// CHECK-START: int Main.testAllocationEliminationOfArray5(int) load_store_elimination (after)
-  /// CHECK: NewArray
-  /// CHECK-NOT: ArraySet
-  /// CHECK-NOT: ArrayGet
-  private static int testAllocationEliminationOfArray5(int i) {
-    // Cannot eliminate array allocation due to unknown i that may
-    // cause NegativeArraySizeException.
-    int[] array = new int[i];
-    array[1] = 12;
-    return array[1];
-  }
-
-  /// CHECK-START: int Main.testExitMerge(boolean) load_store_elimination (before)
-  /// CHECK: NewInstance
-  /// CHECK: InstanceFieldSet
-  /// CHECK: InstanceFieldGet
-  /// CHECK: Return
-  /// CHECK: InstanceFieldSet
-  /// CHECK: Throw
-
-  /// CHECK-START: int Main.testExitMerge(boolean) load_store_elimination (after)
-  /// CHECK-NOT: NewInstance
-  /// CHECK-NOT: InstanceFieldSet
-  /// CHECK-NOT: InstanceFieldGet
-  /// CHECK: Return
-  /// CHECK-NOT: InstanceFieldSet
-  /// CHECK: Throw
-  private static int testExitMerge(boolean cond) {
-    TestClass obj = new TestClass();
-    if (cond) {
-      obj.i = 1;
-      return obj.i + 1;
-    } else {
-      obj.i = 2;
-      throw new Error();
-    }
-  }
-
-  /// CHECK-START: int Main.testExitMerge2(boolean) load_store_elimination (before)
-  /// CHECK: NewInstance
-  /// CHECK: InstanceFieldSet
-  /// CHECK: InstanceFieldGet
-  /// CHECK: InstanceFieldSet
-  /// CHECK: InstanceFieldGet
-
-  /// CHECK-START: int Main.testExitMerge2(boolean) load_store_elimination (after)
-  /// CHECK-NOT: NewInstance
-  /// CHECK-NOT: InstanceFieldSet
-  /// CHECK-NOT: InstanceFieldGet
-  private static int testExitMerge2(boolean cond) {
-    TestClass obj = new TestClass();
-    int res;
-    if (cond) {
-      obj.i = 1;
-      res = obj.i + 1;
-    } else {
-      obj.i = 2;
-      res = obj.j + 2;
-    }
-    return res;
-  }
-
   static void assertIntEquals(int result, int expected) {
     if (expected != result) {
       throw new Error("Expected: " + expected + ", found: " + result);
@@ -1213,45 +1146,6 @@ public class Main {
 
     assertIntEquals(testStoreStore().i, 41);
     assertIntEquals(testStoreStore().j, 43);
-
-    assertIntEquals(testExitMerge(true), 2);
-    assertIntEquals(testExitMerge2(true), 2);
-    assertIntEquals(testExitMerge2(false), 2);
-
-    TestClass2 testclass2 = new TestClass2();
-    testStoreStore2(testclass2);
-    assertIntEquals(testclass2.i, 43);
-    assertIntEquals(testclass2.j, 44);
-
-    testStoreStore3(testclass2, true);
-    assertIntEquals(testclass2.i, 41);
-    assertIntEquals(testclass2.j, 43);
-    testStoreStore3(testclass2, false);
-    assertIntEquals(testclass2.i, 41);
-    assertIntEquals(testclass2.j, 44);
-
-    testStoreStore4();
-    assertIntEquals(TestClass.si, 62);
-
-    int ret = testStoreStore5(testclass2, testclass2);
-    assertIntEquals(testclass2.i, 72);
-    assertIntEquals(ret, 71);
-
-    testclass2.j = 88;
-    ret = testStoreStore6(testclass2, testclass2);
-    assertIntEquals(testclass2.i, 82);
-    assertIntEquals(ret, 88);
-
-    ret = testNoSideEffects(iarray);
-    assertIntEquals(iarray[0], 101);
-    assertIntEquals(iarray[1], 103);
-    assertIntEquals(ret, 108);
-
-    try {
-      testThrow(testclass2, new Exception());
-    } catch (Exception e) {}
-    assertIntEquals(testclass2.i, 55);
-
     assertIntEquals(testStoreStoreWithDeoptimize(new int[4]), 4);
   }
 

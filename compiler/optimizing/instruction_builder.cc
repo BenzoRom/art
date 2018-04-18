@@ -1765,13 +1765,6 @@ void HInstructionBuilder::BuildFillArrayData(const Instruction& instruction, uin
 
   switch (payload->element_width) {
     case 1:
-      // The 'fill-array-data' dex instruction doesn't hold information about element exact type
-      // (kInt8 or kUint8 for booleans), only element size. As type information is not fully
-      // available at this stage use kInt8, record the fact and process it later (for more details
-      // see ReferenceTypePropagation::FixAmbiguousArraySetsFromFillArrayData). Lack of treatment
-      // for this case would cause a situation when GetComponentType() and array type for HArraySet
-      // are not coherent.
-      graph_->SetAmbiguousFillArrayData(true);
       BuildFillArrayData(array,
                          reinterpret_cast<const int8_t*>(data),
                          element_count,
@@ -1779,8 +1772,6 @@ void HInstructionBuilder::BuildFillArrayData(const Instruction& instruction, uin
                          dex_pc);
       break;
     case 2:
-      // The same issue with signed/unsigned type as for element_width 1.
-      graph_->SetAmbiguousFillArrayData(true);
       BuildFillArrayData(array,
                          reinterpret_cast<const int16_t*>(data),
                          element_count,
