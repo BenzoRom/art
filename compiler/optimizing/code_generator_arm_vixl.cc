@@ -107,16 +107,6 @@ constexpr int kMarkingRegisterCheckBreakCodeBaseCode = 0x10;
 // Marker that code is yet to be, and must, be implemented.
 #define TODO_VIXL32(level) LOG(level) << __PRETTY_FUNCTION__ << " unimplemented "
 
-static inline void ExcludeIPAndBakerCcEntrypointRegister(UseScratchRegisterScope* temps,
-                                                         HInstruction* instruction) {
-  DCHECK(temps->IsAvailable(ip));
-  temps->Exclude(ip);
-  DCHECK(!temps->IsAvailable(kBakerCcEntrypointRegister));
-  DCHECK_NE(instruction->GetLocations()->GetTempCount(), 0u);
-  DCHECK(RegisterFrom(instruction->GetLocations()->GetTemp(
-      instruction->GetLocations()->GetTempCount() - 1u)).Is(kBakerCcEntrypointRegister));
-}
-
 static inline void EmitPlaceholderBne(CodeGeneratorARMVIXL* codegen, vixl32::Label* patch_label) {
   ExactAssemblyScope eas(codegen->GetVIXLAssembler(), kMaxInstructionSizeInBytes);
   __ bind(patch_label);
@@ -5687,8 +5677,6 @@ void LocationsBuilderARMVIXL::HandleFieldGet(HInstruction* instruction,
       if (field_info.GetFieldOffset().Uint32Value() >= kReferenceLoadMinFarOffset) {
         locations->AddTemp(Location::RequiresRegister());
       }
-      // And we always need the reserved entrypoint register.
-      locations->AddTemp(Location::RegisterLocation(kBakerCcEntrypointRegister.GetCode()));
     } else {
       locations->AddTemp(Location::RequiresRegister());
     }
@@ -5801,11 +5789,11 @@ void InstructionCodeGeneratorARMVIXL::HandleFieldGet(HInstruction* instruction,
     case DataType::Type::kReference: {
       // /* HeapReference<Object> */ out = *(base + offset)
       if (kEmitCompilerReadBarrier && kUseBakerReadBarrier) {
-        Location temp_loc = locations->GetTemp(0);
+        Location maybe_temp = (locations->GetTempCount() != 0) ? locations->GetTemp(0) : Location();
         // Note that a potential implicit null check is handled in this
         // CodeGeneratorARMVIXL::GenerateFieldLoadWithBakerReadBarrier call.
         codegen_->GenerateFieldLoadWithBakerReadBarrier(
-            instruction, out, base, offset, temp_loc, /* needs_null_check */ true);
+            instruction, out, base, offset, maybe_temp, /* needs_null_check */ true);
         if (is_volatile) {
           codegen_->GenerateMemoryBarrier(MemBarrierKind::kLoadAny);
         }
@@ -6104,8 +6092,6 @@ void LocationsBuilderARMVIXL::VisitArrayGet(HArrayGet* instruction) {
         object_array_get_with_read_barrier ? Location::kOutputOverlap : Location::kNoOutputOverlap);
   }
   if (object_array_get_with_read_barrier && kUseBakerReadBarrier) {
-    // We need a temporary register for the read barrier marking slow
-    // path in CodeGeneratorARMVIXL::GenerateArrayLoadWithBakerReadBarrier.
     if (kBakerReadBarrierLinkTimeThunksEnableForFields &&
         !Runtime::Current()->UseJitCompilation() &&
         instruction->GetIndex()->IsConstant()) {
@@ -6118,16 +6104,10 @@ void LocationsBuilderARMVIXL::VisitArrayGet(HArrayGet* instruction) {
       if (offset >= kReferenceLoadMinFarOffset) {
         locations->AddTemp(Location::RequiresRegister());
       }
-      // And we always need the reserved entrypoint register.
-      locations->AddTemp(Location::RegisterLocation(kBakerCcEntrypointRegister.GetCode()));
-    } else if (kBakerReadBarrierLinkTimeThunksEnableForArrays &&
-               !Runtime::Current()->UseJitCompilation() &&
-               !instruction->GetIndex()->IsConstant()) {
-      // We need a non-scratch temporary for the array data pointer.
-      locations->AddTemp(Location::RequiresRegister());
-      // And we always need the reserved entrypoint register.
-      locations->AddTemp(Location::RegisterLocation(kBakerCcEntrypointRegister.GetCode()));
     } else {
+      // If using introspection, we need a non-scratch temporary for the array data pointer.
+      // Otherwise, we need a temporary register for the read barrier marking slow
+      // path in CodeGeneratorARMVIXL::GenerateArrayLoadWithBakerReadBarrier.
       locations->AddTemp(Location::RequiresRegister());
     }
   } else if (mirror::kUseStringCompression && instruction->IsStringCharAt()) {
@@ -6240,20 +6220,22 @@ void InstructionCodeGeneratorARMVIXL::VisitArrayGet(HArrayGet* instruction) {
       // /* HeapReference<Object> */ out =
       //     *(obj + data_offset + index * sizeof(HeapReference<Object>))
       if (kEmitCompilerReadBarrier && kUseBakerReadBarrier) {
-        Location temp = locations->GetTemp(0);
         // Note that a potential implicit null check is handled in this
         // CodeGeneratorARMVIXL::GenerateArrayLoadWithBakerReadBarrier call.
         DCHECK(!instruction->CanDoImplicitNullCheckOn(instruction->InputAt(0)));
         if (index.IsConstant()) {
           // Array load with a constant index can be treated as a field load.
+          Location maybe_temp =
+              (locations->GetTempCount() != 0) ? locations->GetTemp(0) : Location();
           data_offset += Int32ConstantFrom(index) << DataType::SizeShift(type);
           codegen_->GenerateFieldLoadWithBakerReadBarrier(instruction,
                                                           out_loc,
                                                           obj,
                                                           data_offset,
-                                                          locations->GetTemp(0),
+                                                          maybe_temp,
                                                           /* needs_null_check */ false);
         } else {
+          Location temp = locations->GetTemp(0);
           codegen_->GenerateArrayLoadWithBakerReadBarrier(
               instruction, out_loc, obj, data_offset, index, temp, /* needs_null_check */ false);
         }
@@ -7161,13 +7143,6 @@ void LocationsBuilderARMVIXL::VisitLoadClass(HLoadClass* cls) {
       // For non-Baker read barrier we have a temp-clobbering call.
     }
   }
-  if (kUseBakerReadBarrier && kBakerReadBarrierLinkTimeThunksEnableForGcRoots) {
-    if (load_kind == HLoadClass::LoadKind::kBssEntry ||
-        (load_kind == HLoadClass::LoadKind::kReferrersClass &&
-            !Runtime::Current()->UseJitCompilation())) {
-      locations->AddTemp(Location::RegisterLocation(kBakerCcEntrypointRegister.GetCode()));
-    }
-  }
 }
 
 // NO_THREAD_SAFETY_ANALYSIS as we manipulate handles whose internal object we know does not
@@ -7407,9 +7382,6 @@ void LocationsBuilderARMVIXL::VisitLoadString(HLoadString* load) {
         // TODO: Add GetReturnLocation() to the calling convention so that we can DCHECK()
         // that the the kPrimNot result register is the same as the first argument register.
         locations->SetCustomSlowPathCallerSaves(caller_saves);
-        if (kUseBakerReadBarrier && kBakerReadBarrierLinkTimeThunksEnableForGcRoots) {
-          locations->AddTemp(Location::RegisterLocation(kBakerCcEntrypointRegister.GetCode()));
-        }
       } else {
         // For non-Baker read barrier we have a temp-clobbering call.
       }
@@ -7586,9 +7558,6 @@ void LocationsBuilderARMVIXL::VisitInstanceOf(HInstanceOf* instruction) {
   // Note that TypeCheckSlowPathARM uses this register too.
   locations->SetOut(Location::RequiresRegister(), Location::kOutputOverlap);
   locations->AddRegisterTemps(NumberOfInstanceOfTemps(type_check_kind));
-  if (kEmitCompilerReadBarrier && kUseBakerReadBarrier) {
-    codegen_->MaybeAddBakerCcEntrypointTempForFields(locations);
-  }
 }
 
 void InstructionCodeGeneratorARMVIXL::VisitInstanceOf(HInstanceOf* instruction) {
@@ -8549,7 +8518,7 @@ void CodeGeneratorARMVIXL::GenerateGcRootFieldLoad(
         //   return_address:
 
         UseScratchRegisterScope temps(GetVIXLAssembler());
-        ExcludeIPAndBakerCcEntrypointRegister(&temps, instruction);
+        temps.Exclude(ip);
         bool narrow = CanEmitNarrowLdr(root_reg, obj, offset);
         uint32_t custom_data = EncodeBakerReadBarrierGcRootData(root_reg.GetCode(), narrow);
         vixl32::Label* bne_label = NewBakerReadBarrierPatch(custom_data);
@@ -8617,16 +8586,6 @@ void CodeGeneratorARMVIXL::GenerateGcRootFieldLoad(
   MaybeGenerateMarkingRegisterCheck(/* code */ 18);
 }
 
-void CodeGeneratorARMVIXL::MaybeAddBakerCcEntrypointTempForFields(LocationSummary* locations) {
-  DCHECK(kEmitCompilerReadBarrier);
-  DCHECK(kUseBakerReadBarrier);
-  if (kBakerReadBarrierLinkTimeThunksEnableForFields) {
-    if (!Runtime::Current()->UseJitCompilation()) {
-      locations->AddTemp(Location::RegisterLocation(kBakerCcEntrypointRegister.GetCode()));
-    }
-  }
-}
-
 void CodeGeneratorARMVIXL::GenerateFieldLoadWithBakerReadBarrier(HInstruction* instruction,
                                                                  Location ref,
                                                                  vixl32::Register obj,
@@ -8664,7 +8623,6 @@ void CodeGeneratorARMVIXL::GenerateFieldLoadWithBakerReadBarrier(HInstruction* i
     vixl32::Register base = obj;
     if (offset >= kReferenceLoadMinFarOffset) {
       base = RegisterFrom(temp);
-      DCHECK(!base.Is(kBakerCcEntrypointRegister));
       static_assert(IsPowerOfTwo(kReferenceLoadMinFarOffset), "Expecting a power of 2.");
       __ Add(base, obj, Operand(offset & ~(kReferenceLoadMinFarOffset - 1u)));
       offset &= (kReferenceLoadMinFarOffset - 1u);
@@ -8674,7 +8632,7 @@ void CodeGeneratorARMVIXL::GenerateFieldLoadWithBakerReadBarrier(HInstruction* i
       DCHECK(!narrow);
     }
     UseScratchRegisterScope temps(GetVIXLAssembler());
-    ExcludeIPAndBakerCcEntrypointRegister(&temps, instruction);
+    temps.Exclude(ip);
     uint32_t custom_data = EncodeBakerReadBarrierFieldData(base.GetCode(), obj.GetCode(), narrow);
     vixl32::Label* bne_label = NewBakerReadBarrierPatch(custom_data);
 
@@ -8757,10 +8715,9 @@ void CodeGeneratorARMVIXL::GenerateArrayLoadWithBakerReadBarrier(HInstruction* i
     vixl32::Register index_reg = RegisterFrom(index, DataType::Type::kInt32);
     vixl32::Register ref_reg = RegisterFrom(ref, DataType::Type::kReference);
     vixl32::Register data_reg = RegisterFrom(temp, DataType::Type::kInt32);  // Raw pointer.
-    DCHECK(!data_reg.Is(kBakerCcEntrypointRegister));
 
     UseScratchRegisterScope temps(GetVIXLAssembler());
-    ExcludeIPAndBakerCcEntrypointRegister(&temps, instruction);
+    temps.Exclude(ip);
     uint32_t custom_data = EncodeBakerReadBarrierArrayData(data_reg.GetCode());
     vixl32::Label* bne_label = NewBakerReadBarrierPatch(custom_data);
 
@@ -9625,16 +9582,16 @@ static void EmitGrayCheckAndFastPath(ArmVIXLAssembler& assembler,
 }
 
 // Load the read barrier introspection entrypoint in register `entrypoint`
-static void LoadReadBarrierMarkIntrospectionEntrypoint(ArmVIXLAssembler& assembler,
-                                                       vixl32::Register entrypoint) {
+static vixl32::Register LoadReadBarrierMarkIntrospectionEntrypoint(ArmVIXLAssembler& assembler) {
   // The register where the read barrier introspection entrypoint is loaded
-  // is fixed: `kBakerCcEntrypointRegister` (R4).
-  DCHECK(entrypoint.Is(kBakerCcEntrypointRegister));
+  // is the marking register. We clobber it here and the entrypoint restores it to 1.
+  vixl32::Register entrypoint = mr;
   // entrypoint = Thread::Current()->pReadBarrierMarkReg12, i.e. pReadBarrierMarkIntrospection.
   DCHECK_EQ(ip.GetCode(), 12u);
   const int32_t entry_point_offset =
       Thread::ReadBarrierMarkEntryPointsOffset<kArmPointerSize>(ip.GetCode());
   __ Ldr(entrypoint, MemOperand(tr, entry_point_offset));
+  return entrypoint;
 }
 
 void CodeGeneratorARMVIXL::CompileBakerReadBarrierThunk(ArmVIXLAssembler& assembler,
@@ -9673,8 +9630,7 @@ void CodeGeneratorARMVIXL::CompileBakerReadBarrierThunk(ArmVIXLAssembler& assemb
       __ Bind(&slow_path);
       const int32_t ldr_offset = /* Thumb state adjustment (LR contains Thumb state). */ -1 +
                                  raw_ldr_offset;
-      vixl32::Register ep_reg(kBakerCcEntrypointRegister);
-      LoadReadBarrierMarkIntrospectionEntrypoint(assembler, ep_reg);
+      vixl32::Register ep_reg = LoadReadBarrierMarkIntrospectionEntrypoint(assembler);
       if (width == BakerReadBarrierWidth::kWide) {
         MemOperand ldr_half_address(lr, ldr_offset + 2);
         __ Ldrh(ip, ldr_half_address);        // Load the LDR immediate half-word with "Rt | imm12".
@@ -9714,8 +9670,7 @@ void CodeGeneratorARMVIXL::CompileBakerReadBarrierThunk(ArmVIXLAssembler& assemb
       MemOperand ldr_address(lr, ldr_offset + 2);
       __ Ldrb(ip, ldr_address);               // Load the LDR (register) byte with "00 | imm2 | Rm",
                                               // i.e. Rm+32 because the scale in imm2 is 2.
-      vixl32::Register ep_reg(kBakerCcEntrypointRegister);
-      LoadReadBarrierMarkIntrospectionEntrypoint(assembler, ep_reg);
+      vixl32::Register ep_reg = LoadReadBarrierMarkIntrospectionEntrypoint(assembler);
       __ Bfi(ep_reg, ip, 3, 6);               // Insert ip to the entrypoint address to create
                                               // a switch case target based on the index register.
       __ Mov(ip, base_reg);                   // Move the base register to ip0.
@@ -9748,8 +9703,7 @@ void CodeGeneratorARMVIXL::CompileBakerReadBarrierThunk(ArmVIXLAssembler& assemb
                     " the highest bits and the 'forwarding address' state to have all bits set");
       __ Cmp(ip, Operand(0xc0000000));
       __ B(hs, &forwarding_address);
-      vixl32::Register ep_reg(kBakerCcEntrypointRegister);
-      LoadReadBarrierMarkIntrospectionEntrypoint(assembler, ep_reg);
+      vixl32::Register ep_reg = LoadReadBarrierMarkIntrospectionEntrypoint(assembler);
       // Adjust the art_quick_read_barrier_mark_introspection address in kBakerCcEntrypointRegister
       // to art_quick_read_barrier_mark_introspection_gc_roots.
       int32_t entrypoint_offset = (width == BakerReadBarrierWidth::kWide)
