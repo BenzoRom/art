@@ -34,7 +34,6 @@
 
 #include "base/dumpable.h"
 #include "base/logging.h"  // For InitLogging.
-#include "base/mutex.h"
 #include "base/scoped_flock.h"
 #include "base/stringpiece.h"
 #include "base/time_utils.h"
@@ -49,7 +48,7 @@
 #include "dex/dex_file_loader.h"
 #include "dex/dex_file_types.h"
 #include "dex/type_reference.h"
-#include "jit/profile_compilation_info.h"
+#include "profile/profile_compilation_info.h"
 #include "profile_assistant.h"
 #include "runtime.h"
 

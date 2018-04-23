@@ -243,6 +243,7 @@ art_cc_library {
     },
     shared_libs: [
         "libart",
+        "libprofile",
         "libdexfile",
     ],
 
@@ -291,6 +292,7 @@ art_cc_library {
     },
     shared_libs: [
         "libartd",
+        "libprofiled",
         "libdexfiled",
     ],
 }
@@ -407,6 +409,7 @@ art_cc_test {
     ],
 
     shared_libs: [
+        "libprofiled",
         "libartd-compiler",
         "libartd-simulator-container",
         "libvixld-arm",
