@@ -544,10 +544,10 @@ void JitCodeCache::FreeCode(const void* code_ptr) {
 
 void JitCodeCache::FreeAllMethodHeaders(
     const std::unordered_set<OatQuickMethodHeader*>& method_headers) {
-  {
+  ClassHierarchyAnalysis* cha = Runtime::Current()->GetClassLinker()->GetClassHierarchyAnalysis();
+  if (cha != nullptr) {
     MutexLock mu(Thread::Current(), *Locks::cha_lock_);
-    Runtime::Current()->GetClassLinker()->GetClassHierarchyAnalysis()
-        ->RemoveDependentsWithMethodHeaders(method_headers);
+    cha->RemoveDependentsWithMethodHeaders(method_headers);
   }
 
   // We need to remove entries in method_headers from CHA dependencies
@@ -770,9 +770,11 @@ uint8_t* JitCodeCache::CommitCodeInternal(Thread* self,
     DCHECK(cha_single_implementation_list.empty() || !Runtime::Current()->IsJavaDebuggable())
         << "Should not be using cha on debuggable apps/runs!";
 
-    for (ArtMethod* single_impl : cha_single_implementation_list) {
-      Runtime::Current()->GetClassLinker()->GetClassHierarchyAnalysis()->AddDependency(
-          single_impl, method, method_header);
+    ClassHierarchyAnalysis* cha = Runtime::Current()->GetClassLinker()->GetClassHierarchyAnalysis();
+    if (cha != nullptr) {
+      for (ArtMethod* single_impl : cha_single_implementation_list) {
+        cha->AddDependency(single_impl, method, method_header);
+      }
     }
 
     // The following needs to be guarded by cha_lock_ also. Otherwise it's

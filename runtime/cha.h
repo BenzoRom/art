@@ -79,6 +79,8 @@ class LinearAlloc;
  */
 class ClassHierarchyAnalysis {
  public:
+  static constexpr bool kEnabled = false;
+
   // Types for recording CHA dependencies.
   // For invalidating CHA dependency, we need to know both the ArtMethod and
   // the method header. If the ArtMethod has compiled code with the method header
