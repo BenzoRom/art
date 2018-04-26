@@ -48,9 +48,9 @@ done
 
 jar_args=()
 boot_jars=$("$ANDROID_BUILD_TOP"/art/tools/bootjars.sh --target)
-jar_dir=$ANDROID_BUILD_TOP/$(get_build_var TARGET_OUT_JAVA_LIBRARIES)
+common_intermediates_dir=$ANDROID_BUILD_TOP/$(get_build_var TARGET_OUT_COMMON_INTERMEDIATES)
 for file in $boot_jars; do
-  filename="$jar_dir/$file.jar"
+  filename="$common_intermediates_dir/JAVA_LIBRARIES/${file}_intermediates/javalib.jar"
   jar_args+=("--apk=$filename")
   jar_args+=("--dex-location=$filename")
 done
