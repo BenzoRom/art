@@ -235,28 +235,6 @@ int OatFileAssistant::GetDexOptNeeded(CompilerFilter::Filter target,
   return -dexopt_needed;
 }
 
-// Figure out the currently specified compile filter option in the runtime.
-// Returns true on success, false if the compiler filter is invalid, in which
-// case error_msg describes the problem.
-static bool GetRuntimeCompilerFilterOption(CompilerFilter::Filter* filter,
-                                           std::string* error_msg) {
-  CHECK(filter != nullptr);
-  CHECK(error_msg != nullptr);
-
-  *filter = OatFileAssistant::kDefaultCompilerFilterForDexLoading;
-  for (StringPiece option : Runtime::Current()->GetCompilerOptions()) {
-    if (option.starts_with("--compiler-filter=")) {
-      const char* compiler_filter_string = option.substr(strlen("--compiler-filter=")).data();
-      if (!CompilerFilter::ParseCompilerFilter(compiler_filter_string, filter)) {
-        *error_msg = std::string("Unknown --compiler-filter value: ")
-                   + std::string(compiler_filter_string);
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
 bool OatFileAssistant::IsUpToDate() {
   return GetBestInfo().Status() == kOatUpToDate;
 }
@@ -268,10 +246,7 @@ OatFileAssistant::MakeUpToDate(bool profile_changed,
   // The method doesn't use zip_fd_ and directly opens dex files at dex_locations_.
   CHECK_EQ(-1, zip_fd_) << "MakeUpToDate should not be called with zip_fd";
 
-  CompilerFilter::Filter target;
-  if (!GetRuntimeCompilerFilterOption(&target, error_msg)) {
-    return kUpdateNotAttempted;
-  }
+  CompilerFilter::Filter target = CompilerFilter::kSpeed;
 
   OatFileInfo& info = GetBestInfo();
   // TODO(calin, jeffhao): the context should really be passed to GetDexOptNeeded: b/62269291.
