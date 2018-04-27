@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
+#include "linker/arm64/relative_patcher_arm64.h"
+
+#include "arch/arm64/instruction_set_features_arm64.h"
 #include "base/casts.h"
 #include "linker/relative_patcher_test.h"
-#include "linker/arm64/relative_patcher_arm64.h"
 #include "lock_word.h"
 #include "mirror/array-inl.h"
 #include "mirror/object.h"
 #include "oat_quick_method_header.h"
+#include "optimizing/code_generator_arm64.h"
+#include "optimizing/optimizing_unit_test.h"
 
 namespace art {
 namespace linker {
@@ -28,7 +32,7 @@ namespace linker {
 class Arm64RelativePatcherTest : public RelativePatcherTest {
  public:
   explicit Arm64RelativePatcherTest(const std::string& variant)
-      : RelativePatcherTest(kArm64, variant) { }
+      : RelativePatcherTest(InstructionSet::kArm64, variant) { }
 
  protected:
   static const uint8_t kCallRawCode[];
@@ -152,7 +156,8 @@ class Arm64RelativePatcherTest : public RelativePatcherTest {
     // There may be a thunk before method2.
     if (last_result.second != last_method_offset) {
       // Thunk present. Check that there's only one.
-      uint32_t thunk_end = CompiledCode::AlignCode(gap_end, kArm64) + MethodCallThunkSize();
+      uint32_t thunk_end =
+          CompiledCode::AlignCode(gap_end, InstructionSet::kArm64) + MethodCallThunkSize();
       uint32_t header_offset = thunk_end + CodeAlignmentSize(thunk_end);
       CHECK_EQ(last_result.second, header_offset + sizeof(OatQuickMethodHeader));
     }
@@ -166,9 +171,42 @@ class Arm64RelativePatcherTest : public RelativePatcherTest {
     return result.second;
   }
 
+  std::vector<uint8_t> CompileThunk(const LinkerPatch& patch,
+                                    /*out*/ std::string* debug_name = nullptr) {
+    OptimizingUnitTestHelper helper;
+    HGraph* graph = helper.CreateGraph();
+    std::string error_msg;
+    Arm64FeaturesUniquePtr features =
+        Arm64InstructionSetFeatures::FromVariant("default", &error_msg);
+    CompilerOptions options;
+    arm64::CodeGeneratorARM64 codegen(graph, *features, options);
+    ArenaVector<uint8_t> code(helper.GetAllocator()->Adapter());
+    codegen.EmitThunkCode(patch, &code, debug_name);
+    return std::vector<uint8_t>(code.begin(), code.end());
+  }
+
+  void AddCompiledMethod(
+      MethodReference method_ref,
+      const ArrayRef<const uint8_t>& code,
+      const ArrayRef<const LinkerPatch>& patches = ArrayRef<const LinkerPatch>()) {
+    RelativePatcherTest::AddCompiledMethod(method_ref, code, patches);
+
+    // Make sure the ThunkProvider has all the necessary thunks.
+    for (const LinkerPatch& patch : patches) {
+      if (patch.GetType() == LinkerPatch::Type::kBakerReadBarrierBranch ||
+          patch.GetType() == LinkerPatch::Type::kCallRelative) {
+        std::string debug_name;
+        std::vector<uint8_t> thunk_code = CompileThunk(patch, &debug_name);
+        thunk_provider_.SetThunkCode(patch, ArrayRef<const uint8_t>(thunk_code), debug_name);
+      }
+    }
+  }
+
   std::vector<uint8_t> CompileMethodCallThunk() {
-    ArmBaseRelativePatcher::ThunkKey key = ArmBaseRelativePatcher::GetMethodCallKey();
-    return down_cast<Arm64RelativePatcher*>(patcher_.get())->CompileThunk(key);
+    LinkerPatch patch = LinkerPatch::RelativeCodePatch(/* literal_offset */ 0u,
+                                                       /* target_dex_file*/ nullptr,
+                                                       /* target_method_idx */ 0u);
+    return CompileThunk(patch);
   }
 
   uint32_t MethodCallThunkSize() {
@@ -343,10 +381,11 @@ class Arm64RelativePatcherTest : public RelativePatcherTest {
                                        uint32_t use_insn) {
     uint32_t method1_offset = GetMethodOffset(1u);
     CHECK(!compiled_method_refs_.empty());
-    CHECK_EQ(compiled_method_refs_[0].dex_method_index, 1u);
+    CHECK_EQ(compiled_method_refs_[0].index, 1u);
     CHECK_EQ(compiled_method_refs_.size(), compiled_methods_.size());
     uint32_t method1_size = compiled_methods_[0]->GetQuickCode().size();
-    uint32_t thunk_offset = CompiledCode::AlignCode(method1_offset + method1_size, kArm64);
+    uint32_t thunk_offset =
+        CompiledCode::AlignCode(method1_offset + method1_size, InstructionSet::kArm64);
     uint32_t b_diff = thunk_offset - (method1_offset + num_nops * 4u);
     CHECK_ALIGNED(b_diff, 4u);
     ASSERT_LT(b_diff, 128 * MB);
@@ -472,25 +511,34 @@ class Arm64RelativePatcherTest : public RelativePatcherTest {
     TestAdrpInsn2Add(insn2, adrp_offset, has_thunk, string_offset);
   }
 
+  static uint32_t EncodeBakerReadBarrierFieldData(uint32_t base_reg, uint32_t holder_reg) {
+    return arm64::CodeGeneratorARM64::EncodeBakerReadBarrierFieldData(base_reg, holder_reg);
+  }
+
+  static uint32_t EncodeBakerReadBarrierArrayData(uint32_t base_reg) {
+    return arm64::CodeGeneratorARM64::EncodeBakerReadBarrierArrayData(base_reg);
+  }
+
+  static uint32_t EncodeBakerReadBarrierGcRootData(uint32_t root_reg) {
+    return arm64::CodeGeneratorARM64::EncodeBakerReadBarrierGcRootData(root_reg);
+  }
+
   std::vector<uint8_t> CompileBakerOffsetThunk(uint32_t base_reg, uint32_t holder_reg) {
     const LinkerPatch patch = LinkerPatch::BakerReadBarrierBranchPatch(
-        0u, Arm64RelativePatcher::EncodeBakerReadBarrierFieldData(base_reg, holder_reg));
-    ArmBaseRelativePatcher::ThunkKey key = ArmBaseRelativePatcher::GetBakerThunkKey(patch);
-    return down_cast<Arm64RelativePatcher*>(patcher_.get())->CompileThunk(key);
+        /* literal_offset */ 0u, EncodeBakerReadBarrierFieldData(base_reg, holder_reg));
+    return CompileThunk(patch);
   }
 
   std::vector<uint8_t> CompileBakerArrayThunk(uint32_t base_reg) {
     LinkerPatch patch = LinkerPatch::BakerReadBarrierBranchPatch(
-        0u, Arm64RelativePatcher::EncodeBakerReadBarrierArrayData(base_reg));
-    ArmBaseRelativePatcher::ThunkKey key = ArmBaseRelativePatcher::GetBakerThunkKey(patch);
-    return down_cast<Arm64RelativePatcher*>(patcher_.get())->CompileThunk(key);
+        /* literal_offset */ 0u, EncodeBakerReadBarrierArrayData(base_reg));
+    return CompileThunk(patch);
   }
 
   std::vector<uint8_t> CompileBakerGcRootThunk(uint32_t root_reg) {
     LinkerPatch patch = LinkerPatch::BakerReadBarrierBranchPatch(
-        0u, Arm64RelativePatcher::EncodeBakerReadBarrierGcRootData(root_reg));
-    ArmBaseRelativePatcher::ThunkKey key = ArmBaseRelativePatcher::GetBakerThunkKey(patch);
-    return down_cast<Arm64RelativePatcher*>(patcher_.get())->CompileThunk(key);
+        /* literal_offset */ 0u, EncodeBakerReadBarrierGcRootData(root_reg));
+    return CompileThunk(patch);
   }
 
   uint32_t GetOutputInsn(uint32_t offset) {
@@ -601,7 +649,7 @@ TEST_F(Arm64RelativePatcherTestDefault, CallTrampolineTooFar) {
 
   // Check linked code.
   uint32_t thunk_offset =
-      CompiledCode::AlignCode(last_method_offset + last_method_code.size(), kArm64);
+      CompiledCode::AlignCode(last_method_offset + last_method_code.size(), InstructionSet::kArm64);
   uint32_t diff = thunk_offset - (last_method_offset + bl_offset_in_last_method);
   CHECK_ALIGNED(diff, 4u);
   ASSERT_LT(diff, 128 * MB);
@@ -687,8 +735,7 @@ TEST_F(Arm64RelativePatcherTestDefault, CallOtherJustTooFarAfter) {
   ASSERT_TRUE(IsAligned<kArm64Alignment>(last_method_offset));
   uint32_t last_method_header_offset = last_method_offset - sizeof(OatQuickMethodHeader);
   uint32_t thunk_size = MethodCallThunkSize();
-  uint32_t thunk_offset =
-      RoundDown(last_method_header_offset - thunk_size, GetInstructionSetAlignment(kArm64));
+  uint32_t thunk_offset = RoundDown(last_method_header_offset - thunk_size, kArm64Alignment);
   DCHECK_EQ(thunk_offset + thunk_size + CodeAlignmentSize(thunk_offset + thunk_size),
             last_method_header_offset);
   uint32_t diff = thunk_offset - (method1_offset + bl_offset_in_method1);
@@ -720,7 +767,7 @@ TEST_F(Arm64RelativePatcherTestDefault, CallOtherJustTooFarBefore) {
 
   // Check linked code.
   uint32_t thunk_offset =
-      CompiledCode::AlignCode(last_method_offset + last_method_code.size(), kArm64);
+      CompiledCode::AlignCode(last_method_offset + last_method_code.size(), InstructionSet::kArm64);
   uint32_t diff = thunk_offset - (last_method_offset + bl_offset_in_last_method);
   CHECK_ALIGNED(diff, 4u);
   ASSERT_LT(diff, 128 * MB);
@@ -917,8 +964,7 @@ void Arm64RelativePatcherTest::TestBakerField(uint32_t offset, uint32_t ref_reg)
       const std::vector<uint8_t> raw_code = RawCode({kCbnzIP1Plus0Insn, ldr});
       ASSERT_EQ(kMethodCodeSize, raw_code.size());
       ArrayRef<const uint8_t> code(raw_code);
-      uint32_t encoded_data =
-          Arm64RelativePatcher::EncodeBakerReadBarrierFieldData(base_reg, holder_reg);
+      uint32_t encoded_data = EncodeBakerReadBarrierFieldData(base_reg, holder_reg);
       const LinkerPatch patches[] = {
           LinkerPatch::BakerReadBarrierBranchPatch(kLiteralOffset, encoded_data),
       };
@@ -1003,8 +1049,7 @@ TEST_F(Arm64RelativePatcherTestDefault, BakerOffsetThunkInTheMiddle) {
   constexpr uint32_t kLiteralOffset1 = 4;
   const std::vector<uint8_t> raw_code1 = RawCode({kNopInsn, kCbnzIP1Plus0Insn, kLdrWInsn});
   ArrayRef<const uint8_t> code1(raw_code1);
-  uint32_t encoded_data =
-      Arm64RelativePatcher::EncodeBakerReadBarrierFieldData(/* base_reg */ 0, /* holder_reg */ 0);
+  uint32_t encoded_data = EncodeBakerReadBarrierFieldData(/* base_reg */ 0, /* holder_reg */ 0);
   const LinkerPatch patches1[] = {
       LinkerPatch::BakerReadBarrierBranchPatch(kLiteralOffset1, encoded_data),
   };
@@ -1064,8 +1109,7 @@ TEST_F(Arm64RelativePatcherTestDefault, BakerOffsetThunkBeforeFiller) {
   constexpr uint32_t kLiteralOffset1 = 0;
   const std::vector<uint8_t> raw_code1 = RawCode({kCbnzIP1Plus0Insn, kLdrWInsn, kNopInsn});
   ArrayRef<const uint8_t> code1(raw_code1);
-  uint32_t encoded_data =
-      Arm64RelativePatcher::EncodeBakerReadBarrierFieldData(/* base_reg */ 0, /* holder_reg */ 0);
+  uint32_t encoded_data = EncodeBakerReadBarrierFieldData(/* base_reg */ 0, /* holder_reg */ 0);
   const LinkerPatch patches1[] = {
       LinkerPatch::BakerReadBarrierBranchPatch(kLiteralOffset1, encoded_data),
   };
@@ -1094,8 +1138,7 @@ TEST_F(Arm64RelativePatcherTestDefault, BakerOffsetThunkInTheMiddleUnreachableFr
   constexpr uint32_t kLiteralOffset1 = 4;
   const std::vector<uint8_t> raw_code1 = RawCode({kNopInsn, kCbnzIP1Plus0Insn, kLdrWInsn});
   ArrayRef<const uint8_t> code1(raw_code1);
-  uint32_t encoded_data =
-      Arm64RelativePatcher::EncodeBakerReadBarrierFieldData(/* base_reg */ 0, /* holder_reg */ 0);
+  uint32_t encoded_data = EncodeBakerReadBarrierFieldData(/* base_reg */ 0, /* holder_reg */ 0);
   const LinkerPatch patches1[] = {
       LinkerPatch::BakerReadBarrierBranchPatch(kLiteralOffset1, encoded_data),
   };
@@ -1168,7 +1211,7 @@ TEST_F(Arm64RelativePatcherTestDefault, BakerArray) {
     ArrayRef<const uint8_t> code(raw_code);
     const LinkerPatch patches[] = {
         LinkerPatch::BakerReadBarrierBranchPatch(
-            kLiteralOffset, Arm64RelativePatcher::EncodeBakerReadBarrierArrayData(base_reg)),
+            kLiteralOffset, EncodeBakerReadBarrierArrayData(base_reg)),
     };
     AddCompiledMethod(MethodRef(method_idx), code, ArrayRef<const LinkerPatch>(patches));
   }
@@ -1245,7 +1288,7 @@ TEST_F(Arm64RelativePatcherTestDefault, BakerGcRoot) {
     ArrayRef<const uint8_t> code(raw_code);
     const LinkerPatch patches[] = {
         LinkerPatch::BakerReadBarrierBranchPatch(
-            kLiteralOffset, Arm64RelativePatcher::EncodeBakerReadBarrierGcRootData(root_reg)),
+            kLiteralOffset, EncodeBakerReadBarrierGcRootData(root_reg)),
     };
     AddCompiledMethod(MethodRef(method_idx), code, ArrayRef<const LinkerPatch>(patches));
   }
@@ -1341,8 +1384,8 @@ TEST_F(Arm64RelativePatcherTestDefault, BakerAndMethodCallInteraction) {
       kNopInsn, kNopInsn,                       // Padding before second GC root read barrier.
       ldr2, kCbnzIP1Plus0Insn,                  // Second GC root LDR with read barrier.
   });
-  uint32_t encoded_data1 = Arm64RelativePatcher::EncodeBakerReadBarrierGcRootData(/* root_reg */ 1);
-  uint32_t encoded_data2 = Arm64RelativePatcher::EncodeBakerReadBarrierGcRootData(/* root_reg */ 2);
+  uint32_t encoded_data1 = EncodeBakerReadBarrierGcRootData(/* root_reg */ 1);
+  uint32_t encoded_data2 = EncodeBakerReadBarrierGcRootData(/* root_reg */ 2);
   const LinkerPatch last_method_patches[] = {
       LinkerPatch::BakerReadBarrierBranchPatch(kBakerLiteralOffset1, encoded_data1),
       LinkerPatch::BakerReadBarrierBranchPatch(kBakerLiteralOffset2, encoded_data2),

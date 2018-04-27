@@ -23,9 +23,10 @@
 #include <sys/prctl.h>
 #endif
 
+#include <fcntl.h>
 #include <signal.h>
 #include <sys/syscall.h>
-#include "base/memory_tool.h"
+
 #if defined(__APPLE__)
 #include <crt_externs.h>  // for _NSGetEnviron
 #endif
@@ -33,9 +34,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
-#include <memory_representation.h>
 #include <vector>
-#include <fcntl.h>
 
 #include "android-base/strings.h"
 
@@ -58,15 +57,19 @@
 #include "asm_support.h"
 #include "asm_support_check.h"
 #include "atomic.h"
+#include "base/aborting.h"
 #include "base/arena_allocator.h"
 #include "base/dumpable.h"
 #include "base/enums.h"
+#include "base/file_utils.h"
+#include "base/memory_tool.h"
 #include "base/stl_util.h"
 #include "base/systrace.h"
 #include "base/unix_file/fd_file.h"
 #include "class_linker-inl.h"
 #include "compiler_callbacks.h"
 #include "debugger.h"
+#include "dex_file_loader.h"
 #include "elf_file.h"
 #include "entrypoints/runtime_asm_entrypoints.h"
 #include "experimental_flags.h"
@@ -88,6 +91,7 @@
 #include "jit/profile_saver.h"
 #include "jni_internal.h"
 #include "linear_alloc.h"
+#include "memory_representation.h"
 #include "mirror/array.h"
 #include "mirror/class-inl.h"
 #include "mirror/class_ext.h"
@@ -142,6 +146,7 @@
 #include "quick/quick_method_frame_info.h"
 #include "reflection.h"
 #include "runtime_callbacks.h"
+#include "runtime_intrinsics.h"
 #include "runtime_options.h"
 #include "scoped_thread_state_change-inl.h"
 #include "sigchain.h"
@@ -205,7 +210,7 @@ Runtime::Runtime()
     : resolution_method_(nullptr),
       imt_conflict_method_(nullptr),
       imt_unimplemented_method_(nullptr),
-      instruction_set_(kNone),
+      instruction_set_(InstructionSet::kNone),
       compiler_callbacks_(nullptr),
       is_zygote_(false),
       must_relocate_(false),
@@ -242,7 +247,7 @@ Runtime::Runtime()
       system_thread_group_(nullptr),
       system_class_loader_(nullptr),
       dump_gc_performance_on_shutdown_(false),
-      preinitialization_transaction_(nullptr),
+      preinitialization_transactions_(),
       verify_(verifier::VerifyMode::kNone),
       allow_dex_file_fallback_(true),
       target_sdk_version_(0),
@@ -360,7 +365,7 @@ Runtime::~Runtime() {
 
   // TODO Maybe do some locking.
   for (auto& agent : agents_) {
-    agent.Unload();
+    agent->Unload();
   }
 
   // TODO Maybe do some locking
@@ -404,6 +409,11 @@ Runtime::~Runtime() {
   // TODO: acquire a static mutex on Runtime to avoid racing.
   CHECK(instance_ == nullptr || instance_ == this);
   instance_ = nullptr;
+
+  // Well-known classes must be deleted or it is impossible to successfully start another Runtime
+  // instance. We rely on a small initialization order issue in Runtime::Start() that requires
+  // elements of WellKnownClasses to be null, see b/65500943.
+  WellKnownClasses::Clear();
 }
 
 struct AbortState {
@@ -499,10 +509,6 @@ void Runtime::Abort(const char* msg) {
   }
 #else
   UNUSED(old_value);
-#endif
-
-#ifdef ART_TARGET_ANDROID
-  android_set_abort_message(msg);
 #endif
 
   // Ensure that we don't have multiple threads trying to abort at once,
@@ -732,6 +738,11 @@ bool Runtime::Start() {
     InitNativeMethods();
   }
 
+  // IntializeIntrinsics needs to be called after the WellKnownClasses::Init in InitNativeMethods
+  // because in checking the invocation types of intrinsic methods ArtMethod::GetInvokeType()
+  // needs the SignaturePolymorphic annotation class which is initialized in WellKnownClasses::Init.
+  InitializeIntrinsics();
+
   // Initialize well known thread group values that may be accessed threads while attaching.
   InitThreadGroups(self);
 
@@ -791,7 +802,7 @@ bool Runtime::Start() {
 
   {
     ScopedObjectAccess soa(self);
-    self->GetJniEnv()->locals.AssertEmpty();
+    self->GetJniEnv()->AssertLocalsEmpty();
   }
 
   VLOG(startup) << "Runtime::Start exiting";
@@ -1018,7 +1029,8 @@ static size_t OpenDexFiles(const std::vector<std::string>& dex_filenames,
       LOG(WARNING) << "Skipping non-existent dex file '" << dex_filename << "'";
       continue;
     }
-    if (!DexFile::Open(dex_filename, dex_location, kVerifyChecksum, &error_msg, dex_files)) {
+    if (!DexFileLoader::Open(
+          dex_filename, dex_location, /* verify */ true, kVerifyChecksum, &error_msg, dex_files)) {
       LOG(WARNING) << "Failed to open .dex from file '" << dex_filename << "': " << error_msg;
       ++failure_count;
     }
@@ -1143,7 +1155,7 @@ bool Runtime::Init(RuntimeArgumentMap&& runtime_options_in) {
   madvise_random_access_ = runtime_options.GetOrDefault(Opt::MadviseRandomAccess);
 
   plugins_ = runtime_options.ReleaseOrDefault(Opt::Plugins);
-  agents_ = runtime_options.ReleaseOrDefault(Opt::AgentPath);
+  agent_specs_ = runtime_options.ReleaseOrDefault(Opt::AgentPath);
   // TODO Add back in -agentlib
   // for (auto lib : runtime_options.ReleaseOrDefault(Opt::AgentLib)) {
   //   agents_.push_back(lib);
@@ -1234,13 +1246,13 @@ bool Runtime::Init(RuntimeArgumentMap&& runtime_options_in) {
 
   // Change the implicit checks flags based on runtime architecture.
   switch (kRuntimeISA) {
-    case kArm:
-    case kThumb2:
-    case kX86:
-    case kArm64:
-    case kX86_64:
-    case kMips:
-    case kMips64:
+    case InstructionSet::kArm:
+    case InstructionSet::kThumb2:
+    case InstructionSet::kX86:
+    case InstructionSet::kArm64:
+    case InstructionSet::kX86_64:
+    case InstructionSet::kMips:
+    case InstructionSet::kMips64:
       implicit_null_checks_ = true;
       // Installing stack protection does not play well with valgrind.
       implicit_so_checks_ = !(RUNNING_ON_MEMORY_TOOL && kMemoryToolIsValgrind);
@@ -1454,16 +1466,32 @@ bool Runtime::Init(RuntimeArgumentMap&& runtime_options_in) {
 
   // Startup agents
   // TODO Maybe we should start a new thread to run these on. Investigate RI behavior more.
-  for (auto& agent : agents_) {
+  for (auto& agent_spec : agent_specs_) {
     // TODO Check err
     int res = 0;
     std::string err = "";
-    ti::Agent::LoadError result = agent.Load(&res, &err);
-    if (result == ti::Agent::kInitializationError) {
-      LOG(FATAL) << "Unable to initialize agent!";
-    } else if (result != ti::Agent::kNoError) {
-      LOG(ERROR) << "Unable to load an agent: " << err;
+    ti::LoadError error;
+    std::unique_ptr<ti::Agent> agent = agent_spec.Load(&res, &error, &err);
+
+    if (agent != nullptr) {
+      agents_.push_back(std::move(agent));
+      continue;
     }
+
+    switch (error) {
+      case ti::LoadError::kInitializationError:
+        LOG(FATAL) << "Unable to initialize agent!";
+        UNREACHABLE();
+
+      case ti::LoadError::kLoadingError:
+        LOG(ERROR) << "Unable to load an agent: " << err;
+        continue;
+
+      case ti::LoadError::kNoError:
+        break;
+    }
+    LOG(FATAL) << "Unreachable";
+    UNREACHABLE();
   }
   {
     ScopedObjectAccess soa(self);
@@ -1518,15 +1546,16 @@ void Runtime::AttachAgent(const std::string& agent_arg) {
     return;
   }
 
-  ti::Agent agent(agent_arg);
+  ti::AgentSpec agent_spec(agent_arg);
 
   int res = 0;
-  ti::Agent::LoadError result = agent.Attach(&res, &error_msg);
+  ti::LoadError error;
+  std::unique_ptr<ti::Agent> agent = agent_spec.Attach(&res, &error, &error_msg);
 
-  if (result == ti::Agent::kNoError) {
+  if (agent != nullptr) {
     agents_.push_back(std::move(agent));
   } else {
-    LOG(WARNING) << "Agent attach failed (result=" << result << ") : " << error_msg;
+    LOG(WARNING) << "Agent attach failed (result=" << error << ") : " << error_msg;
     ScopedObjectAccess soa(Thread::Current());
     ThrowIOException("%s", error_msg.c_str());
   }
@@ -1556,7 +1585,7 @@ void Runtime::InitNativeMethods() {
   // libcore can't because it's the library that implements System.loadLibrary!
   {
     std::string error_msg;
-    if (!java_vm_->LoadNativeLibrary(env, "libjavacore.so", nullptr, nullptr, &error_msg)) {
+    if (!java_vm_->LoadNativeLibrary(env, "libjavacore.so", nullptr, &error_msg)) {
       LOG(FATAL) << "LoadNativeLibrary failed for \"libjavacore.so\": " << error_msg;
     }
   }
@@ -1565,7 +1594,7 @@ void Runtime::InitNativeMethods() {
                                                 ? "libopenjdkd.so"
                                                 : "libopenjdk.so";
     std::string error_msg;
-    if (!java_vm_->LoadNativeLibrary(env, kOpenJdkLibrary, nullptr, nullptr, &error_msg)) {
+    if (!java_vm_->LoadNativeLibrary(env, kOpenJdkLibrary, nullptr, &error_msg)) {
       LOG(FATAL) << "LoadNativeLibrary failed for \"" << kOpenJdkLibrary << "\": " << error_msg;
     }
   }
@@ -1857,8 +1886,8 @@ void Runtime::VisitConcurrentRoots(RootVisitor* visitor, VisitRootFlags flags) {
 }
 
 void Runtime::VisitTransactionRoots(RootVisitor* visitor) {
-  if (preinitialization_transaction_ != nullptr) {
-    preinitialization_transaction_->VisitRoots(visitor);
+  for (auto& transaction : preinitialization_transactions_) {
+    transaction->VisitRoots(visitor);
   }
 }
 
@@ -1912,7 +1941,7 @@ static ArtMethod* CreateRuntimeMethod(ClassLinker* class_linker, LinearAlloc* li
       1);
   ArtMethod* method = &method_array->At(0, method_size, method_alignment);
   CHECK(method != nullptr);
-  method->SetDexMethodIndex(DexFile::kDexNoIndex);
+  method->SetDexMethodIndex(dex::kDexNoIndex);
   CHECK(method->IsRuntimeMethod());
   return method;
 }
@@ -1955,7 +1984,7 @@ ArtMethod* Runtime::CreateCalleeSaveMethod() {
   auto* method = CreateRuntimeMethod(GetClassLinker(), GetLinearAlloc());
   PointerSize pointer_size = GetInstructionSetPointerSize(instruction_set_);
   method->SetEntryPointFromQuickCompiledCodePtrSize(nullptr, pointer_size);
-  DCHECK_NE(instruction_set_, kNone);
+  DCHECK_NE(instruction_set_, InstructionSet::kNone);
   DCHECK(method->IsRuntimeMethod());
   return method;
 }
@@ -2012,32 +2041,32 @@ void Runtime::BroadcastForNewSystemWeaks(bool broadcast_for_checkpoint) {
 
 void Runtime::SetInstructionSet(InstructionSet instruction_set) {
   instruction_set_ = instruction_set;
-  if ((instruction_set_ == kThumb2) || (instruction_set_ == kArm)) {
+  if ((instruction_set_ == InstructionSet::kThumb2) || (instruction_set_ == InstructionSet::kArm)) {
     for (int i = 0; i != kCalleeSaveSize; ++i) {
       CalleeSaveType type = static_cast<CalleeSaveType>(i);
       callee_save_method_frame_infos_[i] = arm::ArmCalleeSaveMethodFrameInfo(type);
     }
-  } else if (instruction_set_ == kMips) {
+  } else if (instruction_set_ == InstructionSet::kMips) {
     for (int i = 0; i != kCalleeSaveSize; ++i) {
       CalleeSaveType type = static_cast<CalleeSaveType>(i);
       callee_save_method_frame_infos_[i] = mips::MipsCalleeSaveMethodFrameInfo(type);
     }
-  } else if (instruction_set_ == kMips64) {
+  } else if (instruction_set_ == InstructionSet::kMips64) {
     for (int i = 0; i != kCalleeSaveSize; ++i) {
       CalleeSaveType type = static_cast<CalleeSaveType>(i);
       callee_save_method_frame_infos_[i] = mips64::Mips64CalleeSaveMethodFrameInfo(type);
     }
-  } else if (instruction_set_ == kX86) {
+  } else if (instruction_set_ == InstructionSet::kX86) {
     for (int i = 0; i != kCalleeSaveSize; ++i) {
       CalleeSaveType type = static_cast<CalleeSaveType>(i);
       callee_save_method_frame_infos_[i] = x86::X86CalleeSaveMethodFrameInfo(type);
     }
-  } else if (instruction_set_ == kX86_64) {
+  } else if (instruction_set_ == InstructionSet::kX86_64) {
     for (int i = 0; i != kCalleeSaveSize; ++i) {
       CalleeSaveType type = static_cast<CalleeSaveType>(i);
       callee_save_method_frame_infos_[i] = x86_64::X86_64CalleeSaveMethodFrameInfo(type);
     }
-  } else if (instruction_set_ == kArm64) {
+  } else if (instruction_set_ == InstructionSet::kArm64) {
     for (int i = 0; i != kCalleeSaveSize; ++i) {
       CalleeSaveType type = static_cast<CalleeSaveType>(i);
       callee_save_method_frame_infos_[i] = arm64::Arm64CalleeSaveMethodFrameInfo(type);
@@ -2090,17 +2119,32 @@ void Runtime::RegisterAppInfo(const std::vector<std::string>& code_paths,
 }
 
 // Transaction support.
-void Runtime::EnterTransactionMode(Transaction* transaction) {
+bool Runtime::IsActiveTransaction() const {
+  return !preinitialization_transactions_.empty() && !GetTransaction()->IsRollingBack();
+}
+
+void Runtime::EnterTransactionMode() {
   DCHECK(IsAotCompiler());
-  DCHECK(transaction != nullptr);
   DCHECK(!IsActiveTransaction());
-  preinitialization_transaction_ = transaction;
+  preinitialization_transactions_.push_back(std::make_unique<Transaction>());
+}
+
+void Runtime::EnterTransactionMode(bool strict, mirror::Class* root) {
+  DCHECK(IsAotCompiler());
+  preinitialization_transactions_.push_back(std::make_unique<Transaction>(strict, root));
 }
 
 void Runtime::ExitTransactionMode() {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_ = nullptr;
+  preinitialization_transactions_.pop_back();
+}
+
+void Runtime::RollbackAndExitTransactionMode() {
+  DCHECK(IsAotCompiler());
+  DCHECK(IsActiveTransaction());
+  preinitialization_transactions_.back()->Rollback();
+  preinitialization_transactions_.pop_back();
 }
 
 bool Runtime::IsTransactionAborted() const {
@@ -2108,8 +2152,25 @@ bool Runtime::IsTransactionAborted() const {
     return false;
   } else {
     DCHECK(IsAotCompiler());
-    return preinitialization_transaction_->IsAborted();
+    return GetTransaction()->IsAborted();
   }
+}
+
+void Runtime::RollbackAllTransactions() {
+  // If transaction is aborted, all transactions will be kept in the list.
+  // Rollback and exit all of them.
+  while (IsActiveTransaction()) {
+    RollbackAndExitTransactionMode();
+  }
+}
+
+bool Runtime::IsActiveStrictTransactionMode() const {
+  return IsActiveTransaction() && GetTransaction()->IsStrict();
+}
+
+const std::unique_ptr<Transaction>& Runtime::GetTransaction() const {
+  DCHECK(!preinitialization_transactions_.empty());
+  return preinitialization_transactions_.back();
 }
 
 void Runtime::AbortTransactionAndThrowAbortError(Thread* self, const std::string& abort_message) {
@@ -2118,57 +2179,59 @@ void Runtime::AbortTransactionAndThrowAbortError(Thread* self, const std::string
   // Throwing an exception may cause its class initialization. If we mark the transaction
   // aborted before that, we may warn with a false alarm. Throwing the exception before
   // marking the transaction aborted avoids that.
-  preinitialization_transaction_->ThrowAbortError(self, &abort_message);
-  preinitialization_transaction_->Abort(abort_message);
+  // But now the transaction can be nested, and abort the transaction will relax the constraints
+  // for constructing stack trace.
+  GetTransaction()->Abort(abort_message);
+  GetTransaction()->ThrowAbortError(self, &abort_message);
 }
 
 void Runtime::ThrowTransactionAbortError(Thread* self) {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
   // Passing nullptr means we rethrow an exception with the earlier transaction abort message.
-  preinitialization_transaction_->ThrowAbortError(self, nullptr);
+  GetTransaction()->ThrowAbortError(self, nullptr);
 }
 
 void Runtime::RecordWriteFieldBoolean(mirror::Object* obj, MemberOffset field_offset,
                                       uint8_t value, bool is_volatile) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordWriteFieldBoolean(obj, field_offset, value, is_volatile);
+  GetTransaction()->RecordWriteFieldBoolean(obj, field_offset, value, is_volatile);
 }
 
 void Runtime::RecordWriteFieldByte(mirror::Object* obj, MemberOffset field_offset,
                                    int8_t value, bool is_volatile) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordWriteFieldByte(obj, field_offset, value, is_volatile);
+  GetTransaction()->RecordWriteFieldByte(obj, field_offset, value, is_volatile);
 }
 
 void Runtime::RecordWriteFieldChar(mirror::Object* obj, MemberOffset field_offset,
                                    uint16_t value, bool is_volatile) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordWriteFieldChar(obj, field_offset, value, is_volatile);
+  GetTransaction()->RecordWriteFieldChar(obj, field_offset, value, is_volatile);
 }
 
 void Runtime::RecordWriteFieldShort(mirror::Object* obj, MemberOffset field_offset,
                                     int16_t value, bool is_volatile) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordWriteFieldShort(obj, field_offset, value, is_volatile);
+  GetTransaction()->RecordWriteFieldShort(obj, field_offset, value, is_volatile);
 }
 
 void Runtime::RecordWriteField32(mirror::Object* obj, MemberOffset field_offset,
                                  uint32_t value, bool is_volatile) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordWriteField32(obj, field_offset, value, is_volatile);
+  GetTransaction()->RecordWriteField32(obj, field_offset, value, is_volatile);
 }
 
 void Runtime::RecordWriteField64(mirror::Object* obj, MemberOffset field_offset,
                                  uint64_t value, bool is_volatile) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordWriteField64(obj, field_offset, value, is_volatile);
+  GetTransaction()->RecordWriteField64(obj, field_offset, value, is_volatile);
 }
 
 void Runtime::RecordWriteFieldReference(mirror::Object* obj,
@@ -2177,7 +2240,7 @@ void Runtime::RecordWriteFieldReference(mirror::Object* obj,
                                         bool is_volatile) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordWriteFieldReference(obj,
+  GetTransaction()->RecordWriteFieldReference(obj,
                                                             field_offset,
                                                             value.Ptr(),
                                                             is_volatile);
@@ -2186,38 +2249,38 @@ void Runtime::RecordWriteFieldReference(mirror::Object* obj,
 void Runtime::RecordWriteArray(mirror::Array* array, size_t index, uint64_t value) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordWriteArray(array, index, value);
+  GetTransaction()->RecordWriteArray(array, index, value);
 }
 
 void Runtime::RecordStrongStringInsertion(ObjPtr<mirror::String> s) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordStrongStringInsertion(s);
+  GetTransaction()->RecordStrongStringInsertion(s);
 }
 
 void Runtime::RecordWeakStringInsertion(ObjPtr<mirror::String> s) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordWeakStringInsertion(s);
+  GetTransaction()->RecordWeakStringInsertion(s);
 }
 
 void Runtime::RecordStrongStringRemoval(ObjPtr<mirror::String> s) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordStrongStringRemoval(s);
+  GetTransaction()->RecordStrongStringRemoval(s);
 }
 
 void Runtime::RecordWeakStringRemoval(ObjPtr<mirror::String> s) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordWeakStringRemoval(s);
+  GetTransaction()->RecordWeakStringRemoval(s);
 }
 
 void Runtime::RecordResolveString(ObjPtr<mirror::DexCache> dex_cache,
                                   dex::StringIndex string_idx) const {
   DCHECK(IsAotCompiler());
   DCHECK(IsActiveTransaction());
-  preinitialization_transaction_->RecordResolveString(dex_cache, string_idx);
+  GetTransaction()->RecordResolveString(dex_cache, string_idx);
 }
 
 void Runtime::SetFaultMessage(const std::string& message) {
@@ -2302,6 +2365,10 @@ void Runtime::FixupConflictTables() {
           ClassLinker::CreateImtConflictTable(/*count*/0u, GetLinearAlloc(), pointer_size),
           pointer_size);
   }
+}
+
+void Runtime::DisableVerifier() {
+  verify_ = verifier::VerifyMode::kNone;
 }
 
 bool Runtime::IsVerificationEnabled() const {
@@ -2435,5 +2502,4 @@ void Runtime::DeoptimizeBootImage() {
     GetClassLinker()->VisitClasses(&visitor);
   }
 }
-
 }  // namespace art

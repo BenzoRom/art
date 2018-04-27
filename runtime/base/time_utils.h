@@ -18,8 +18,9 @@
 #define ART_RUNTIME_BASE_TIME_UTILS_H_
 
 #include <stdint.h>
-#include <string>
 #include <time.h>
+
+#include <string>
 
 #include "base/macros.h"
 
@@ -73,6 +74,15 @@ static constexpr inline uint64_t NsToMs(uint64_t ns) {
 // Converts the given number of milliseconds to nanoseconds
 static constexpr inline uint64_t MsToNs(uint64_t ms) {
   return ms * 1000 * 1000;
+}
+
+// Converts the given number of milliseconds to microseconds
+static constexpr inline uint64_t MsToUs(uint64_t ms) {
+  return ms * 1000;
+}
+
+static constexpr inline uint64_t UsToNs(uint64_t us) {
+  return us * 1000;
 }
 
 #if defined(__APPLE__)

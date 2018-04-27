@@ -21,6 +21,7 @@
 #include "arch/instruction_set.h"
 #include "arch/instruction_set_features.h"
 #include "art_method-inl.h"
+#include "base/logging.h"  // For VLOG
 #include "base/stringpiece.h"
 #include "base/time_utils.h"
 #include "base/timing_logger.h"
@@ -78,21 +79,16 @@ extern "C" void jit_types_loaded(void* handle, mirror::Class** types, size_t cou
   }
 }
 
-// Callers of this method assume it has NO_RETURN.
-NO_RETURN static void Usage(const char* fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  std::string error;
-  android::base::StringAppendV(&error, fmt, ap);
-  LOG(FATAL) << error;
-  va_end(ap);
-  exit(EXIT_FAILURE);
-}
-
 JitCompiler::JitCompiler() {
   compiler_options_.reset(new CompilerOptions());
-  for (const std::string& argument : Runtime::Current()->GetCompilerOptions()) {
-    compiler_options_->ParseCompilerOption(argument, Usage);
+  {
+    std::string error_msg;
+    if (!compiler_options_->ParseCompilerOptions(Runtime::Current()->GetCompilerOptions(),
+                                                 true /* ignore_unrecognized */,
+                                                 &error_msg)) {
+      LOG(FATAL) << error_msg;
+      UNREACHABLE();
+    }
   }
   // JIT is never PIC, no matter what the runtime compiler options specify.
   compiler_options_->SetNonPic();
@@ -136,7 +132,6 @@ JitCompiler::JitCompiler() {
   if (instruction_set_features_ == nullptr) {
     instruction_set_features_ = InstructionSetFeatures::FromCppDefines();
   }
-  cumulative_logger_.reset(new CumulativeLogger("jit times"));
   compiler_driver_.reset(new CompilerDriver(
       compiler_options_.get(),
       /* verification_results */ nullptr,
@@ -147,9 +142,6 @@ JitCompiler::JitCompiler() {
       /* compiled_classes */ nullptr,
       /* compiled_methods */ nullptr,
       /* thread_count */ 1,
-      /* dump_stats */ false,
-      /* dump_passes */ false,
-      cumulative_logger_.get(),
       /* swap_fd */ -1,
       /* profile_compilation_info */ nullptr));
   // Disable dedupe so we can remove compiled methods.
@@ -175,7 +167,8 @@ bool JitCompiler::CompileMethod(Thread* self, ArtMethod* method, bool osr) {
   DCHECK(!method->IsProxyMethod());
   DCHECK(method->GetDeclaringClass()->IsResolved());
 
-  TimingLogger logger("JIT compiler timing logger", true, VLOG_IS_ON(jit));
+  TimingLogger logger(
+      "JIT compiler timing logger", true, VLOG_IS_ON(jit), TimingLogger::TimingKind::kThreadCpu);
   self->AssertNoPendingException();
   Runtime* runtime = Runtime::Current();
 

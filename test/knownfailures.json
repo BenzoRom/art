@@ -1,5 +1,18 @@
 [
     {
+        "tests": "1939-proxy-frames",
+        "description": ["Test 1939 seems to consistently fail in gcstress on 64 bit with",
+                        "a proxy this object having no associated class!"],
+        "variant": "gcstress",
+        "bug": "http://b/67679263"
+    },
+    {
+        "tests": "1934-jvmti-signal-thread",
+        "description": ["Disables 1934-jvmti-signal-thread in tracing configurations"],
+        "variant": "trace | stream",
+        "bug": "http://b/67384421"
+    },
+    {
         "tests": "153-reference-stress",
         "description": ["Disable 153-reference-stress temporarily until a fix",
                         "arrives."],
@@ -52,11 +65,6 @@
         "variant": "prebuild",
         "description": ["Note 116-nodex2oat is not broken per-se it just",
                         "doesn't (and isn't meant to) work with --prebuild."]
-    },
-    {
-        "tests": ["529-checker-unresolved"],
-        "variant": "no-prebuild",
-        "bug": "http://b/27784033"
     },
     {
         "tests": ["117-nopatchoat",
@@ -229,6 +237,18 @@
                         "suppressed when tracing."]
     },
     {
+        "tests": "597-deopt-busy-loop",
+        "variant": "interp-ac | interpreter | trace | stream",
+        "description": ["This test expects JIT compilation, which is",
+                        "suppressed when tracing."]
+    },
+    {
+        "tests": "597-deopt-invoke-stub",
+        "variant": "interp-ac | interpreter | optimizing | trace | stream",
+        "description": ["This test expects JIT compilation and no AOT for",
+                        "testing deoptimizing at quick-to-interpreter bridge."]
+    },
+    {
         "tests": "137-cfi",
         "description": ["CFI unwinding expects managed frames, and the test",
                         "does not iterate enough to even compile. JIT also",
@@ -266,6 +286,11 @@
     {
         "tests": "596-app-images",
         "variant": "npictest"
+    },
+    {
+        "tests": "639-checker-code-sinking",
+        "variant": "pictest",
+        "bug": "http://b/65366606"
     },
     {
         "tests": "055-enum-performance",
@@ -354,166 +379,20 @@
         "variant": "speed-profile"
     },
     {
-        "tests": [
-            "004-checker-UnsafeTest18",
-            "127-checker-secondarydex",
-            "441-checker-inliner",
-            "442-checker-constant-folding",
-            "444-checker-nce",
-            "445-checker-licm",
-            "446-checker-inliner2",
-            "447-checker-inliner3",
-            "449-checker-bce",
-            "450-checker-types",
-            "455-checker-gvn",
-            "458-checker-instruct-simplification",
-            "462-checker-inlining-dex-files",
-            "463-checker-boolean-simplifier",
-            "464-checker-inline-sharpen-calls",
-            "465-checker-clinit-gvn",
-            "468-checker-bool-simplif-regression",
-            "473-checker-inliner-constants",
-            "474-checker-boolean-input",
-            "476-checker-ctor-memory-barrier",
-            "477-checker-bound-type",
-            "478-checker-clinit-check-pruning",
-            "478-checker-inline-noreturn",
-            "478-checker-inliner-nested-loop",
-            "480-checker-dead-blocks",
-            "482-checker-loop-back-edge-use",
-            "484-checker-register-hints",
-            "485-checker-dce-loop-update",
-            "485-checker-dce-switch",
-            "486-checker-must-do-null-check",
-            "487-checker-inline-calls",
-            "488-checker-inline-recursive-calls",
-            "490-checker-inline",
-            "492-checker-inline-invoke-interface",
-            "493-checker-inline-invoke-interface",
-            "494-checker-instanceof-tests",
-            "495-checker-checkcast-tests",
-            "496-checker-inlining-class-loader",
-            "508-checker-disassembly",
-            "510-checker-try-catch",
-            "517-checker-builder-fallthrough",
-            "521-checker-array-set-null",
-            "522-checker-regression-monitor-exit",
-            "523-checker-can-throw-regression",
-            "525-checker-arrays-fields1",
-            "525-checker-arrays-fields2",
-            "526-checker-caller-callee-regs",
-            "527-checker-array-access-split",
-            "529-checker-unresolved",
-            "530-checker-loops1",
-            "530-checker-loops2",
-            "530-checker-loops3",
-            "530-checker-loops4",
-            "530-checker-loops5",
-            "530-checker-lse",
-            "530-checker-lse2",
-            "530-checker-regression-reftyp-final",
-            "532-checker-nonnull-arrayset",
-            "534-checker-bce-deoptimization",
-            "536-checker-intrinsic-optimization",
-            "536-checker-needs-access-check",
-            "537-checker-arraycopy",
-            "537-checker-debuggable",
-            "537-checker-inline-and-unverified",
-            "537-checker-jump-over-jump",
-            "538-checker-embed-constants",
-            "540-checker-rtp-bug",
-            "543-checker-dce-trycatch",
-            "548-checker-inlining-and-dce",
-            "549-checker-types-merge",
-            "550-checker-multiply-accumulate",
-            "550-checker-regression-wide-store",
-            "551-checker-clinit",
-            "551-checker-shifter-operand",
-            "552-checker-primitive-typeprop",
-            "552-checker-sharpening",
-            "554-checker-rtp-checkcast",
-            "557-checker-instruct-simplifier-ror",
-            "557-checker-ref-equivalent",
-            "559-checker-irreducible-loop",
-            "559-checker-rtp-ifnotnull",
-            "562-checker-no-intermediate",
-            "563-checker-fakestring",
-            "563-checker-invoke-super",
-            "564-checker-bitcount",
-            "564-checker-inline-loop",
-            "564-checker-irreducible-loop",
-            "564-checker-negbitwise",
-            "565-checker-condition-liveness",
-            "565-checker-doublenegbitwise",
-            "565-checker-irreducible-loop",
-            "565-checker-rotate",
-            "566-checker-codegen-select",
-            "566-checker-signum",
-            "567-checker-compare",
-            "568-checker-onebit",
-            "569-checker-pattern-replacement",
-            "570-checker-osr",
-            "570-checker-select",
-            "572-checker-array-get-regression",
-            "573-checker-checkcast-regression",
-            "575-checker-isnan",
-            "575-checker-string-init-alias",
-            "577-checker-fp2int",
-            "580-checker-round",
-            "580-checker-string-fact-intrinsics",
-            "582-checker-bce-length",
-            "583-checker-zero",
-            "584-checker-div-bool",
-            "586-checker-null-array-get",
-            "588-checker-irreducib-lifetime-hole",
-            "590-checker-arr-set-null-regression",
-            "591-checker-regression-dead-loop",
-            "592-checker-regression-bool-input",
-            "593-checker-boolean-2-integral-conv",
-            "593-checker-long-2-float-regression",
-            "593-checker-shift-and-simplifier",
-            "594-checker-array-alias",
-            "594-checker-irreducible-linorder",
-            "596-checker-dead-phi",
-            "598-checker-irreducible-dominance",
-            "599-checker-irreducible-loop",
-            "603-checker-instanceof",
-            "608-checker-unresolved-lse",
-            "609-checker-inline-interface",
-            "609-checker-x86-bounds-check",
-            "611-checker-simplify-if",
-            "614-checker-dump-constant-location",
-            "615-checker-arm64-store-zero",
-            "618-checker-induction",
-            "619-checker-current-method",
-            "620-checker-bce-intrinsics",
-            "622-checker-bce-regressions",
-            "623-checker-loop-regressions",
-            "624-checker-stringops",
-            "625-checker-licm-regressions",
-            "626-checker-arm64-scratch-register",
-            "627-checker-unroll",
-            "631-checker-fp-abs",
-            "631-checker-get-class",
-            "632-checker-char-at-bounds",
-            "633-checker-rtp-getclass",
-            "635-checker-arm64-volatile-load-cc",
-            "637-checker-throw-inline",
-            "638-checker-inline-caches",
-            "639-checker-code-sinking",
-            "640-checker-boolean-simd",
-            "640-checker-byte-simd",
-            "640-checker-char-simd",
-            "640-checker-double-simd",
-            "640-checker-float-simd",
-            "640-checker-integer-valueof",
-            "640-checker-int-simd",
-            "640-checker-long-simd",
-            "640-checker-short-simd",
-            "641-checker-arraycopy",
-            "643-checker-bogus-ic",
-            "645-checker-abs-simd",
-            "706-checker-scheduler"],
+        "test_patterns": ["616-cha.*"],
+        "description": ["cha tests rely on knowing more about the state of the JIT then is possible with jvmti-stress"],
+        "variant": "jvmti-stress & jit | redefine-stress & jit"
+    },
+    {
+        "tests": [ "663-odd-dex-size",
+                   "663-odd-dex-size2",
+                   "663-odd-dex-size3",
+                   "663-odd-dex-size4" ],
+        "description": ["All the odd-dex-size tests cause slicer to emit warnings."],
+        "variant": "jvmti-stress | redefine-stress"
+    },
+    {
+        "test_patterns": ["[0-9]*-checker-.*"],
         "description": ["Checker tests are not compatible with jvmti."],
         "variant": "jvmti-stress | redefine-stress | trace-stress | field-stress | step-stress"
     },
@@ -526,20 +405,34 @@
         "variant": "jvmti-stress | redefine-stress | trace-stress | step-stress"
     },
     {
+        "tests": ["082-inline-execute"],
+        "description": ["speed-profile seems to cause the agent to be given an invalid dex file" ],
+        "bug": "b/65452964",
+        "variant": "redefine-stress & speed-profile | jvmti-stress & speed-profile"
+    },
+    {
+        "tests": ["701-easy-div-rem",
+                  "303-verification-stress"],
+        "description": ["speed-profile leads to dex files that slicer emits warnings about"],
+        "variant": "redefine-stress & speed-profile | jvmti-stress & speed-profile"
+    },
+    {
         "tests": [
             "950-redefine-intrinsic",
             "951-threaded-obsolete",
             "952-invoke-custom",
+            "952-invoke-custom-kinds",
             "953-invoke-polymorphic-compiler",
             "954-invoke-polymorphic-verifier",
             "955-methodhandles-smali",
             "956-methodhandles",
             "957-methodhandle-transforms",
             "958-methodhandle-stackframe",
-            "959-invoke-polymorphic-accessors"
+            "959-invoke-polymorphic-accessors",
+            "990-method-handle-and-mr"
         ],
         "description": [
-            "Tests that use dex version 38 which is not yet supported by",
+            "Tests that use invoke-polymorphic/invoke-custom which is not yet supported by",
             "dexter/slicer."
         ],
         "bug": "b/37272822",
@@ -607,13 +500,11 @@
         "variant": "jvmti-stress | redefine-stress"
     },
     {
-        "tests": [
-            "567-checker-compare",
-            "988-method-trace"
+        "tests": [ "1911-get-local-var-table" ],
+        "description": [
+            "Test that relies on knowing the exact layout of a dex file"
         ],
-        "description": "Checker tests fail because desugar lowers Long.compare to lcmp",
-        "env_vars": {"ANDROID_COMPILE_WITH_JACK": "false"},
-        "bug": "b/63078894"
+        "variant": "jvmti-stress | redefine-stress"
     },
     {
         "tests": [
@@ -735,5 +626,28 @@
         ],
         "description": [ "Disable the jvmti can_suspend cap and associated tests" ],
         "bug": "b/63579748"
+    },
+    {
+        "tests": "660-clinit",
+        "variant": "no-image | no-dex2oat | no-prebuild | jvmti-stress | redefine-stress",
+        "description": ["Tests <clinit> for app images, which --no-image, --no-prebuild, ",
+                        "--no-dex2oat, and --redefine-stress do not create"]
+    },
+    {
+        "tests": ["961-default-iface-resolution-gen",
+                  "964-default-iface-init-gen",
+                  "968-default-partial-compile-gen"],
+        "env_vars": {"SANITIZE_HOST": "address"},
+        "description": ["Test hits dex2oat watchdog timeout (60sec) on art-asan"]
+    },
+    {
+        "tests": "664-aget-verifier",
+        "description": ["Aget on potentially null array fails verification."],
+        "bug": "b/64683522"
+    },
+    {
+        "tests": "661-oat-writer-layout",
+        "variant": "interp-ac | interpreter | jit | no-dex2oat | no-prebuild | no-image | trace",
+        "description": ["Test is designed to only check --compiler-filter=speed"]
     }
 ]

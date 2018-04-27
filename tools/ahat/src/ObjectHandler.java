@@ -25,6 +25,7 @@ import com.android.ahat.heapdump.DiffFields;
 import com.android.ahat.heapdump.DiffedFieldValue;
 import com.android.ahat.heapdump.FieldValue;
 import com.android.ahat.heapdump.PathElement;
+import com.android.ahat.heapdump.RootType;
 import com.android.ahat.heapdump.Site;
 import com.android.ahat.heapdump.Value;
 import java.io.IOException;
@@ -65,7 +66,10 @@ class ObjectHandler implements AhatHandler {
     doc.big(Summarizer.summarize(inst));
 
     printAllocationSite(doc, query, inst);
-    printGcRootPath(doc, query, inst);
+
+    if (!inst.isUnreachable()) {
+      printGcRootPath(doc, query, inst);
+    }
 
     doc.section("Object Info");
     AhatClassObj cls = inst.getClassObj();
@@ -74,13 +78,13 @@ class ObjectHandler implements AhatHandler {
 
     doc.description(DocString.text("Heap"), DocString.text(inst.getHeap().getName()));
 
-    Collection<String> rootTypes = inst.getRootTypes();
+    Collection<RootType> rootTypes = inst.getRootTypes();
     if (rootTypes != null) {
       DocString types = new DocString();
       String comma = "";
-      for (String type : rootTypes) {
+      for (RootType type : rootTypes) {
         types.append(comma);
-        types.append(type);
+        types.append(type.toString());
         comma = ", ";
       }
       doc.description(DocString.text("Root Types"), types);
@@ -110,7 +114,7 @@ class ObjectHandler implements AhatHandler {
   private static void printClassInstanceFields(Doc doc, Query query, AhatClassInstance inst) {
     doc.section("Fields");
     AhatInstance base = inst.getBaseline();
-    printFields(doc, query, INSTANCE_FIELDS_ID, !base.isPlaceHolder(),
+    printFields(doc, query, INSTANCE_FIELDS_ID, inst != base && !base.isPlaceHolder(),
         inst.asClassInstance().getInstanceFields(),
         base.isPlaceHolder() ? null : base.asClassInstance().getInstanceFields());
   }
@@ -152,7 +156,7 @@ class ObjectHandler implements AhatHandler {
    *                   ignored otherwise.
    */
   private static void printFields(Doc doc, Query query, String id, boolean diff,
-      List<FieldValue> current, List<FieldValue> baseline) {
+      Iterable<FieldValue> current, Iterable<FieldValue> baseline) {
 
     if (!diff) {
       // To avoid having to special case when diff is disabled, always diff
@@ -175,21 +179,21 @@ class ObjectHandler implements AhatHandler {
       was.append(Summarizer.summarize(previous));
       switch (field.status) {
         case ADDED:
-          doc.row(DocString.text(field.type),
+          doc.row(DocString.text(field.type.name),
                   DocString.text(field.name),
                   Summarizer.summarize(field.current),
                   DocString.added("new"));
           break;
 
         case MATCHED:
-          doc.row(DocString.text(field.type),
+          doc.row(DocString.text(field.type.name),
                   DocString.text(field.name),
                   Summarizer.summarize(field.current),
                   Objects.equals(field.current, previous) ? new DocString() : was);
           break;
 
         case DELETED:
-          doc.row(DocString.text(field.type),
+          doc.row(DocString.text(field.type.name),
                   DocString.text(field.name),
                   DocString.removed("del"),
                   was);
@@ -211,7 +215,7 @@ class ObjectHandler implements AhatHandler {
 
     doc.section("Static Fields");
     AhatInstance base = clsobj.getBaseline();
-    printFields(doc, query, STATIC_FIELDS_ID, !base.isPlaceHolder(),
+    printFields(doc, query, STATIC_FIELDS_ID, clsobj != base && !base.isPlaceHolder(),
         clsobj.getStaticFieldValues(),
         base.isPlaceHolder() ? null : base.asClassObj().getStaticFieldValues());
   }
@@ -256,7 +260,7 @@ class ObjectHandler implements AhatHandler {
     if (bitmap != null) {
       doc.section("Bitmap Image");
       doc.println(DocString.image(
-            DocString.formattedUri("bitmap?id=%d", bitmap.getId()), "bitmap image"));
+            DocString.formattedUri("bitmap?id=0x%x", bitmap.getId()), "bitmap image"));
     }
   }
 

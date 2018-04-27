@@ -16,56 +16,42 @@
 
 package com.android.ahat.heapdump;
 
-import com.android.tools.perflib.heap.ClassObj;
-import com.android.tools.perflib.heap.Field;
-import com.android.tools.perflib.heap.Instance;
+import java.util.AbstractList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 public class AhatClassObj extends AhatInstance {
   private String mClassName;
   private AhatClassObj mSuperClassObj;
   private AhatInstance mClassLoader;
   private FieldValue[] mStaticFieldValues;
+  private Field[] mInstanceFields;
+  private long mStaticFieldsSize;
+  private long mInstanceSize;
 
-  public AhatClassObj(long id) {
+  public AhatClassObj(long id, String className) {
     super(id);
+    mClassName = className;
   }
 
-  @Override void initialize(AhatSnapshot snapshot, Instance inst) {
-    super.initialize(snapshot, inst);
+  void initialize(AhatClassObj superClass,
+                  long instanceSize,
+                  Field[] instanceFields,
+                  long staticFieldsSize) {
+    mSuperClassObj = superClass;
+    mInstanceSize = instanceSize;
+    mInstanceFields = instanceFields;
+    mStaticFieldsSize = staticFieldsSize;
+  }
 
-    ClassObj classObj = (ClassObj)inst;
-    mClassName = classObj.getClassName();
+  void initialize(AhatInstance classLoader, FieldValue[] staticFields) {
+    mClassLoader = classLoader;
+    mStaticFieldValues = staticFields;
+  }
 
-    ClassObj superClassObj = classObj.getSuperClassObj();
-    if (superClassObj != null) {
-      mSuperClassObj = snapshot.findClassObj(superClassObj.getId());
-    }
-
-    Instance loader = classObj.getClassLoader();
-    if (loader != null) {
-      mClassLoader = snapshot.findInstance(loader.getId());
-    }
-
-    Collection<Map.Entry<Field, Object>> fieldValues = classObj.getStaticFieldValues().entrySet();
-    mStaticFieldValues = new FieldValue[fieldValues.size()];
-    int index = 0;
-    for (Map.Entry<Field, Object> field : fieldValues) {
-      String name = field.getKey().getName();
-      String type = field.getKey().getType().toString();
-      Value value = snapshot.getValue(field.getValue());
-      mStaticFieldValues[index++] = new FieldValue(name, type, value);
-
-      if (field.getValue() instanceof Instance) {
-        Instance ref = (Instance)field.getValue();
-        if (ref.getNextInstanceToGcRoot() == inst) {
-          value.asAhatInstance().setNextInstanceToGcRoot(this, "." + name);
-        }
-      }
-    }
+  @Override
+  protected long getExtraJavaSize() {
+    return mStaticFieldsSize;
   }
 
   /**
@@ -90,10 +76,46 @@ public class AhatClassObj extends AhatInstance {
   }
 
   /**
+   * Returns the size of instances of this object, as reported in the heap
+   * dump.
+   */
+  public long getInstanceSize() {
+    return mInstanceSize;
+  }
+
+  /**
    * Returns the static field values for this class object.
    */
   public List<FieldValue> getStaticFieldValues() {
     return Arrays.asList(mStaticFieldValues);
+  }
+
+  /**
+   * Returns the fields of instances of this class.
+   */
+  public Field[] getInstanceFields() {
+    return mInstanceFields;
+  }
+
+  @Override
+  Iterable<Reference> getReferences() {
+    List<Reference> refs = new AbstractList<Reference>() {
+      @Override
+      public int size() {
+        return mStaticFieldValues.length;
+      }
+
+      @Override
+      public Reference get(int index) {
+        FieldValue field = mStaticFieldValues[index];
+        Value value = field.value;
+        if (value != null && value.isAhatInstance()) {
+          return new Reference(AhatClassObj.this, "." + field.name, value.asAhatInstance(), true);
+        }
+        return null;
+      }
+    };
+    return new SkipNullsIterator(refs);
   }
 
   @Override public boolean isClassObj() {
@@ -105,11 +127,10 @@ public class AhatClassObj extends AhatInstance {
   }
 
   @Override public String toString() {
-    return mClassName;
+    return "class " + mClassName;
   }
 
   @Override AhatInstance newPlaceHolderInstance() {
     return new AhatPlaceHolderClassObj(this);
   }
 }
-

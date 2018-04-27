@@ -19,6 +19,9 @@
  */
 public class Main {
 
+  private final static boolean isDalvik =
+      System.getProperty("java.vm.name").equals("Dalvik");
+
   private static final int SPQUIET = 1 << 22;
   private static final long DPQUIET = 1L << 51;
 
@@ -128,6 +131,28 @@ public class Main {
   private static void doitShort(short[] x) {
     for (int i = 0; i < x.length; i++) {
       x[i] = (short) Math.abs(x[i]);
+    }
+  }
+
+  /// CHECK-START: void Main.doitCastedChar(char[]) loop_optimization (before)
+  /// CHECK-DAG: Phi                                       loop:<<Loop:B\d+>> outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop>>      outer_loop:none
+  /// CHECK-DAG: InvokeStaticOrDirect intrinsic:MathAbsInt loop:<<Loop>>      outer_loop:none
+  /// CHECK-DAG: ArraySet                                  loop:<<Loop>>      outer_loop:none
+  //
+  /// CHECK-START-ARM64: void Main.doitCastedChar(char[]) loop_optimization (after)
+  /// CHECK-DAG: Phi                                       loop:<<Loop1:B\d+>> outer_loop:none
+  /// CHECK-DAG: VecLoad                                   loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecAbs                                    loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: VecStore                                  loop:<<Loop1>>      outer_loop:none
+  /// CHECK-DAG: Phi                                       loop:<<Loop2:B\d+>> outer_loop:none
+  /// CHECK-DAG: ArrayGet                                  loop:<<Loop2>>      outer_loop:none
+  //
+  /// CHECK-EVAL: "<<Loop1>>" != "<<Loop2>>"
+  //
+  private static void doitCastedChar(char[] x) {
+    for (int i = 0; i < x.length; i++) {
+      x[i] = (char) Math.abs((short) x[i]);
     }
   }
 
@@ -298,7 +323,7 @@ public class Main {
       xc[i] = (char) i;
     }
     doitChar(xc);
-    for (int i = 0; i < 1024 *64; i++) {
+    for (int i = 0; i < 1024 * 64; i++) {
       expectEquals32((char) Math.abs((char) i), xc[i]);
     }
     short[] xs = new short[1024 * 64];
@@ -308,6 +333,13 @@ public class Main {
     doitShort(xs);
     for (int i = 0; i < 1024 * 64; i++) {
       expectEquals32((short) Math.abs((short) i), xs[i]);
+    }
+    for (int i = 0; i < 1024 * 64; i++) {
+      xc[i] = (char) i;
+    }
+    doitCastedChar(xc);
+    for (int i = 0; i < 1024 * 64; i++) {
+      expectEquals32((char) Math.abs((short) i), xc[i]);
     }
     // Set up minint32, maxint32 and some others.
     int[] xi = new int[8];
@@ -463,6 +495,13 @@ public class Main {
   // We allow that an expected NaN result has become quiet.
   private static void expectEqualsNaN32(int expected, int result) {
     if (expected != result && (expected | SPQUIET) != result) {
+      if (!isDalvik) {
+        // If not on ART, relax the expected value more towards just
+        // "spec compliance" and allow sign bit to remain set for NaN.
+        if (expected == (result & Integer.MAX_VALUE)) {
+          return;
+        }
+      }
       throw new Error("Expected: 0x" + Integer.toHexString(expected)
           + ", found: 0x" + Integer.toHexString(result));
     }
@@ -471,6 +510,13 @@ public class Main {
   // We allow that an expected NaN result has become quiet.
   private static void expectEqualsNaN64(long expected, long result) {
     if (expected != result && (expected | DPQUIET) != result) {
+      if (!isDalvik) {
+        // If not on ART, relax the expected value more towards just
+        // "spec compliance" and allow sign bit to remain set for NaN.
+        if (expected == (result & Long.MAX_VALUE)) {
+          return;
+        }
+      }
       throw new Error("Expected: 0x" + Long.toHexString(expected)
           + ", found: 0x" + Long.toHexString(result));
     }

@@ -25,7 +25,9 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <unordered_map>
 
+#include "cdex/compact_dex_level.h"
 #include "dex_file_layout.h"
 #include "dex_ir.h"
 #include "mem_map.h"
@@ -59,12 +61,20 @@ class Options {
   bool show_section_headers_ = false;
   bool show_section_statistics_ = false;
   bool verbose_ = false;
-  bool verify_output_ = false;
+  bool verify_output_ = kIsDebugBuild;
   bool visualize_pattern_ = false;
+  CompactDexLevel compact_dex_level_ = CompactDexLevel::kCompactDexLevelNone;
   OutputFormat output_format_ = kOutputPlain;
   const char* output_dex_directory_ = nullptr;
   const char* output_file_name_ = nullptr;
   const char* profile_file_name_ = nullptr;
+};
+
+// Hotness info
+class DexLayoutHotnessInfo {
+ public:
+  // Store layout information so that the offset calculation can specify the section sizes.
+  std::unordered_map<dex_ir::CodeItem*, LayoutType> code_item_layout_;
 };
 
 class DexLayout {
@@ -84,8 +94,12 @@ class DexLayout {
 
   MemMap* GetAndReleaseMemMap() { return mem_map_.release(); }
 
-  const DexLayoutSections& GetSections() const {
+  DexLayoutSections& GetSections() {
     return dex_sections_;
+  }
+
+  const DexLayoutHotnessInfo& LayoutHotnessInfo() const {
+    return layout_hotness_info_;
   }
 
  private:
@@ -95,7 +109,13 @@ class DexLayout {
   void DumpClass(int idx, char** last_package);
   void DumpClassAnnotations(int idx);
   void DumpClassDef(int idx);
-  void DumpCode(uint32_t idx, const dex_ir::CodeItem* code, uint32_t code_offset);
+  void DumpCode(uint32_t idx,
+                const dex_ir::CodeItem* code,
+                uint32_t code_offset,
+                const char* declaring_class_descriptor,
+                const char* method_name,
+                bool is_static,
+                const dex_ir::ProtoId* proto);
   void DumpEncodedAnnotation(dex_ir::EncodedAnnotation* annotation);
   void DumpEncodedValue(const dex_ir::EncodedValue* data);
   void DumpFileHeader();
@@ -112,18 +132,14 @@ class DexLayout {
   void DumpSField(uint32_t idx, uint32_t flags, int i, dex_ir::EncodedValue* init);
   void DumpDexFile();
 
-  std::vector<dex_ir::ClassData*> LayoutClassDefsAndClassData(const DexFile* dex_file);
-  int32_t LayoutCodeItems(const DexFile* dex_file,
-                          std::vector<dex_ir::ClassData*> new_class_data_order);
+  void LayoutClassDefsAndClassData(const DexFile* dex_file);
+  void LayoutCodeItems(const DexFile* dex_file);
   void LayoutStringData(const DexFile* dex_file);
-  bool IsNextSectionCodeItemAligned(uint32_t offset);
-  template<class T> void FixupSection(std::map<uint32_t, std::unique_ptr<T>>& map, uint32_t diff);
-  void FixupSections(uint32_t offset, uint32_t diff);
 
   // Creates a new layout for the dex file based on profile info.
   // Currently reorders ClassDefs, ClassDataItems, and CodeItems.
   void LayoutOutputFile(const DexFile* dex_file);
-  void OutputDexFile(const DexFile* dex_file);
+  void OutputDexFile(const DexFile* dex_file, bool compute_offsets);
 
   void DumpCFG(const DexFile* dex_file, int idx);
   void DumpCFG(const DexFile* dex_file, uint32_t dex_method_idx, const DexFile::CodeItem* code);
@@ -134,6 +150,8 @@ class DexLayout {
   dex_ir::Header* header_;
   std::unique_ptr<MemMap> mem_map_;
   DexLayoutSections dex_sections_;
+  // Layout hotness information is only calculated when dexlayout is enabled.
+  DexLayoutHotnessInfo layout_hotness_info_;
 
   DISALLOW_COPY_AND_ASSIGN(DexLayout);
 };

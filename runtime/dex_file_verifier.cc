@@ -471,7 +471,9 @@ bool DexFileVerifier::CheckMap() {
     if (IsDataSectionType(item_type)) {
       uint32_t icount = item->size_;
       if (UNLIKELY(icount > data_items_left)) {
-        ErrorStringPrintf("Too many items in data section: %ud", data_item_count + icount);
+        ErrorStringPrintf("Too many items in data section: %ud item_type %zx",
+                          data_item_count + icount,
+                          static_cast<size_t>(item_type));
         return false;
       }
       data_items_left -= icount;
@@ -721,14 +723,19 @@ bool DexFileVerifier::CheckClassDataItemMethod(uint32_t idx,
   return true;
 }
 
-bool DexFileVerifier::CheckPadding(size_t offset, uint32_t aligned_offset) {
+bool DexFileVerifier::CheckPadding(size_t offset,
+                                   uint32_t aligned_offset,
+                                   DexFile::MapItemType type) {
   if (offset < aligned_offset) {
     if (!CheckListSize(begin_ + offset, aligned_offset - offset, sizeof(uint8_t), "section")) {
       return false;
     }
     while (offset < aligned_offset) {
       if (UNLIKELY(*ptr_ != '\0')) {
-        ErrorStringPrintf("Non-zero padding %x before section start at %zx", *ptr_, offset);
+        ErrorStringPrintf("Non-zero padding %x before section of type %zu at offset 0x%zx",
+                          *ptr_,
+                          static_cast<size_t>(type),
+                          offset);
         return false;
       }
       ptr_++;
@@ -1615,7 +1622,7 @@ bool DexFileVerifier::CheckIntraSectionIterate(size_t offset, uint32_t section_c
     size_t aligned_offset = (offset + alignment_mask) & ~alignment_mask;
 
     // Check the padding between items.
-    if (!CheckPadding(offset, aligned_offset)) {
+    if (!CheckPadding(offset, aligned_offset, type)) {
       return false;
     }
 
@@ -1837,7 +1844,10 @@ bool DexFileVerifier::CheckIntraDataSection(size_t offset,
 
   size_t next_offset = ptr_ - begin_;
   if (next_offset > data_end) {
-    ErrorStringPrintf("Out-of-bounds end of data subsection: %zx", next_offset);
+    ErrorStringPrintf("Out-of-bounds end of data subsection: %zu data_off=%u data_size=%u",
+                      next_offset,
+                      header_->data_off_,
+                      header_->data_size_);
     return false;
   }
 
@@ -1859,7 +1869,7 @@ bool DexFileVerifier::CheckIntraSection() {
     DexFile::MapItemType type = static_cast<DexFile::MapItemType>(item->type_);
 
     // Check for padding and overlap between items.
-    if (!CheckPadding(offset, section_offset)) {
+    if (!CheckPadding(offset, section_offset, type)) {
       return false;
     } else if (UNLIKELY(offset > section_offset)) {
       ErrorStringPrintf("Section overlap or out-of-order map: %zx, %x", offset, section_offset);
@@ -1962,7 +1972,7 @@ dex::TypeIndex DexFileVerifier::FindFirstClassDataDefiner(const uint8_t* ptr, bo
     return field->class_idx_;
   }
 
-  if (it.HasNextDirectMethod() || it.HasNextVirtualMethod()) {
+  if (it.HasNextMethod()) {
     LOAD_METHOD(method, it.GetMemberIndex(), "first_class_data_definer method_id",
                 *success = false; return dex::TypeIndex(DexFile::kDexNoIndex16))
     return method->class_idx_;
@@ -2558,7 +2568,7 @@ bool DexFileVerifier::CheckInterClassDataItem() {
       return false;
     }
   }
-  for (; it.HasNextDirectMethod() || it.HasNextVirtualMethod(); it.Next()) {
+  for (; it.HasNextMethod(); it.Next()) {
     uint32_t code_off = it.GetMethodCodeItemOffset();
     if (code_off != 0 && !CheckOffsetToTypeMap(code_off, DexFile::kDexTypeCodeItem)) {
       return false;

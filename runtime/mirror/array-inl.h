@@ -26,9 +26,8 @@
 #include "base/logging.h"
 #include "class.h"
 #include "gc/heap-inl.h"
-#include "object-inl.h"
 #include "obj_ptr-inl.h"
-#include "thread.h"
+#include "thread-current-inl.h"
 
 namespace art {
 namespace mirror {

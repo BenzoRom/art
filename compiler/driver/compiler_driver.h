@@ -17,10 +17,13 @@
 #ifndef ART_COMPILER_DRIVER_COMPILER_DRIVER_H_
 #define ART_COMPILER_DRIVER_COMPILER_DRIVER_H_
 
+#include <atomic>
 #include <set>
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+#include "android-base/strings.h"
 
 #include "arch/instruction_set.h"
 #include "base/array_ref.h"
@@ -33,7 +36,6 @@
 #include "dex_file_types.h"
 #include "driver/compiled_method_storage.h"
 #include "jit/profile_compilation_info.h"
-#include "invoke_type.h"
 #include "method_reference.h"
 #include "mirror/class.h"  // For mirror::Class::Status.
 #include "os.h"
@@ -60,6 +62,7 @@ class DexCompilationUnit;
 struct InlineIGetIPutData;
 class InstructionSetFeatures;
 class InternTable;
+enum InvokeType : uint32_t;
 class ParallelCompilationManager;
 class ScopedObjectAccess;
 template <class Allocator> class SrcMap;
@@ -94,9 +97,6 @@ class CompilerDriver {
                  std::unordered_set<std::string>* compiled_classes,
                  std::unordered_set<std::string>* compiled_methods,
                  size_t thread_count,
-                 bool dump_stats,
-                 bool dump_passes,
-                 CumulativeLogger* timer,
                  int swap_fd,
                  const ProfileCompilationInfo* profile_compilation_info);
 
@@ -104,6 +104,9 @@ class CompilerDriver {
 
   // Set dex files that will be stored in the oat file after being compiled.
   void SetDexFilesForOatFile(const std::vector<const DexFile*>& dex_files);
+
+  // Set dex files classpath.
+  void SetClasspathDexFiles(const std::vector<const DexFile*>& dex_files);
 
   // Get dex file that will be stored in the oat file after being compiled.
   ArrayRef<const DexFile* const> GetDexFilesForOatFile() const {
@@ -149,7 +152,8 @@ class CompilerDriver {
   std::unique_ptr<const std::vector<uint8_t>> CreateQuickResolutionTrampoline() const;
   std::unique_ptr<const std::vector<uint8_t>> CreateQuickToInterpreterBridge() const;
 
-  bool GetCompiledClass(ClassReference ref, mirror::Class::Status* status) const;
+  mirror::Class::Status GetClassStatus(const ClassReference& ref) const;
+  bool GetCompiledClass(const ClassReference& ref, mirror::Class::Status* status) const;
 
   CompiledMethod* GetCompiledMethod(MethodReference ref) const;
   size_t GetNonRelativeLinkerPatchCount() const;
@@ -215,36 +219,33 @@ class CompilerDriver {
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   // Resolve compiling method's class. Returns null on failure.
-  mirror::Class* ResolveCompilingMethodsClass(
-      const ScopedObjectAccess& soa, Handle<mirror::DexCache> dex_cache,
-      Handle<mirror::ClassLoader> class_loader, const DexCompilationUnit* mUnit)
+  ObjPtr<mirror::Class> ResolveCompilingMethodsClass(const ScopedObjectAccess& soa,
+                                                     Handle<mirror::DexCache> dex_cache,
+                                                     Handle<mirror::ClassLoader> class_loader,
+                                                     const DexCompilationUnit* mUnit)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
-  mirror::Class* ResolveClass(
-      const ScopedObjectAccess& soa, Handle<mirror::DexCache> dex_cache,
-      Handle<mirror::ClassLoader> class_loader, dex::TypeIndex type_index,
-      const DexCompilationUnit* mUnit)
+  ObjPtr<mirror::Class> ResolveClass(const ScopedObjectAccess& soa,
+                                     Handle<mirror::DexCache> dex_cache,
+                                     Handle<mirror::ClassLoader> class_loader,
+                                     dex::TypeIndex type_index,
+                                     const DexCompilationUnit* mUnit)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   // Resolve a field. Returns null on failure, including incompatible class change.
   // NOTE: Unlike ClassLinker's ResolveField(), this method enforces is_static.
-  ArtField* ResolveField(
-      const ScopedObjectAccess& soa, Handle<mirror::DexCache> dex_cache,
-      Handle<mirror::ClassLoader> class_loader, const DexCompilationUnit* mUnit,
-      uint32_t field_idx, bool is_static)
-      REQUIRES_SHARED(Locks::mutator_lock_);
-
-  // Resolve a field with a given dex file.
-  ArtField* ResolveFieldWithDexFile(
-      const ScopedObjectAccess& soa, Handle<mirror::DexCache> dex_cache,
-      Handle<mirror::ClassLoader> class_loader, const DexFile* dex_file,
-      uint32_t field_idx, bool is_static)
+  ArtField* ResolveField(const ScopedObjectAccess& soa,
+                         Handle<mirror::DexCache> dex_cache,
+                         Handle<mirror::ClassLoader> class_loader,
+                         uint32_t field_idx,
+                         bool is_static)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   // Can we fast-path an IGET/IPUT access to an instance field? If yes, compute the field offset.
-  std::pair<bool, bool> IsFastInstanceField(
-      mirror::DexCache* dex_cache, mirror::Class* referrer_class,
-      ArtField* resolved_field, uint16_t field_idx)
+  std::pair<bool, bool> IsFastInstanceField(ObjPtr<mirror::DexCache> dex_cache,
+                                            ObjPtr<mirror::Class> referrer_class,
+                                            ArtField* resolved_field,
+                                            uint16_t field_idx)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   // Resolve a method. Returns null on failure, including incompatible class change.
@@ -266,9 +267,9 @@ class CompilerDriver {
       REQUIRES(!Locks::mutator_lock_);
 
   ArtField* ComputeInstanceFieldInfo(uint32_t field_idx,
-                                             const DexCompilationUnit* mUnit,
-                                             bool is_put,
-                                             const ScopedObjectAccess& soa)
+                                     const DexCompilationUnit* mUnit,
+                                     bool is_put,
+                                     const ScopedObjectAccess& soa)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
 
@@ -293,18 +294,6 @@ class CompilerDriver {
 
   size_t GetThreadCount() const {
     return parallel_thread_count_;
-  }
-
-  bool GetDumpStats() const {
-    return dump_stats_;
-  }
-
-  bool GetDumpPasses() const {
-    return dump_passes_;
-  }
-
-  CumulativeLogger* GetTimingsLogger() const {
-    return timings_logger_;
   }
 
   void SetDedupeEnabled(bool dedupe_enabled) {
@@ -332,7 +321,7 @@ class CompilerDriver {
   // according to the profile file.
   bool ShouldVerifyClassBasedOnProfile(const DexFile& dex_file, uint16_t class_idx) const;
 
-  void RecordClassStatus(ClassReference ref, mirror::Class::Status status);
+  void RecordClassStatus(const ClassReference& ref, mirror::Class::Status status);
 
   // Checks if the specified method has been verified without failures. Returns
   // false if the method is not in the verification results (GetVerificationResults).
@@ -345,6 +334,9 @@ class CompilerDriver {
 
   void SetHadHardVerifierFailure() {
     had_hard_verifier_failure_ = true;
+  }
+  void AddSoftVerifierFailure() {
+    number_of_soft_verifier_failures_++;
   }
 
   Compiler::Kind GetCompilerKind() {
@@ -377,7 +369,13 @@ class CompilerDriver {
     return profile_compilation_info_;
   }
 
-  bool CanAssumeVerified(ClassReference ref) const;
+  // Is `boot_image_filename` the name of a core image (small boot
+  // image used for ART testing only)?
+  static bool IsCoreImageFilename(const std::string& boot_image_filename) {
+    // TODO: This is under-approximating...
+    return android::base::EndsWith(boot_image_filename, "core.art")
+        || android::base::EndsWith(boot_image_filename, "core-optimizing.art");
+  }
 
  private:
   void PreCompile(jobject class_loader,
@@ -478,10 +476,12 @@ class CompilerDriver {
       GUARDED_BY(requires_constructor_barrier_lock_);
 
   // All class references that this compiler has compiled. Indexed by class defs.
-  using ClassStateTable = AtomicDexRefMap<mirror::Class::Status>;
+  using ClassStateTable = AtomicDexRefMap<ClassReference, mirror::Class::Status>;
   ClassStateTable compiled_classes_;
+  // All class references that are in the classpath. Indexed by class defs.
+  ClassStateTable classpath_classes_;
 
-  typedef AtomicDexRefMap<CompiledMethod*> MethodTable;
+  typedef AtomicDexRefMap<MethodReference, CompiledMethod*> MethodTable;
 
  private:
   // All method references that this compiler has compiled.
@@ -505,6 +505,7 @@ class CompilerDriver {
   // This option may be restricted to the boot image, depending on a flag in the implementation.
   std::unique_ptr<std::unordered_set<std::string>> methods_to_compile_;
 
+  std::atomic<uint32_t> number_of_soft_verifier_failures_;
   bool had_hard_verifier_failure_;
 
   // A thread pool that can (potentially) run tasks in parallel.
@@ -516,11 +517,6 @@ class CompilerDriver {
 
   class AOTCompilationStats;
   std::unique_ptr<AOTCompilationStats> stats_;
-
-  bool dump_stats_;
-  const bool dump_passes_;
-
-  CumulativeLogger* const timings_logger_;
 
   typedef void (*CompilerCallbackFn)(CompilerDriver& driver);
   typedef MutexLock* (*CompilerMutexLockFn)(CompilerDriver& driver);

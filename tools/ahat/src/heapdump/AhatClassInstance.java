@@ -16,44 +16,32 @@
 
 package com.android.ahat.heapdump;
 
-import com.android.tools.perflib.heap.ClassInstance;
-import com.android.tools.perflib.heap.Instance;
 import java.awt.image.BufferedImage;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 public class AhatClassInstance extends AhatInstance {
-  private FieldValue[] mFieldValues;
+  // Instance fields of the object. These are stored in order of the instance
+  // field descriptors from the class object, starting with this class first,
+  // followed by the super class, and so on. We store the values separate from
+  // the field types and names to save memory.
+  private Value[] mFields;
 
   public AhatClassInstance(long id) {
     super(id);
   }
 
-  @Override void initialize(AhatSnapshot snapshot, Instance inst) {
-    super.initialize(snapshot, inst);
+  void initialize(Value[] fields) {
+    mFields = fields;
+  }
 
-    ClassInstance classInst = (ClassInstance)inst;
-    List<ClassInstance.FieldValue> fieldValues = classInst.getValues();
-    mFieldValues = new FieldValue[fieldValues.size()];
-    for (int i = 0; i < mFieldValues.length; i++) {
-      ClassInstance.FieldValue field = fieldValues.get(i);
-      String name = field.getField().getName();
-      String type = field.getField().getType().toString();
-      Value value = snapshot.getValue(field.getValue());
-
-      mFieldValues[i] = new FieldValue(name, type, value);
-
-      if (field.getValue() instanceof Instance) {
-        Instance ref = (Instance)field.getValue();
-        if (ref.getNextInstanceToGcRoot() == inst) {
-          value.asAhatInstance().setNextInstanceToGcRoot(this, "." + name);
-        }
-      }
-    }
+  @Override
+  protected long getExtraJavaSize() {
+    return 0;
   }
 
   @Override public Value getField(String fieldName) {
-    for (FieldValue field : mFieldValues) {
+    for (FieldValue field : getInstanceFields()) {
       if (fieldName.equals(field.name)) {
         return field.value;
       }
@@ -97,12 +85,21 @@ public class AhatClassInstance extends AhatInstance {
   /**
    * Returns the list of class instance fields for this instance.
    */
-  public List<FieldValue> getInstanceFields() {
-    return Arrays.asList(mFieldValues);
+  public Iterable<FieldValue> getInstanceFields() {
+    return new InstanceFieldIterator(mFields, getClassObj());
+  }
+
+  @Override
+  Iterable<Reference> getReferences() {
+    if (isInstanceOfClass("java.lang.ref.Reference")) {
+      return new WeakReferentReferenceIterator();
+    }
+    return new StrongReferenceIterator();
   }
 
   /**
-   * Returns true if this is an instance of a class with the given name.
+   * Returns true if this is an instance of a (subclass of a) class with the
+   * given name.
    */
   private boolean isInstanceOfClass(String className) {
     AhatClassObj cls = getClassObj();
@@ -121,7 +118,7 @@ public class AhatClassInstance extends AhatInstance {
     }
 
     Value value = getField("value");
-    if (!value.isAhatInstance()) {
+    if (value == null || !value.isAhatInstance()) {
       return null;
     }
 
@@ -244,5 +241,175 @@ public class AhatClassInstance extends AhatInstance {
         info.width, info.height, BufferedImage.TYPE_4BYTE_ABGR);
     bitmap.setRGB(0, 0, info.width, info.height, abgr, 0, info.width);
     return bitmap;
+  }
+
+  @Override
+  public RegisteredNativeAllocation asRegisteredNativeAllocation() {
+    if (!isInstanceOfClass("sun.misc.Cleaner")) {
+      return null;
+    }
+
+    Value vthunk = getField("thunk");
+    if (vthunk == null || !vthunk.isAhatInstance()) {
+      return null;
+    }
+
+    AhatClassInstance thunk = vthunk.asAhatInstance().asClassInstance();
+    if (thunk == null
+        || !thunk.isInstanceOfClass("libcore.util.NativeAllocationRegistry$CleanerThunk")) {
+      return null;
+    }
+
+    Value vregistry = thunk.getField("this$0");
+    if (vregistry == null || !vregistry.isAhatInstance()) {
+      return null;
+    }
+
+    AhatClassInstance registry = vregistry.asAhatInstance().asClassInstance();
+    if (registry == null || !registry.isInstanceOfClass("libcore.util.NativeAllocationRegistry")) {
+      return null;
+    }
+
+    Value size = registry.getField("size");
+    if (!size.isLong()) {
+      return null;
+    }
+
+    Value referent = getField("referent");
+    if (referent == null || !referent.isAhatInstance()) {
+      return null;
+    }
+
+    RegisteredNativeAllocation rna = new RegisteredNativeAllocation();
+    rna.referent = referent.asAhatInstance();
+    rna.size = size.asLong();
+    return rna;
+  }
+
+  private static class InstanceFieldIterator implements Iterable<FieldValue>,
+                                                        Iterator<FieldValue> {
+    // The complete list of instance field values to iterate over, including
+    // superclass field values.
+    private Value[] mValues;
+    private int mValueIndex;
+
+    // The list of field descriptors specific to the current class in the
+    // class hierarchy, not including superclass field descriptors.
+    // mFields and mFieldIndex are reset each time we walk up to the next
+    // superclass in the call hierarchy.
+    private Field[] mFields;
+    private int mFieldIndex;
+    private AhatClassObj mNextClassObj;
+
+    public InstanceFieldIterator(Value[] values, AhatClassObj classObj) {
+      mValues = values;
+      mFields = classObj.getInstanceFields();
+      mValueIndex = 0;
+      mFieldIndex = 0;
+      mNextClassObj = classObj.getSuperClassObj();
+    }
+
+    @Override
+    public boolean hasNext() {
+      // If we have reached the end of the fields in the current class,
+      // continue walking up the class hierarchy to get superclass fields as
+      // well.
+      while (mFieldIndex == mFields.length && mNextClassObj != null) {
+        mFields = mNextClassObj.getInstanceFields();
+        mFieldIndex = 0;
+        mNextClassObj = mNextClassObj.getSuperClassObj();
+      }
+      return mFieldIndex < mFields.length;
+    }
+
+    @Override
+    public FieldValue next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+      Field field = mFields[mFieldIndex++];
+      Value value = mValues[mValueIndex++];
+      return new FieldValue(field.name, field.type, value);
+    }
+
+    @Override
+    public Iterator<FieldValue> iterator() {
+      return this;
+    }
+  }
+
+  /**
+   * A Reference iterator that iterates over the fields of this instance
+   * assuming all field references are strong references.
+   */
+  private class StrongReferenceIterator implements Iterable<Reference>,
+                                                   Iterator<Reference> {
+    private Iterator<FieldValue> mIter = getInstanceFields().iterator();
+    private Reference mNext = null;
+
+    @Override
+    public boolean hasNext() {
+      while (mNext == null && mIter.hasNext()) {
+        FieldValue field = mIter.next();
+        if (field.value != null && field.value.isAhatInstance()) {
+          AhatInstance ref = field.value.asAhatInstance();
+          mNext = new Reference(AhatClassInstance.this, "." + field.name, ref, true);
+        }
+      }
+      return mNext != null;
+    }
+
+    @Override
+    public Reference next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+      Reference next = mNext;
+      mNext = null;
+      return next;
+    }
+
+    @Override
+    public Iterator<Reference> iterator() {
+      return this;
+    }
+  }
+
+  /**
+   * A Reference iterator that iterates over the fields of a subclass of
+   * java.lang.ref.Reference, where the 'referent' field is considered weak.
+   */
+  private class WeakReferentReferenceIterator implements Iterable<Reference>,
+                                                         Iterator<Reference> {
+    private Iterator<FieldValue> mIter = getInstanceFields().iterator();
+    private Reference mNext = null;
+
+    @Override
+    public boolean hasNext() {
+      while (mNext == null && mIter.hasNext()) {
+        FieldValue field = mIter.next();
+        if (field.value != null && field.value.isAhatInstance()) {
+          boolean strong = !field.name.equals("referent");
+          AhatInstance ref = field.value.asAhatInstance();
+          mNext = new Reference(AhatClassInstance.this, "." + field.name, ref, strong);
+        }
+      }
+      return mNext != null;
+    }
+
+    @Override
+    public Reference next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+      Reference next = mNext;
+      mNext = null;
+      return next;
+    }
+
+    @Override
+    public Iterator<Reference> iterator() {
+      return this;
+    }
   }
 }

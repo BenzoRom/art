@@ -23,8 +23,9 @@
 #include "gtest/gtest.h"
 #include "optimizing/code_generator.h"
 #include "optimizing/optimizing_unit_test.h"
-#include "utils/assembler.h"
+#include "read_barrier_config.h"
 #include "utils/arm/assembler_arm_vixl.h"
+#include "utils/assembler.h"
 #include "utils/mips/assembler_mips.h"
 #include "utils/mips64/assembler_mips64.h"
 
@@ -45,22 +46,24 @@ class OptimizingCFITest : public CFITest {
   static constexpr bool kGenerateExpected = false;
 
   OptimizingCFITest()
-      : pool_(),
-        allocator_(&pool_),
+      : pool_and_allocator_(),
         opts_(),
         isa_features_(),
         graph_(nullptr),
         code_gen_(),
-        blocks_(allocator_.Adapter()) {}
+        blocks_(GetAllocator()->Adapter()) {}
+
+  ArenaAllocator* GetAllocator() { return pool_and_allocator_.GetAllocator(); }
 
   void SetUpFrame(InstructionSet isa) {
     // Setup simple context.
     std::string error;
     isa_features_ = InstructionSetFeatures::FromVariant(isa, "default", &error);
-    graph_ = CreateGraph(&allocator_);
+    graph_ = CreateGraph(&pool_and_allocator_);
     // Generate simple frame with some spills.
     code_gen_ = CodeGenerator::Create(graph_, isa, *isa_features_, opts_);
     code_gen_->GetAssembler()->cfi().SetEnabled(true);
+    code_gen_->InitializeCodeGenerationData();
     const int frame_size = 64;
     int core_reg = 0;
     int fp_reg = 0;
@@ -98,15 +101,15 @@ class OptimizingCFITest : public CFITest {
              const std::vector<uint8_t>& expected_asm,
              const std::vector<uint8_t>& expected_cfi) {
     // Get the outputs.
-    const std::vector<uint8_t>& actual_asm = code_allocator_.GetMemory();
+    ArrayRef<const uint8_t> actual_asm = code_allocator_.GetMemory();
     Assembler* opt_asm = code_gen_->GetAssembler();
-    const std::vector<uint8_t>& actual_cfi = *(opt_asm->cfi().data());
+    ArrayRef<const uint8_t> actual_cfi(*(opt_asm->cfi().data()));
 
     if (kGenerateExpected) {
       GenerateExpected(stdout, isa, isa_str, actual_asm, actual_cfi);
     } else {
-      EXPECT_EQ(expected_asm, actual_asm);
-      EXPECT_EQ(expected_cfi, actual_cfi);
+      EXPECT_EQ(ArrayRef<const uint8_t>(expected_asm), actual_asm);
+      EXPECT_EQ(ArrayRef<const uint8_t>(expected_cfi), actual_cfi);
     }
   }
 
@@ -133,7 +136,7 @@ class OptimizingCFITest : public CFITest {
       return memory_.data();
     }
 
-    const std::vector<uint8_t>& GetMemory() { return memory_; }
+    ArrayRef<const uint8_t> GetMemory() const OVERRIDE { return ArrayRef<const uint8_t>(memory_); }
 
    private:
     std::vector<uint8_t> memory_;
@@ -141,8 +144,7 @@ class OptimizingCFITest : public CFITest {
     DISALLOW_COPY_AND_ASSIGN(InternalCodeAllocator);
   };
 
-  ArenaPool pool_;
-  ArenaAllocator allocator_;
+  ArenaPoolAndAllocator pool_and_allocator_;
   CompilerOptions opts_;
   std::unique_ptr<const InstructionSetFeatures> isa_features_;
   HGraph* graph_;
@@ -151,15 +153,15 @@ class OptimizingCFITest : public CFITest {
   InternalCodeAllocator code_allocator_;
 };
 
-#define TEST_ISA(isa)                                         \
-  TEST_F(OptimizingCFITest, isa) {                            \
-    std::vector<uint8_t> expected_asm(                        \
-        expected_asm_##isa,                                   \
-        expected_asm_##isa + arraysize(expected_asm_##isa));  \
-    std::vector<uint8_t> expected_cfi(                        \
-        expected_cfi_##isa,                                   \
-        expected_cfi_##isa + arraysize(expected_cfi_##isa));  \
-    TestImpl(isa, #isa, expected_asm, expected_cfi);          \
+#define TEST_ISA(isa)                                                 \
+  TEST_F(OptimizingCFITest, isa) {                                    \
+    std::vector<uint8_t> expected_asm(                                \
+        expected_asm_##isa,                                           \
+        expected_asm_##isa + arraysize(expected_asm_##isa));          \
+    std::vector<uint8_t> expected_cfi(                                \
+        expected_cfi_##isa,                                           \
+        expected_cfi_##isa + arraysize(expected_cfi_##isa));          \
+    TestImpl(InstructionSet::isa, #isa, expected_asm, expected_cfi);  \
   }
 
 #ifdef ART_ENABLE_CODEGEN_arm
@@ -202,7 +204,7 @@ TEST_F(OptimizingCFITest, kThumb2Adjust) {
   std::vector<uint8_t> expected_cfi(
       expected_cfi_kThumb2_adjust,
       expected_cfi_kThumb2_adjust + arraysize(expected_cfi_kThumb2_adjust));
-  SetUpFrame(kThumb2);
+  SetUpFrame(InstructionSet::kThumb2);
 #define __ down_cast<arm::ArmVIXLAssembler*>(GetCodeGenerator() \
     ->GetAssembler())->GetVIXLAssembler()->
   vixl32::Label target;
@@ -214,7 +216,7 @@ TEST_F(OptimizingCFITest, kThumb2Adjust) {
   __ Bind(&target);
 #undef __
   Finish();
-  Check(kThumb2, "kThumb2_adjust", expected_asm, expected_cfi);
+  Check(InstructionSet::kThumb2, "kThumb2_adjust", expected_asm, expected_cfi);
 }
 #endif
 
@@ -233,7 +235,7 @@ TEST_F(OptimizingCFITest, kMipsAdjust) {
   std::vector<uint8_t> expected_cfi(
       expected_cfi_kMips_adjust,
       expected_cfi_kMips_adjust + arraysize(expected_cfi_kMips_adjust));
-  SetUpFrame(kMips);
+  SetUpFrame(InstructionSet::kMips);
 #define __ down_cast<mips::MipsAssembler*>(GetCodeGenerator()->GetAssembler())->
   mips::MipsLabel target;
   __ Beqz(mips::A0, &target);
@@ -244,7 +246,7 @@ TEST_F(OptimizingCFITest, kMipsAdjust) {
   __ Bind(&target);
 #undef __
   Finish();
-  Check(kMips, "kMips_adjust", expected_asm, expected_cfi);
+  Check(InstructionSet::kMips, "kMips_adjust", expected_asm, expected_cfi);
 }
 #endif
 
@@ -263,7 +265,7 @@ TEST_F(OptimizingCFITest, kMips64Adjust) {
   std::vector<uint8_t> expected_cfi(
       expected_cfi_kMips64_adjust,
       expected_cfi_kMips64_adjust + arraysize(expected_cfi_kMips64_adjust));
-  SetUpFrame(kMips64);
+  SetUpFrame(InstructionSet::kMips64);
 #define __ down_cast<mips64::Mips64Assembler*>(GetCodeGenerator()->GetAssembler())->
   mips64::Mips64Label target;
   __ Beqc(mips64::A1, mips64::A2, &target);
@@ -274,7 +276,7 @@ TEST_F(OptimizingCFITest, kMips64Adjust) {
   __ Bind(&target);
 #undef __
   Finish();
-  Check(kMips64, "kMips64_adjust", expected_asm, expected_cfi);
+  Check(InstructionSet::kMips64, "kMips64_adjust", expected_asm, expected_cfi);
 }
 #endif
 

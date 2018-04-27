@@ -70,6 +70,10 @@ JVMTI_REDEFINE_STRESS="n"
 VDEX_FILTER=""
 PROFILE="n"
 RANDOM_PROFILE="n"
+# The normal dex2oat timeout.
+DEX2OAT_TIMEOUT="60"
+# The *hard* timeout where we really start trying to kill the dex2oat.
+DEX2OAT_RT_TIMEOUT="90"
 
 # if "y", set -Xstacktracedir and inform the test of its location. When
 # this is set, stack trace dumps (from signal 3) will be written to a file
@@ -86,6 +90,22 @@ ANDROID_FLAGS="${ANDROID_FLAGS} -XX:SlowDebug=true"
 while true; do
     if [ "x$1" = "x--quiet" ]; then
         QUIET="y"
+        shift
+    elif [ "x$1" = "x--dex2oat-rt-timeout" ]; then
+        shift
+        if [ "x$1" = "x" ]; then
+            echo "$0 missing argument to --dex2oat-rt-timeout" 1>&2
+            exit 1
+        fi
+        DEX2OAT_RT_TIMEOUT="$1"
+        shift
+    elif [ "x$1" = "x--dex2oat-timeout" ]; then
+        shift
+        if [ "x$1" = "x" ]; then
+            echo "$0 missing argument to --dex2oat-timeout" 1>&2
+            exit 1
+        fi
+        DEX2OAT_TIMEOUT="$1"
         shift
     elif [ "x$1" = "x--jvmti" ]; then
         IS_JVMTI_TEST="y"
@@ -422,10 +442,7 @@ if [[ "$JVMTI_STRESS" = "y" ]]; then
   if [[ "$JVMTI_REDEFINE_STRESS" = "y" ]]; then
     # We really cannot do this on RI so don't both passing it in that case.
     if [[ "$USE_JVM" = "n" ]]; then
-      file_1=$(mktemp --tmpdir=${DEX_LOCATION})
-      file_2=$(mktemp --tmpdir=${DEX_LOCATION})
-      # TODO Remove need for DEXTER_BINARY!
-      agent_args="${agent_args},redefine,${DEXTER_BINARY},${file_1},${file_2}"
+      agent_args="${agent_args},redefine"
     fi
   fi
   if [[ "$JVMTI_FIELD_STRESS" = "y" ]]; then
@@ -453,6 +470,10 @@ fi
 
 if [ "$USE_JVM" = "y" ]; then
   export LD_LIBRARY_PATH=${ANDROID_HOST_OUT}/lib64
+  # Some jvmti tests are flaky without -Xint on the RI.
+  if [ "$IS_JVMTI_TEST" = "y" ]; then
+    FLAGS="${FLAGS} -Xint"
+  fi
   # Xmx is necessary since we don't pass down the ART flags to JVM.
   # We pass the classes2 path whether it's used (src-multidex) or not.
   cmdline="${JAVA} ${DEBUGGER_OPTS} ${JVM_VERIFY_ARG} -Xmx256m -classpath classes:classes2 ${FLAGS} $MAIN $@ ${ARGS}"
@@ -577,7 +598,8 @@ fi
 if [ "$HOST" = "y" ]; then
   max_filename_size=$(getconf NAME_MAX $DEX_LOCATION)
 else
-  # There is no getconf on device, fallback to standard value. See NAME_MAX in kernel <linux/limits.h>
+  # There is no getconf on device, fallback to standard value.
+  # See NAME_MAX in kernel <linux/limits.h>
   max_filename_size=255
 fi
 # Compute VDEX_NAME.
@@ -645,10 +667,11 @@ if [ "$PREBUILD" = "y" ]; then
   # Note: as we don't know how decent targets are (e.g., emulator), only do this on the host for
   #       now. We should try to improve this.
   #       The current value is rather arbitrary. run-tests should compile quickly.
+  # Watchdog timeout is in milliseconds so add 3 '0's to the dex2oat timeout.
   if [ "$HOST" != "n" ]; then
     # Use SIGRTMIN+2 to try to dump threads.
     # Use -k 1m to SIGKILL it a minute later if it hasn't ended.
-    dex2oat_cmdline="timeout -k 1m -s SIGRTMIN+2 90s ${dex2oat_cmdline} --watchdog-timeout=60000"
+    dex2oat_cmdline="timeout -k ${DEX2OAT_TIMEOUT}s -s SIGRTMIN+2 ${DEX2OAT_RT_TIMEOUT}s ${dex2oat_cmdline} --watchdog-timeout=${DEX2OAT_TIMEOUT}000"
   fi
   if [ "$PROFILE" = "y" ] || [ "$RANDOM_PROFILE" = "y" ]; then
     vdex_cmdline="${dex2oat_cmdline} ${VDEX_FILTER} --input-vdex=$DEX_LOCATION/oat/$ISA/$TEST_NAME.vdex --output-vdex=$DEX_LOCATION/oat/$ISA/$TEST_NAME.vdex"

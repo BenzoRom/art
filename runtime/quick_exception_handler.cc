@@ -19,6 +19,8 @@
 #include "arch/context.h"
 #include "art_method-inl.h"
 #include "base/enums.h"
+#include "base/logging.h"  // For VLOG_IS_ON.
+#include "dex_file_types.h"
 #include "dex_instruction.h"
 #include "entrypoints/entrypoint_utils.h"
 #include "entrypoints/quick/quick_entrypoints_enum.h"
@@ -98,17 +100,17 @@ class CatchBlockStackVisitor FINAL : public StackVisitor {
  private:
   bool HandleTryItems(ArtMethod* method)
       REQUIRES_SHARED(Locks::mutator_lock_) {
-    uint32_t dex_pc = DexFile::kDexNoIndex;
+    uint32_t dex_pc = dex::kDexNoIndex;
     if (!method->IsNative()) {
       dex_pc = GetDexPc();
     }
-    if (dex_pc != DexFile::kDexNoIndex) {
+    if (dex_pc != dex::kDexNoIndex) {
       bool clear_exception = false;
       StackHandleScope<1> hs(GetThread());
       Handle<mirror::Class> to_find(hs.NewHandle((*exception_)->GetClass()));
       uint32_t found_dex_pc = method->FindCatchBlock(to_find, dex_pc, &clear_exception);
       exception_handler_->SetClearException(clear_exception);
-      if (found_dex_pc != DexFile::kDexNoIndex) {
+      if (found_dex_pc != dex::kDexNoIndex) {
         exception_handler_->SetHandlerMethod(method);
         exception_handler_->SetHandlerDexPc(found_dex_pc);
         exception_handler_->SetHandlerQuickFramePc(
@@ -165,10 +167,9 @@ void QuickExceptionHandler::FindCatch(ObjPtr<mirror::Throwable> exception) {
                 << line_number << ")";
     }
   }
-  if (clear_exception_) {
-    // Exception was cleared as part of delivery.
-    DCHECK(!self_->IsExceptionPending());
-  } else {
+  // Exception was cleared as part of delivery.
+  DCHECK(!self_->IsExceptionPending());
+  if (!clear_exception_) {
     // Put exception back in root set with clear throw location.
     self_->SetException(exception_ref.Get());
   }
@@ -533,21 +534,19 @@ void QuickExceptionHandler::DeoptimizeStack() {
 void QuickExceptionHandler::DeoptimizeSingleFrame(DeoptimizationKind kind) {
   DCHECK(is_deoptimization_);
 
-  if (VLOG_IS_ON(deopt) || kDebugExceptionDelivery) {
-    LOG(INFO) << "Single-frame deopting:";
-    DumpFramesWithType(self_, true);
-  }
-
   DeoptimizeStackVisitor visitor(self_, context_, this, true);
   visitor.WalkStack(true);
 
   // Compiled code made an explicit deoptimization.
   ArtMethod* deopt_method = visitor.GetSingleFrameDeoptMethod();
   DCHECK(deopt_method != nullptr);
-  LOG(INFO) << "Deoptimizing "
-            << deopt_method->PrettyMethod()
-            << " due to "
-            << GetDeoptimizationKindName(kind);
+  if (VLOG_IS_ON(deopt) || kDebugExceptionDelivery) {
+    LOG(INFO) << "Single-frame deopting: "
+              << deopt_method->PrettyMethod()
+              << " due to "
+              << GetDeoptimizationKindName(kind);
+    DumpFramesWithType(self_, /* details */ true);
+  }
   if (Runtime::Current()->UseJitCompilation()) {
     Runtime::Current()->GetJit()->GetCodeCache()->InvalidateCompiledCodeFor(
         deopt_method, visitor.GetSingleFrameDeoptQuickMethodHeader());

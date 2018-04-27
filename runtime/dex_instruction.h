@@ -135,6 +135,8 @@ class Instruction {
     kIndexVtableOffset,       // vtable offset (for static linked methods)
     kIndexMethodAndProtoRef,  // method and a proto reference index (for invoke-polymorphic)
     kIndexCallSiteRef,        // call site reference index
+    kIndexMethodHandleRef,    // constant method handle reference index
+    kIndexProtoRef,           // prototype reference index
   };
 
   enum Flags : uint8_t {
@@ -195,7 +197,9 @@ class Instruction {
     kVerifyRuntimeOnly        = 0x0200000,
     kVerifyError              = 0x0400000,
     kVerifyRegHPrototype      = 0x0800000,
-    kVerifyRegBCallSite       = 0x1000000
+    kVerifyRegBCallSite       = 0x1000000,
+    kVerifyRegBMethodHandle   = 0x2000000,
+    kVerifyRegBPrototype      = 0x4000000,
   };
 
   // Collect the enums in a struct for better locality.
@@ -219,6 +223,12 @@ class Instruction {
     } else {
       return static_cast<size_t>(result);
     }
+  }
+
+  // Code units required to calculate the size of the instruction.
+  size_t CodeUnitsRequiredForSizeComputation() const {
+    const int8_t result = kInstructionDescriptors[Opcode()].size_in_code_units;
+    return UNLIKELY(result < 0) ? CodeUnitsRequiredForSizeOfComplexOpcode() : 1;
   }
 
   // Reads an instruction out of the stream at the specified address.
@@ -633,6 +643,9 @@ class Instruction {
 
  private:
   size_t SizeInCodeUnitsComplexOpcode() const;
+
+  // Return how many code unit words are required to compute the size of the opcode.
+  size_t CodeUnitsRequiredForSizeOfComplexOpcode() const;
 
   uint32_t Fetch32(size_t offset) const {
     return (Fetch16(offset) | ((uint32_t) Fetch16(offset + 1) << 16));

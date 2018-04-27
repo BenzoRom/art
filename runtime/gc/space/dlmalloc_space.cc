@@ -16,6 +16,7 @@
 
 #include "dlmalloc_space-inl.h"
 
+#include "base/logging.h"  // For VLOG.
 #include "base/time_utils.h"
 #include "gc/accounting/card_table.h"
 #include "gc/accounting/space_bitmap-inl.h"
@@ -60,7 +61,7 @@ DlMallocSpace* DlMallocSpace::CreateFromMemMap(MemMap* mem_map, const std::strin
   // Protect memory beyond the starting size. morecore will add r/w permissions when necessory
   uint8_t* end = mem_map->Begin() + starting_size;
   if (capacity - starting_size > 0) {
-    CHECK_MEMORY_CALL(mprotect, (end, capacity - starting_size, PROT_NONE), name);
+    CheckedCall(mprotect, name.c_str(), end, capacity - starting_size, PROT_NONE);
   }
 
   // Everything is set so record in immutable structure and leave

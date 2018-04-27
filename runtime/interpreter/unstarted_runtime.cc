@@ -1438,7 +1438,11 @@ void UnstartedRuntime::UnstartedUnsafeCompareAndSwapObject(
     mirror::HeapReference<mirror::Object>* field_addr =
         reinterpret_cast<mirror::HeapReference<mirror::Object>*>(
             reinterpret_cast<uint8_t*>(obj) + static_cast<size_t>(offset));
-    ReadBarrier::Barrier<mirror::Object, kWithReadBarrier, /* kAlwaysUpdateField */ true>(
+    ReadBarrier::Barrier<
+        mirror::Object,
+        /* kIsVolatile */ false,
+        kWithReadBarrier,
+        /* kAlwaysUpdateField */ true>(
         obj,
         MemberOffset(offset),
         field_addr);
@@ -1630,6 +1634,18 @@ void UnstartedRuntime::UnstartedSystemIdentityHashCode(
     REQUIRES_SHARED(Locks::mutator_lock_) {
   mirror::Object* obj = shadow_frame->GetVRegReference(arg_offset);
   result->SetI((obj != nullptr) ? obj->IdentityHashCode() : 0);
+}
+
+// Checks whether the runtime is s64-bit. This is needed for the clinit of
+// java.lang.invoke.VarHandle clinit. The clinit determines sets of
+// available VarHandle accessors and these differ based on machine
+// word size.
+void UnstartedRuntime::UnstartedJNIVMRuntimeIs64Bit(
+    Thread* self ATTRIBUTE_UNUSED, ArtMethod* method ATTRIBUTE_UNUSED,
+    mirror::Object* receiver ATTRIBUTE_UNUSED, uint32_t* args ATTRIBUTE_UNUSED, JValue* result) {
+  PointerSize pointer_size = Runtime::Current()->GetClassLinker()->GetImagePointerSize();
+  jboolean is64bit = (pointer_size == PointerSize::k64) ? JNI_TRUE : JNI_FALSE;
+  result->SetZ(is64bit);
 }
 
 void UnstartedRuntime::UnstartedJNIVMRuntimeNewUnpaddedArray(

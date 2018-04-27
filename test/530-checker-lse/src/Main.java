@@ -62,11 +62,12 @@ class TestClass3 {
 
 class Finalizable {
   static boolean sVisited = false;
-  static final int VALUE = 0xbeef;
+  static final int VALUE1 = 0xbeef;
+  static final int VALUE2 = 0xcafe;
   int i;
 
   protected void finalize() {
-    if (i != VALUE) {
+    if (i != VALUE1) {
       System.out.println("Where is the beef?");
     }
     sVisited = true;
@@ -620,15 +621,18 @@ public class Main {
   /// CHECK-START: void Main.testFinalizable() load_store_elimination (before)
   /// CHECK: NewInstance
   /// CHECK: InstanceFieldSet
+  /// CHECK: InstanceFieldSet
 
   /// CHECK-START: void Main.testFinalizable() load_store_elimination (after)
   /// CHECK: NewInstance
   /// CHECK: InstanceFieldSet
+  /// CHECK-NOT: InstanceFieldSet
 
-  // Allocations and stores into finalizable objects cannot be eliminated.
+  // Allocations of finalizable objects cannot be eliminated.
   static void testFinalizable() {
     Finalizable finalizable = new Finalizable();
-    finalizable.i = Finalizable.VALUE;
+    finalizable.i = Finalizable.VALUE2;
+    finalizable.i = Finalizable.VALUE1;
   }
 
   static java.lang.ref.WeakReference<Object> getWeakReference() {
@@ -810,6 +814,23 @@ public class Main {
     return arr[0] + arr[1] + arr[2] + arr[3];
   }
 
+  /// CHECK-START: int Main.testNoSideEffects(int[]) load_store_elimination (before)
+  /// CHECK: ArraySet
+  /// CHECK: ArraySet
+  /// CHECK: ArrayGet
+
+  /// CHECK-START: int Main.testNoSideEffects(int[]) load_store_elimination (after)
+  /// CHECK: ArraySet
+  /// CHECK: ArraySet
+  /// CHECK-NOT: ArrayGet
+
+  private static int testNoSideEffects(int[] array) {
+    array[0] = 101;
+    int bitCount = Integer.bitCount(0x3456);
+    array[1] = array[0] + 1;
+    return array[0] + bitCount;
+  }
+
   /// CHECK-START: double Main.getCircleArea(double, boolean) load_store_elimination (before)
   /// CHECK: NewInstance
 
@@ -881,10 +902,10 @@ public class Main {
   /// CHECK: ArrayGet
   private static int testAllocationEliminationOfArray2() {
     // Cannot eliminate array allocation since array is accessed with non-constant
-    // index.
-    int[] array = new int[4];
-    array[2] = 4;
-    array[3] = 7;
+    // index (only 3 elements to prevent vectorization of the reduction).
+    int[] array = new int[3];
+    array[1] = 4;
+    array[2] = 7;
     int sum = 0;
     for (int e : array) {
       sum += e;
@@ -927,6 +948,49 @@ public class Main {
     array[i] = 4;
     return array[1] + array[i];
   }
+
+  /// CHECK-START: void Main.$noinline$testFillArrayData() builder (after)
+  /// CHECK-DAG: <<Const0:i\d+>>    IntConstant 0
+  /// CHECK-DAG: <<Const1:i\d+>>    IntConstant 1
+  /// CHECK-DAG: <<ConstPos0:i\d+>> IntConstant 40960
+  /// CHECK-DAG: <<ConstPos1:i\d+>> IntConstant 40961
+  /// CHECK-DAG:                    ArraySet [{{l\d+}},<<Const0>>,<<ConstPos0>>]
+  /// CHECK-DAG:                    ArraySet [{{l\d+}},<<Const1>>,<<ConstPos1>>]
+
+  /// CHECK-START: void Main.$noinline$testFillArrayData() load_store_elimination (after)
+  /// CHECK-DAG: <<ConstPos:i\d+>>  IntConstant 40960
+  /// CHECK-DAG: <<Conv:c\d+>>      TypeConversion [<<ConstPos>>]
+  /// CHECK-DAG:                    InvokeStaticOrDirect [<<Conv>>,<<ConstPos>>]
+  //
+  /// CHECK-NOT:                    IntConstant -24576
+  public static void $noinline$testFillArrayData() {
+    // Use an array initializer to hint the use of filled-new-array.
+    //
+    //  - During instruction building of fill-array-data the compiler only knows the array element
+    //    data size, not whether it is signed or unsigned. Thus for the char case ArraySets with
+    //    type kInt16 are created; 'IntConstant -24575' is used for initialization instead of
+    //    'IntConstant 40960'.
+    char[] a = { (char)0xa000, (char)0xa001 };
+    assertIntEquals(a[0], 0xa000);
+  }
+
+  /// CHECK-START: void Main.testStoreSameValue() load_store_elimination (before)
+  /// CHECK: NewArray
+  /// CHECK: ArrayGet
+  /// CHECK: ArraySet
+
+  /// CHECK-START: void Main.testStoreSameValue() load_store_elimination (after)
+  /// CHECK: NewArray
+  /// CHECK-NOT: ArrayGet
+  /// CHECK-NOT: ArraySet
+  private static void testStoreSameValue() {
+    Object[] array = new Object[2];
+    sArray = array;
+    Object obj = array[0];
+    array[1] = obj;    // store the same value as the defaut value.
+  }
+
+  static Object[] sArray;
 
   static void assertIntEquals(int result, int expected) {
     if (expected != result) {
@@ -1017,6 +1081,13 @@ public class Main {
     assertIntEquals(testStoreStore().i, 41);
     assertIntEquals(testStoreStore().j, 43);
     assertIntEquals(testStoreStoreWithDeoptimize(new int[4]), 4);
+
+    int ret = testNoSideEffects(iarray);
+    assertIntEquals(iarray[0], 101);
+    assertIntEquals(iarray[1], 102);
+    assertIntEquals(ret, 108);
+
+    $noinline$testFillArrayData();
   }
 
   static boolean sFlag;

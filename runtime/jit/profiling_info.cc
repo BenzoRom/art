@@ -43,29 +43,21 @@ bool ProfilingInfo::Create(Thread* self, ArtMethod* method, bool retry_allocatio
   // instructions we are interested in profiling.
   DCHECK(!method->IsNative());
 
-  const DexFile::CodeItem& code_item = *method->GetCodeItem();
-  const uint16_t* code_ptr = code_item.insns_;
-  const uint16_t* code_end = code_item.insns_ + code_item.insns_size_in_code_units_;
-
-  uint32_t dex_pc = 0;
   std::vector<uint32_t> entries;
-  while (code_ptr < code_end) {
-    const Instruction& instruction = *Instruction::At(code_ptr);
-    switch (instruction.Opcode()) {
+  for (const DexInstructionPcPair& inst : method->DexInstructions()) {
+    switch (inst->Opcode()) {
       case Instruction::INVOKE_VIRTUAL:
       case Instruction::INVOKE_VIRTUAL_RANGE:
       case Instruction::INVOKE_VIRTUAL_QUICK:
       case Instruction::INVOKE_VIRTUAL_RANGE_QUICK:
       case Instruction::INVOKE_INTERFACE:
       case Instruction::INVOKE_INTERFACE_RANGE:
-        entries.push_back(dex_pc);
+        entries.push_back(inst.DexPc());
         break;
 
       default:
         break;
     }
-    dex_pc += instruction.SizeInCodeUnits();
-    code_ptr += instruction.SizeInCodeUnits();
   }
 
   // We always create a `ProfilingInfo` object, even if there is no instruction we are

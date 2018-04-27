@@ -44,11 +44,15 @@ static inline int futex(volatile int *uaddr, int op, int val, const struct times
 }
 #endif  // ART_USE_FUTEXES
 
-static inline uint64_t SafeGetTid(const Thread* self) {
+// The following isn't strictly necessary, but we want updates on Atomic<pid_t> to be lock-free.
+// TODO: Use std::atomic::is_always_lock_free after switching to C++17 atomics.
+static_assert(sizeof(pid_t) <= sizeof(int32_t), "pid_t should fit in 32 bits");
+
+static inline pid_t SafeGetTid(const Thread* self) {
   if (self != nullptr) {
-    return static_cast<uint64_t>(self->GetTid());
+    return self->GetTid();
   } else {
-    return static_cast<uint64_t>(GetTid());
+    return GetTid();
   }
 }
 
@@ -76,7 +80,9 @@ static inline void CheckUnattachedThread(LockLevel level) NO_THREAD_SAFETY_ANALY
           // (see Thread::TransitionFromSuspendedToRunnable).
           level == kThreadSuspendCountLock ||
           // Avoid recursive death.
-          level == kAbortLock) << level;
+          level == kAbortLock ||
+          // Locks at the absolute top of the stack can be locked at any time.
+          level == kTopLockLevel) << level;
   }
 }
 
@@ -88,10 +94,34 @@ inline void BaseMutex::RegisterAsLocked(Thread* self) {
   if (kDebugLocking) {
     // Check if a bad Mutex of this level or lower is held.
     bool bad_mutexes_held = false;
+    // Specifically allow a kTopLockLevel lock to be gained when the current thread holds the
+    // mutator_lock_ exclusive. This is because we suspending when holding locks at this level is
+    // not allowed and if we hold the mutator_lock_ exclusive we must unsuspend stuff eventually
+    // so there are no deadlocks.
+    if (level_ == kTopLockLevel &&
+        Locks::mutator_lock_->IsSharedHeld(self) &&
+        !Locks::mutator_lock_->IsExclusiveHeld(self)) {
+      LOG(ERROR) << "Lock level violation: holding \"" << Locks::mutator_lock_->name_ << "\" "
+                  << "(level " << kMutatorLock << " - " << static_cast<int>(kMutatorLock)
+                  << ") non-exclusive while locking \"" << name_ << "\" "
+                  << "(level " << level_ << " - " << static_cast<int>(level_) << ") a top level"
+                  << "mutex. This is not allowed.";
+      bad_mutexes_held = true;
+    } else if (this == Locks::mutator_lock_ && self->GetHeldMutex(kTopLockLevel) != nullptr) {
+      LOG(ERROR) << "Lock level violation. Locking mutator_lock_ while already having a "
+                 << "kTopLevelLock (" << self->GetHeldMutex(kTopLockLevel)->name_ << "held is "
+                 << "not allowed.";
+      bad_mutexes_held = true;
+    }
     for (int i = level_; i >= 0; --i) {
       LockLevel lock_level_i = static_cast<LockLevel>(i);
       BaseMutex* held_mutex = self->GetHeldMutex(lock_level_i);
-      if (UNLIKELY(held_mutex != nullptr) && lock_level_i != kAbortLock) {
+      if (level_ == kTopLockLevel &&
+          lock_level_i == kMutatorLock &&
+          Locks::mutator_lock_->IsExclusiveHeld(self)) {
+        // This is checked above.
+        continue;
+      } else if (UNLIKELY(held_mutex != nullptr) && lock_level_i != kAbortLock) {
         LOG(ERROR) << "Lock level violation: holding \"" << held_mutex->name_ << "\" "
                    << "(level " << lock_level_i << " - " << i
                    << ") while locking \"" << name_ << "\" "
@@ -142,14 +172,14 @@ inline void ReaderWriterMutex::SharedLock(Thread* self) {
 #else
   CHECK_MUTEX_CALL(pthread_rwlock_rdlock, (&rwlock_));
 #endif
-  DCHECK(exclusive_owner_ == 0U || exclusive_owner_ == -1U);
+  DCHECK(GetExclusiveOwnerTid() == 0 || GetExclusiveOwnerTid() == -1);
   RegisterAsLocked(self);
   AssertSharedHeld(self);
 }
 
 inline void ReaderWriterMutex::SharedUnlock(Thread* self) {
   DCHECK(self == nullptr || self == Thread::Current());
-  DCHECK(exclusive_owner_ == 0U || exclusive_owner_ == -1U);
+  DCHECK(GetExclusiveOwnerTid() == 0 || GetExclusiveOwnerTid() == -1);
   AssertSharedHeld(self);
   RegisterAsUnlocked(self);
 #if ART_USE_FUTEXES
@@ -190,8 +220,8 @@ inline bool Mutex::IsExclusiveHeld(const Thread* self) const {
   return result;
 }
 
-inline uint64_t Mutex::GetExclusiveOwnerTid() const {
-  return exclusive_owner_;
+inline pid_t Mutex::GetExclusiveOwnerTid() const {
+  return exclusive_owner_.LoadRelaxed();
 }
 
 inline void Mutex::AssertExclusiveHeld(const Thread* self) const {
@@ -216,7 +246,7 @@ inline bool ReaderWriterMutex::IsExclusiveHeld(const Thread* self) const {
   return result;
 }
 
-inline uint64_t ReaderWriterMutex::GetExclusiveOwnerTid() const {
+inline pid_t ReaderWriterMutex::GetExclusiveOwnerTid() const {
 #if ART_USE_FUTEXES
   int32_t state = state_.LoadRelaxed();
   if (state == 0) {
@@ -224,10 +254,10 @@ inline uint64_t ReaderWriterMutex::GetExclusiveOwnerTid() const {
   } else if (state > 0) {
     return -1;  // Shared.
   } else {
-    return exclusive_owner_;
+    return exclusive_owner_.LoadRelaxed();
   }
 #else
-  return exclusive_owner_;
+  return exclusive_owner_.LoadRelaxed();
 #endif
 }
 

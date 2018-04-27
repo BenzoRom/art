@@ -21,8 +21,8 @@
 #include <vector>
 
 #include "atomic.h"
-#include "base/arena_object.h"
 #include "base/arena_containers.h"
+#include "base/arena_object.h"
 #include "bit_memory_region.h"
 #include "dex_cache_resolved_classes.h"
 #include "dex_file.h"
@@ -133,10 +133,10 @@ class ProfileCompilationInfo {
   // megamorphic and its possible types).
   // If the receiver is megamorphic or is missing types the set of classes will be empty.
   struct DexPcData : public ArenaObject<kArenaAllocProfile> {
-    explicit DexPcData(ArenaAllocator* arena)
+    explicit DexPcData(ArenaAllocator* allocator)
         : is_missing_types(false),
           is_megamorphic(false),
-          classes(std::less<ClassReference>(), arena->Adapter(kArenaAllocProfile)) {}
+          classes(std::less<ClassReference>(), allocator->Adapter(kArenaAllocProfile)) {}
     void AddClass(uint16_t dex_profile_idx, const dex::TypeIndex& type_idx);
     void SetIsMegamorphic() {
       if (is_missing_types) return;
@@ -254,6 +254,16 @@ class ProfileCompilationInfo {
     data->class_set.insert(index_begin, index_end);
     return true;
   }
+  // Add a single type id for a dex file.
+  bool AddClassForDex(const TypeReference& ref) {
+    DexFileData* data = GetOrAddDexFileData(ref.dex_file);
+    if (data == nullptr) {
+      return false;
+    }
+    data->class_set.insert(ref.TypeIndex());
+    return true;
+  }
+
 
   // Add a method index to the profile (without inline caches). The method flags determine if it is
   // hot, startup, or post startup, or a combination of the previous.
@@ -290,9 +300,19 @@ class ProfileCompilationInfo {
   // Add hotness flags for a simple method.
   bool AddMethodHotness(const MethodReference& method_ref, const MethodHotness& hotness);
 
-  // Load profile information from the given file descriptor.
+  // Load or Merge profile information from the given file descriptor.
   // If the current profile is non-empty the load will fail.
-  bool Load(int fd);
+  // If merge_classes is set to false, classes will not be merged/loaded.
+  bool Load(int fd, bool merge_classes = true);
+
+  // Verify integrity of the profile file with the provided dex files.
+  // If there exists a DexData object which maps to a dex_file, then it verifies that:
+  // - The checksums of the DexData and dex_file are equals.
+  // - No method id exceeds NumMethodIds corresponding to the dex_file.
+  // - No class id exceeds NumTypeIds corresponding to the dex_file.
+  // - For every inline_caches, class_ids does not exceed NumTypeIds corresponding to
+  //   the dex_file they are in.
+  bool VerifyProfileData(const std::vector<const DexFile *> &dex_files);
 
   // Load profile information from the given file
   // If the current profile is non-empty the load will fail.
@@ -304,6 +324,9 @@ class ProfileCompilationInfo {
   // classes if merge_classes is true. This is used for creating the boot profile since
   // we don't want all of the classes to be image classes.
   bool MergeWith(const ProfileCompilationInfo& info, bool merge_classes = true);
+
+  // Merge profile information from the given file descriptor.
+  bool MergeWith(const std::string& filename);
 
   // Save the profile data to the given file descriptor.
   bool Save(int fd);
@@ -374,13 +397,15 @@ class ProfileCompilationInfo {
   // the provided list of dex files.
   static bool GenerateTestProfile(int fd,
                                   std::vector<std::unique_ptr<const DexFile>>& dex_files,
+                                  uint16_t method_percentage,
+                                  uint16_t class_percentage,
                                   uint32_t random_seed);
 
   // Check that the given profile method info contain the same data.
   static bool Equals(const ProfileCompilationInfo::OfflineProfileMethodInfo& pmi1,
                      const ProfileCompilationInfo::OfflineProfileMethodInfo& pmi2);
 
-  ArenaAllocator* GetArena() { return &arena_; }
+  ArenaAllocator* GetAllocator() { return &allocator_; }
 
   // Return all of the class descriptors in the profile for a set of dex files.
   std::unordered_set<std::string> GetClassDescriptors(const std::vector<const DexFile*>& dex_files);
@@ -404,19 +429,19 @@ class ProfileCompilationInfo {
   // profile_key_map_ and info_. However, it makes the profiles logic much
   // simpler if we have references here as well.
   struct DexFileData : public DeletableArenaObject<kArenaAllocProfile> {
-    DexFileData(ArenaAllocator* arena,
+    DexFileData(ArenaAllocator* allocator,
                 const std::string& key,
                 uint32_t location_checksum,
                 uint16_t index,
                 uint32_t num_methods)
-        : arena_(arena),
+        : allocator_(allocator),
           profile_key(key),
           profile_index(index),
           checksum(location_checksum),
-          method_map(std::less<uint16_t>(), arena->Adapter(kArenaAllocProfile)),
-          class_set(std::less<dex::TypeIndex>(), arena->Adapter(kArenaAllocProfile)),
+          method_map(std::less<uint16_t>(), allocator->Adapter(kArenaAllocProfile)),
+          class_set(std::less<dex::TypeIndex>(), allocator->Adapter(kArenaAllocProfile)),
           num_method_ids(num_methods),
-          bitmap_storage(arena->Adapter(kArenaAllocProfile)) {
+          bitmap_storage(allocator->Adapter(kArenaAllocProfile)) {
       const size_t num_bits = num_method_ids * kBitmapIndexCount;
       bitmap_storage.resize(RoundUp(num_bits, kBitsPerByte) / kBitsPerByte);
       if (!bitmap_storage.empty()) {
@@ -441,8 +466,8 @@ class ProfileCompilationInfo {
 
     MethodHotness GetHotnessInfo(uint32_t dex_method_index) const;
 
-    // The arena used to allocate new inline cache maps.
-    ArenaAllocator* arena_;
+    // The allocator used to allocate new inline cache maps.
+    ArenaAllocator* const allocator_;
     // The profile key this data belongs to.
     std::string profile_key;
     // The profile index of this dex file (matches ClassReference#dex_profile_index).
@@ -596,7 +621,7 @@ class ProfileCompilationInfo {
   };
 
   // Entry point for profile loding functionality.
-  ProfileLoadSatus LoadInternal(int fd, std::string* error);
+  ProfileLoadSatus LoadInternal(int fd, std::string* error, bool merge_classes = true);
 
   // Read the profile header from the given fd and store the number of profile
   // lines into number_of_dex_files.
@@ -621,6 +646,8 @@ class ProfileCompilationInfo {
   ProfileLoadSatus ReadProfileLine(SafeBuffer& buffer,
                                    uint8_t number_of_dex_files,
                                    const ProfileLineHeader& line_header,
+                                   const SafeMap<uint8_t, uint8_t>& dex_profile_index_remap,
+                                   bool merge_classes,
                                    /*out*/std::string* error);
 
   // Read all the classes from the buffer into the profile `info_` structure.
@@ -632,11 +659,18 @@ class ProfileCompilationInfo {
   bool ReadMethods(SafeBuffer& buffer,
                    uint8_t number_of_dex_files,
                    const ProfileLineHeader& line_header,
+                   const SafeMap<uint8_t, uint8_t>& dex_profile_index_remap,
                    /*out*/std::string* error);
+
+  // The method generates mapping of profile indices while merging a new profile
+  // data into current data. It returns true, if the mapping was successful.
+  bool RemapProfileIndex(const std::vector<ProfileLineHeader>& profile_line_headers,
+                         /*out*/SafeMap<uint8_t, uint8_t>* dex_profile_index_remap);
 
   // Read the inline cache encoding from line_bufer into inline_cache.
   bool ReadInlineCache(SafeBuffer& buffer,
                        uint8_t number_of_dex_files,
+                       const SafeMap<uint8_t, uint8_t>& dex_profile_index_remap,
                        /*out*/InlineCacheMap* inline_cache,
                        /*out*/std::string* error);
 
@@ -664,7 +698,7 @@ class ProfileCompilationInfo {
   friend class Dex2oatLayoutTest;
 
   ArenaPool default_arena_pool_;
-  ArenaAllocator arena_;
+  ArenaAllocator allocator_;
 
   // Vector containing the actual profile info.
   // The vector index is the profile index of the dex data and

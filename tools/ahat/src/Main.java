@@ -18,7 +18,9 @@ package com.android.ahat;
 
 import com.android.ahat.heapdump.AhatSnapshot;
 import com.android.ahat.heapdump.Diff;
-import com.android.tools.perflib.heap.ProguardMap;
+import com.android.ahat.heapdump.HprofFormatException;
+import com.android.ahat.heapdump.Parser;
+import com.android.ahat.proguard.ProguardMap;
 import com.sun.net.httpserver.HttpServer;
 import java.io.File;
 import java.io.IOException;
@@ -46,7 +48,7 @@ public class Main {
     out.println("");
   }
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) {
     int port = 7100;
     for (String arg : args) {
       if (arg.equals("--help")) {
@@ -76,7 +78,7 @@ public class Main {
         try {
           mapbase.readFromFile(new File(args[i]));
         } catch (IOException|ParseException ex) {
-          System.out.println("Unable to read baselline proguard map: " + ex);
+          System.out.println("Unable to read baseline proguard map: " + ex);
           System.out.println("The proguard map will not be used.");
         }
       } else if ("--baseline".equals(args[i]) && i + 1 < args.length) {
@@ -103,34 +105,40 @@ public class Main {
       return;
     }
 
-    // Launch the server before parsing the hprof file so we get
-    // BindExceptions quickly.
-    InetAddress loopback = InetAddress.getLoopbackAddress();
-    InetSocketAddress addr = new InetSocketAddress(loopback, port);
-    HttpServer server = HttpServer.create(addr, 0);
+    try {
+      // Launch the server before parsing the hprof file so we get
+      // BindExceptions quickly.
+      InetAddress loopback = InetAddress.getLoopbackAddress();
+      InetSocketAddress addr = new InetSocketAddress(loopback, port);
+      System.out.println("Preparing " + addr + " ...");
+      HttpServer server = HttpServer.create(addr, 0);
 
-    System.out.println("Processing hprof file...");
-    AhatSnapshot ahat = AhatSnapshot.fromHprof(hprof, map);
+      System.out.println("Processing '" + hprof + "' ...");
+      AhatSnapshot ahat = Parser.parseHeapDump(hprof, map);
 
-    if (hprofbase != null) {
-      System.out.println("Processing baseline hprof file...");
-      AhatSnapshot base = AhatSnapshot.fromHprof(hprofbase, mapbase);
+      if (hprofbase != null) {
+        System.out.println("Processing '" + hprofbase + "' ...");
+        AhatSnapshot base = Parser.parseHeapDump(hprofbase, mapbase);
 
-      System.out.println("Diffing hprof files...");
-      Diff.snapshots(ahat, base);
+        System.out.println("Diffing heap dumps ...");
+        Diff.snapshots(ahat, base);
+      }
+
+      server.createContext("/", new AhatHttpHandler(new OverviewHandler(ahat, hprof, hprofbase)));
+      server.createContext("/rooted", new AhatHttpHandler(new RootedHandler(ahat)));
+      server.createContext("/object", new AhatHttpHandler(new ObjectHandler(ahat)));
+      server.createContext("/objects", new AhatHttpHandler(new ObjectsHandler(ahat)));
+      server.createContext("/site", new AhatHttpHandler(new SiteHandler(ahat)));
+      server.createContext("/bitmap", new BitmapHandler(ahat));
+      server.createContext("/style.css", new StaticHandler("style.css", "text/css"));
+      server.setExecutor(Executors.newFixedThreadPool(1));
+      System.out.println("Server started on localhost:" + port);
+
+      server.start();
+    } catch (HprofFormatException|IOException e) {
+      System.err.println("Unable to launch ahat:");
+      e.printStackTrace();
     }
-
-    server.createContext("/", new AhatHttpHandler(new OverviewHandler(ahat, hprof, hprofbase)));
-    server.createContext("/rooted", new AhatHttpHandler(new RootedHandler(ahat)));
-    server.createContext("/object", new AhatHttpHandler(new ObjectHandler(ahat)));
-    server.createContext("/objects", new AhatHttpHandler(new ObjectsHandler(ahat)));
-    server.createContext("/site", new AhatHttpHandler(new SiteHandler(ahat)));
-    server.createContext("/bitmap", new BitmapHandler(ahat));
-    server.createContext("/style.css", new StaticHandler("style.css", "text/css"));
-    server.setExecutor(Executors.newFixedThreadPool(1));
-    System.out.println("Server started on localhost:" + port);
-
-    server.start();
   }
 }
 

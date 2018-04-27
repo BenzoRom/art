@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-#include <memory>
 #include <setjmp.h>
+
+#include <memory>
 
 #include "base/macros.h"
 #include "common_runtime_test.h"
@@ -138,7 +139,8 @@ class EntrypointsOrderTest : public CommonRuntimeTest {
                         sizeof(void*) * kLockLevelCount);
     EXPECT_OFFSET_DIFFP(Thread, tlsPtr_, flip_function, method_verifier, sizeof(void*));
     EXPECT_OFFSET_DIFFP(Thread, tlsPtr_, method_verifier, thread_local_mark_stack, sizeof(void*));
-    EXPECT_OFFSET_DIFF(Thread, tlsPtr_.thread_local_mark_stack, Thread, wait_mutex_, sizeof(void*),
+    EXPECT_OFFSET_DIFFP(Thread, tlsPtr_, thread_local_mark_stack, async_exception, sizeof(void*));
+    EXPECT_OFFSET_DIFF(Thread, tlsPtr_.async_exception, Thread, wait_mutex_, sizeof(void*),
                        thread_tlsptr_end);
   }
 

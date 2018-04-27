@@ -19,22 +19,22 @@ if [ ! -d libcore ]; then
   exit 1
 fi
 
+source build/envsetup.sh >&/dev/null # for get_build_var, setpaths
+setpaths # include platform prebuilt java, javac, etc in $PATH.
+
 if [ -z "$ANDROID_PRODUCT_OUT" ] ; then
   JAVA_LIBRARIES=out/target/common/obj/JAVA_LIBRARIES
 else
   JAVA_LIBRARIES=${ANDROID_PRODUCT_OUT}/../../common/obj/JAVA_LIBRARIES
 fi
 
-using_jack=true
-if [[ $ANDROID_COMPILE_WITH_JACK == false ]]; then
-  using_jack=false
-fi
+using_jack=$(get_build_var ANDROID_COMPILE_WITH_JACK)
 
 function classes_jar_path {
   local var="$1"
   local suffix="jar"
 
-  if $using_jack; then
+  if [[ $using_jack == "true" ]]; then
     suffix="jack"
   fi
 
@@ -146,7 +146,7 @@ done
 vogar_args="$vogar_args --timeout 480"
 
 # Switch between using jack or javac+desugar+dx
-if $using_jack; then
+if [[ $using_jack == "true" ]]; then
   vogar_args="$vogar_args --toolchain jack --language JO"
 else
   vogar_args="$vogar_args --toolchain jdk --language CUR"

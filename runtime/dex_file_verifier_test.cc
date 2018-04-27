@@ -16,19 +16,22 @@
 
 #include "dex_file_verifier.h"
 
-#include "sys/mman.h"
-#include "zlib.h"
+#include <sys/mman.h>
+#include <zlib.h>
+
 #include <functional>
 #include <memory>
 
-#include "base/unix_file/fd_file.h"
 #include "base/bit_utils.h"
 #include "base/macros.h"
+#include "base/unix_file/fd_file.h"
 #include "common_runtime_test.h"
 #include "dex_file-inl.h"
+#include "dex_file_loader.h"
 #include "dex_file_types.h"
 #include "leb128.h"
 #include "scoped_thread_state_change-inl.h"
+#include "standard_dex_file.h"
 #include "thread-current-inl.h"
 #include "utils.h"
 
@@ -54,7 +57,7 @@ static void FixUpChecksum(uint8_t* dex_file) {
 class DexFileVerifierTest : public CommonRuntimeTest {
  protected:
   DexFile* GetDexFile(const uint8_t* dex_bytes, size_t length) {
-    return new DexFile(dex_bytes, length, "tmp", 0, nullptr);
+    return new StandardDexFile(dex_bytes, length, "tmp", 0, nullptr, nullptr);
   }
 
   void VerifyModification(const char* dex_file_base64_content,
@@ -111,8 +114,9 @@ static std::unique_ptr<const DexFile> OpenDexFileBase64(const char* base64,
   // read dex file
   ScopedObjectAccess soa(Thread::Current());
   std::vector<std::unique_ptr<const DexFile>> tmp;
-  bool success = DexFile::Open(location, location, true, error_msg, &tmp);
-  CHECK(success) << error_msg;
+  bool success = DexFileLoader::Open(
+      location, location, /* verify */ true, /* verify_checksum */ true, error_msg, &tmp);
+  CHECK(success) << *error_msg;
   EXPECT_EQ(1U, tmp.size());
   std::unique_ptr<const DexFile> dex_file = std::move(tmp[0]);
   EXPECT_EQ(PROT_READ, dex_file->GetPermissions());
@@ -245,7 +249,7 @@ static const uint8_t* FindMethodData(const DexFile* dex_file,
     it.Next();
   }
 
-  while (it.HasNextDirectMethod() || it.HasNextVirtualMethod()) {
+  while (it.HasNextMethod()) {
     uint32_t method_index = it.GetMemberIndex();
     dex::StringIndex name_index = dex_file->GetMethodId(method_index).name_idx_;
     const DexFile::StringId& string_id = dex_file->GetStringId(name_index);

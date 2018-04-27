@@ -17,10 +17,11 @@
 #include "base/unix_file/fd_file.h"
 
 #include <errno.h>
-#include <limits>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <limits>
 
 #include "base/logging.h"
 
@@ -162,13 +163,18 @@ int FdFile::Close() {
     moveUp(GuardState::kClosed, nullptr);
   }
 
+#if defined(__linux__)
+  // close always succeeds on linux, even if failure is reported.
+  UNUSED(result);
+#else
   if (result == -1) {
     return -errno;
-  } else {
-    fd_ = -1;
-    file_path_ = "";
-    return 0;
   }
+#endif
+
+  fd_ = -1;
+  file_path_ = "";
+  return 0;
 }
 
 int FdFile::Flush() {

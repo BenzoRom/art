@@ -35,6 +35,7 @@ cc_defaults {
         "base/arena_bit_vector.cc",
         "base/bit_vector.cc",
         "base/file_magic.cc",
+        "base/file_utils.cc",
         "base/hex_dump.cc",
         "base/logging.cc",
         "base/mutex.cc",
@@ -46,16 +47,17 @@ cc_defaults {
         "base/timing_logger.cc",
         "base/unix_file/fd_file.cc",
         "base/unix_file/random_access_file_utils.cc",
+        "cdex/compact_dex_file.cc",
         "cha.cc",
         "check_jni.cc",
         "class_linker.cc",
         "class_loader_context.cc",
         "class_table.cc",
-        "code_simulator_container.cc",
         "common_throws.cc",
         "compiler_filter.cc",
         "debugger.cc",
         "dex_file.cc",
+        "dex_file_loader.cc",
         "dex_file_annotations.cc",
         "dex_file_layout.cc",
         "dex_file_tracking_registrar.cc",
@@ -101,6 +103,7 @@ cc_defaults {
         "gc/verification.cc",
         "hprof/hprof.cc",
         "image.cc",
+        "index_bss_mapping.cc",
         "indirect_reference_table.cc",
         "instrumentation.cc",
         "intern_table.cc",
@@ -151,6 +154,7 @@ cc_defaults {
         "mirror/stack_trace_element.cc",
         "mirror/string.cc",
         "mirror/throwable.cc",
+        "mirror/var_handle.cc",
         "monitor.cc",
         "native_bridge_art_interface.cc",
         "native_stack_dump.cc",
@@ -202,11 +206,13 @@ cc_defaults {
         "runtime.cc",
         "runtime_callbacks.cc",
         "runtime_common.cc",
+        "runtime_intrinsics.cc",
         "runtime_options.cc",
         "scoped_thread_state_change.cc",
         "signal_catcher.cc",
         "stack.cc",
         "stack_map.cc",
+        "standard_dex_file.cc",
         "thread.cc",
         "thread_list.cc",
         "thread_pool.cc",
@@ -360,7 +366,7 @@ cc_defaults {
                 "libdl",
                 // For android::FileMap used by libziparchive.
                 "libutils",
-                "libtombstoned_client"
+                "libtombstoned_client",
             ],
             static_libs: [
                 // ZipArchive support, the order matters here to get all symbols.
@@ -401,9 +407,13 @@ cc_defaults {
     export_generated_headers: ["cpp-define-generator-asm-support"],
     clang: true,
     include_dirs: [
-        "art/cmdline",
         "art/sigchainlib",
-        "art",
+        "external/icu/icu4c/source/common",
+        "external/lz4/lib",
+        "external/zlib",
+    ],
+    header_libs: [
+        "art_cmdlineparser_headers",
     ],
     shared_libs: [
         "libnativehelper",
@@ -425,6 +435,8 @@ cc_defaults {
     },
     export_include_dirs: ["."],
     // ART's macros.h depends on libbase's macros.h.
+    // Note: runtime_options.h depends on cmdline. But we don't really want to export this
+    //       generically. dex2oat takes care of it itself.
     export_shared_lib_headers: ["libbase"],
 }
 
@@ -440,6 +452,7 @@ gensrcs {
         "base/mutex.h",
         "debugger.h",
         "base/unix_file/fd_file.h",
+        "class_status.h",
         "dex_file.h",
         "dex_file_layout.h",
         "dex_instruction.h",
@@ -460,7 +473,6 @@ gensrcs {
         "jdwp/jdwp.h",
         "jdwp/jdwp_constants.h",
         "lock_word.h",
-        "mirror/class.h",
         "oat.h",
         "object_callbacks.h",
         "process_state.h",
@@ -490,8 +502,8 @@ art_cc_library {
 art_cc_library {
     name: "libartd",
     defaults: [
-       "art_debug_defaults",
-       "libart_defaults",
+        "art_debug_defaults",
+        "libart_defaults",
     ],
 }
 
@@ -500,12 +512,15 @@ art_cc_library {
     defaults: ["libart-gtest-defaults"],
     srcs: [
         "common_runtime_test.cc",
-        "dexopt_test.cc"
+        "dexopt_test.cc",
     ],
     shared_libs: [
         "libartd",
         "libbase",
-        "libbacktrace"
+        "libbacktrace",
+    ],
+    include_dirs: [
+        "external/icu/icu4c/source/common",
     ],
 }
 
@@ -529,6 +544,8 @@ art_cc_test {
         "barrier_test.cc",
         "base/arena_allocator_test.cc",
         "base/bit_field_test.cc",
+        "base/bit_string_test.cc",
+        "base/bit_struct_test.cc",
         "base/bit_utils_test.cc",
         "base/bit_vector_test.cc",
         "base/hash_set_test.cc",
@@ -544,15 +561,16 @@ art_cc_test {
         "base/transform_iterator_test.cc",
         "base/variant_map_test.cc",
         "base/unix_file/fd_file_test.cc",
+        "cdex/compact_dex_file_test.cc",
         "cha_test.cc",
         "class_linker_test.cc",
         "class_loader_context_test.cc",
         "class_table_test.cc",
+        "code_item_accessors_test.cc",
         "compiler_filter_test.cc",
         "dex_file_test.cc",
         "dex_file_verifier_test.cc",
         "dex_instruction_test.cc",
-        "dex_method_iterator_test.cc",
         "entrypoints/math_entrypoints_test.cc",
         "entrypoints/quick/quick_trampoline_entrypoints_test.cc",
         "entrypoints_order_test.cc",
@@ -589,6 +607,7 @@ art_cc_test {
         "mirror/dex_cache_test.cc",
         "mirror/method_type_test.cc",
         "mirror/object_test.cc",
+        "mirror/var_handle_test.cc",
         "monitor_pool_test.cc",
         "monitor_test.cc",
         "oat_file_test.cc",
@@ -597,6 +616,8 @@ art_cc_test {
         "prebuilt_tools_test.cc",
         "reference_table_test.cc",
         "runtime_callbacks_test.cc",
+        "subtype_check_info_test.cc",
+        "subtype_check_test.cc",
         "thread_pool_test.cc",
         "transaction_test.cc",
         "type_lookup_table_test.cc",
@@ -609,6 +630,12 @@ art_cc_test {
     ],
     shared_libs: [
         "libbacktrace",
+    ],
+    header_libs: [
+        "art_cmdlineparser_headers", // For parsed_options_test.
+    ],
+    include_dirs: [
+        "external/zlib",
     ],
 }
 
@@ -629,8 +656,8 @@ art_cc_test {
     ],
 }
 
-subdirs = [
-    "openjdkjvm",
-    "openjdkjvmti",
-    "simulator",
-]
+cc_library_headers {
+    name: "libart_runtime_headers",
+    host_supported: true,
+    export_include_dirs: ["."],
+}

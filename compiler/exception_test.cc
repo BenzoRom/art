@@ -21,19 +21,19 @@
 #include "base/enums.h"
 #include "class_linker.h"
 #include "common_runtime_test.h"
-#include "dex_file.h"
 #include "dex_file-inl.h"
+#include "dex_file.h"
 #include "gtest/gtest.h"
+#include "handle_scope-inl.h"
 #include "leb128.h"
 #include "mirror/class-inl.h"
-#include "mirror/object_array-inl.h"
 #include "mirror/object-inl.h"
+#include "mirror/object_array-inl.h"
 #include "mirror/stack_trace_element.h"
 #include "oat_quick_method_header.h"
 #include "optimizing/stack_map_stream.h"
 #include "runtime-inl.h"
 #include "scoped_thread_state_change-inl.h"
-#include "handle_scope-inl.h"
 #include "thread.h"
 
 namespace art {
@@ -61,7 +61,8 @@ class ExceptionTest : public CommonRuntimeTest {
     }
 
     ArenaPool pool;
-    ArenaAllocator allocator(&pool);
+    ArenaStack arena_stack(&pool);
+    ScopedArenaAllocator allocator(&arena_stack);
     StackMapStream stack_maps(&allocator, kRuntimeISA);
     stack_maps.BeginStackMapEntry(/* dex_pc */ 3u,
                                   /* native_pc_offset */ 3u,
@@ -97,7 +98,7 @@ class ExceptionTest : public CommonRuntimeTest {
              static_cast<const void*>(fake_header_code_and_maps_.data() +
                                           (fake_header_code_and_maps_.size() - code_size)));
 
-    if (kRuntimeISA == kArm) {
+    if (kRuntimeISA == InstructionSet::kArm) {
       // Check that the Thumb2 adjustment will be a NOP, see EntryPointToCodePointer().
       CHECK_ALIGNED(stack_maps_offset, 2);
     }

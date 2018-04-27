@@ -20,19 +20,22 @@
 
 #include "base/enums.h"
 #include "debugger.h"
+#include "dex_file_types.h"
 #include "entrypoints/runtime_asm_entrypoints.h"
+#include "intrinsics_enum.h"
 #include "jit/jit.h"
 #include "jvalue.h"
-#include "method_handles.h"
 #include "method_handles-inl.h"
+#include "method_handles.h"
 #include "mirror/array-inl.h"
 #include "mirror/class.h"
 #include "mirror/emulated_stack_frame.h"
 #include "mirror/method_handle_impl-inl.h"
-#include "reflection.h"
 #include "reflection-inl.h"
+#include "reflection.h"
 #include "stack.h"
 #include "thread-inl.h"
+#include "transaction.h"
 #include "well_known_classes.h"
 
 namespace art {
@@ -42,7 +45,8 @@ void ThrowNullPointerExceptionFromInterpreter() {
   ThrowNullPointerExceptionFromDexPC();
 }
 
-template<FindFieldType find_type, Primitive::Type field_type, bool do_access_check>
+template<FindFieldType find_type, Primitive::Type field_type, bool do_access_check,
+         bool transaction_active>
 bool DoFieldGet(Thread* self, ShadowFrame& shadow_frame, const Instruction* inst,
                 uint16_t inst_data) {
   const bool is_static = (find_type == StaticObjectRead) || (find_type == StaticPrimitiveRead);
@@ -57,6 +61,13 @@ bool DoFieldGet(Thread* self, ShadowFrame& shadow_frame, const Instruction* inst
   ObjPtr<mirror::Object> obj;
   if (is_static) {
     obj = f->GetDeclaringClass();
+    if (transaction_active) {
+      if (Runtime::Current()->GetTransaction()->ReadConstraint(obj.Ptr(), f)) {
+        Runtime::Current()->AbortTransactionAndThrowAbortError(self, "Can't read static fields of "
+            + obj->PrettyTypeOf() + " since it does not belong to clinit's class.");
+        return false;
+      }
+    }
   } else {
     obj = shadow_frame.GetVRegReference(inst->VRegB_22c(inst_data));
     if (UNLIKELY(obj == nullptr)) {
@@ -102,15 +113,17 @@ bool DoFieldGet(Thread* self, ShadowFrame& shadow_frame, const Instruction* inst
 }
 
 // Explicitly instantiate all DoFieldGet functions.
-#define EXPLICIT_DO_FIELD_GET_TEMPLATE_DECL(_find_type, _field_type, _do_check) \
-  template bool DoFieldGet<_find_type, _field_type, _do_check>(Thread* self, \
+#define EXPLICIT_DO_FIELD_GET_TEMPLATE_DECL(_find_type, _field_type, _do_check, _transaction_active) \
+  template bool DoFieldGet<_find_type, _field_type, _do_check, _transaction_active>(Thread* self, \
                                                                ShadowFrame& shadow_frame, \
                                                                const Instruction* inst, \
                                                                uint16_t inst_data)
 
 #define EXPLICIT_DO_FIELD_GET_ALL_TEMPLATE_DECL(_find_type, _field_type)  \
-    EXPLICIT_DO_FIELD_GET_TEMPLATE_DECL(_find_type, _field_type, false);  \
-    EXPLICIT_DO_FIELD_GET_TEMPLATE_DECL(_find_type, _field_type, true);
+    EXPLICIT_DO_FIELD_GET_TEMPLATE_DECL(_find_type, _field_type, false, true);  \
+    EXPLICIT_DO_FIELD_GET_TEMPLATE_DECL(_find_type, _field_type, false, false);  \
+    EXPLICIT_DO_FIELD_GET_TEMPLATE_DECL(_find_type, _field_type, true, true);  \
+    EXPLICIT_DO_FIELD_GET_TEMPLATE_DECL(_find_type, _field_type, true, false);
 
 // iget-XXX
 EXPLICIT_DO_FIELD_GET_ALL_TEMPLATE_DECL(InstancePrimitiveRead, Primitive::kPrimBoolean)
@@ -261,6 +274,14 @@ bool DoFieldPut(Thread* self, const ShadowFrame& shadow_frame, const Instruction
   ObjPtr<mirror::Object> obj;
   if (is_static) {
     obj = f->GetDeclaringClass();
+    if (transaction_active) {
+      if (Runtime::Current()->GetTransaction()->WriteConstraint(obj.Ptr(), f)) {
+        Runtime::Current()->AbortTransactionAndThrowAbortError(
+            self, "Can't set fields of " + obj->PrettyTypeOf());
+        return false;
+      }
+    }
+
   } else {
     obj = shadow_frame.GetVRegReference(inst->VRegB_22c(inst_data));
     if (UNLIKELY(obj == nullptr)) {
@@ -397,32 +418,57 @@ EXPLICIT_DO_IPUT_QUICK_ALL_TEMPLATE_DECL(Primitive::kPrimNot)      // iput-objec
 #undef EXPLICIT_DO_IPUT_QUICK_ALL_TEMPLATE_DECL
 #undef EXPLICIT_DO_IPUT_QUICK_TEMPLATE_DECL
 
+// We execute any instrumentation events that are triggered by this exception and change the
+// shadow_frame's dex_pc to that of the exception handler if there is one in the current method.
+// Return true if we should continue executing in the current method and false if we need to go up
+// the stack to find an exception handler.
 // We accept a null Instrumentation* meaning we must not report anything to the instrumentation.
-uint32_t FindNextInstructionFollowingException(
-    Thread* self, ShadowFrame& shadow_frame, uint32_t dex_pc,
-    const instrumentation::Instrumentation* instrumentation) {
+// TODO We should have a better way to skip instrumentation reporting or possibly rethink that
+// behavior.
+bool MoveToExceptionHandler(Thread* self,
+                            ShadowFrame& shadow_frame,
+                            const instrumentation::Instrumentation* instrumentation) {
   self->VerifyStack();
   StackHandleScope<2> hs(self);
   Handle<mirror::Throwable> exception(hs.NewHandle(self->GetException()));
-  if (instrumentation != nullptr && instrumentation->HasExceptionCaughtListeners()
-      && self->IsExceptionThrownByCurrentMethod(exception.Get())) {
-    instrumentation->ExceptionCaughtEvent(self, exception.Get());
+  if (instrumentation != nullptr &&
+      instrumentation->HasExceptionThrownListeners() &&
+      self->IsExceptionThrownByCurrentMethod(exception.Get())) {
+    // See b/65049545 for why we don't need to check to see if the exception has changed.
+    instrumentation->ExceptionThrownEvent(self, exception.Get());
   }
   bool clear_exception = false;
   uint32_t found_dex_pc = shadow_frame.GetMethod()->FindCatchBlock(
-      hs.NewHandle(exception->GetClass()), dex_pc, &clear_exception);
-  if (found_dex_pc == DexFile::kDexNoIndex && instrumentation != nullptr) {
-    // Exception is not caught by the current method. We will unwind to the
-    // caller. Notify any instrumentation listener.
-    instrumentation->MethodUnwindEvent(self, shadow_frame.GetThisObject(),
-                                       shadow_frame.GetMethod(), dex_pc);
+      hs.NewHandle(exception->GetClass()), shadow_frame.GetDexPC(), &clear_exception);
+  if (found_dex_pc == dex::kDexNoIndex) {
+    if (instrumentation != nullptr) {
+      if (shadow_frame.NeedsNotifyPop()) {
+        instrumentation->WatchedFramePopped(self, shadow_frame);
+      }
+      // Exception is not caught by the current method. We will unwind to the
+      // caller. Notify any instrumentation listener.
+      instrumentation->MethodUnwindEvent(self,
+                                         shadow_frame.GetThisObject(),
+                                         shadow_frame.GetMethod(),
+                                         shadow_frame.GetDexPC());
+    }
+    return false;
   } else {
-    // Exception is caught in the current method. We will jump to the found_dex_pc.
-    if (clear_exception) {
+    shadow_frame.SetDexPC(found_dex_pc);
+    if (instrumentation != nullptr && instrumentation->HasExceptionHandledListeners()) {
+      self->ClearException();
+      instrumentation->ExceptionHandledEvent(self, exception.Get());
+      if (UNLIKELY(self->IsExceptionPending())) {
+        // Exception handled event threw an exception. Try to find the handler for this one.
+        return MoveToExceptionHandler(self, shadow_frame, instrumentation);
+      } else if (!clear_exception) {
+        self->SetException(exception.Get());
+      }
+    } else if (clear_exception) {
       self->ClearException();
     }
+    return true;
   }
-  return found_dex_pc;
 }
 
 void UnexpectedOpcode(const Instruction* inst, const ShadowFrame& shadow_frame) {
@@ -543,12 +589,17 @@ void SetStringInitValueToAllAliases(ShadowFrame* shadow_frame,
 }
 
 template<bool is_range>
-bool DoInvokePolymorphic(Thread* self,
-                         ShadowFrame& shadow_frame,
-                         const Instruction* inst,
-                         uint16_t inst_data,
-                         JValue* result)
+static bool DoMethodHandleInvokeCommon(Thread* self,
+                                       ShadowFrame& shadow_frame,
+                                       bool invoke_exact,
+                                       const Instruction* inst,
+                                       uint16_t inst_data,
+                                       JValue* result)
     REQUIRES_SHARED(Locks::mutator_lock_) {
+  // Make sure to check for async exceptions
+  if (UNLIKELY(self->ObserveAsyncException())) {
+    return false;
+  }
   // Invoke-polymorphic instructions always take a receiver. i.e, they are never static.
   const uint32_t vRegC = (is_range) ? inst->VRegC_4rcc() : inst->VRegC_45cc();
   const int invoke_method_idx = (is_range) ? inst->VRegB_4rcc() : inst->VRegB_45cc();
@@ -561,7 +612,7 @@ bool DoInvokePolymorphic(Thread* self,
   // The invoke_method_idx here is the name of the signature polymorphic method that
   // was symbolically invoked in bytecode (say MethodHandle.invoke or MethodHandle.invokeExact)
   // and not the method that we'll dispatch to in the end.
-  StackHandleScope<5> hs(self);
+  StackHandleScope<2> hs(self);
   Handle<mirror::MethodHandle> method_handle(hs.NewHandle(
       ObjPtr<mirror::MethodHandle>::DownCast(
           MakeObjPtr(shadow_frame.GetVRegReference(vRegC)))));
@@ -580,11 +631,8 @@ bool DoInvokePolymorphic(Thread* self,
   // with the callsite. This information is stored in the dex cache so it's
   // guaranteed to be fast after the first resolution.
   ClassLinker* class_linker = Runtime::Current()->GetClassLinker();
-  Handle<mirror::Class> caller_class(hs.NewHandle(shadow_frame.GetMethod()->GetDeclaringClass()));
-  Handle<mirror::MethodType> callsite_type(hs.NewHandle(class_linker->ResolveMethodType(
-      caller_class->GetDexFile(), callsite_proto_id,
-      hs.NewHandle<mirror::DexCache>(caller_class->GetDexCache()),
-      hs.NewHandle<mirror::ClassLoader>(caller_class->GetClassLoader()))));
+  Handle<mirror::MethodType> callsite_type(hs.NewHandle(
+      class_linker->ResolveMethodType(self, callsite_proto_id, shadow_frame.GetMethod())));
 
   // This implies we couldn't resolve one or more types in this method handle.
   if (UNLIKELY(callsite_type == nullptr)) {
@@ -592,41 +640,381 @@ bool DoInvokePolymorphic(Thread* self,
     return false;
   }
 
-  ArtMethod* invoke_method =
-      class_linker->ResolveMethod<ClassLinker::ResolveMode::kCheckICCEAndIAE>(
-          self, invoke_method_idx, shadow_frame.GetMethod(), kVirtual);
-
   // There is a common dispatch method for method handles that takes
   // arguments either from a range or an array of arguments depending
   // on whether the DEX instruction is invoke-polymorphic/range or
   // invoke-polymorphic. The array here is for the latter.
   uint32_t args[Instruction::kMaxVarArgRegs] = {};
-  if (is_range) {
+  if (UNLIKELY(is_range)) {
     // VRegC is the register holding the method handle. Arguments passed
     // to the method handle's target do not include the method handle.
     uint32_t first_arg = inst->VRegC_4rcc() + 1;
-    return DoInvokePolymorphic<is_range>(self,
-                                         invoke_method,
-                                         shadow_frame,
-                                         method_handle,
-                                         callsite_type,
-                                         args /* unused */,
-                                         first_arg,
-                                         result);
+    static const bool kIsRange = true;
+    if (invoke_exact) {
+      return art::MethodHandleInvokeExact<kIsRange>(self,
+                                                    shadow_frame,
+                                                    method_handle,
+                                                    callsite_type,
+                                                    args /* unused */,
+                                                    first_arg,
+                                                    result);
+    } else {
+      return art::MethodHandleInvoke<kIsRange>(self,
+                                               shadow_frame,
+                                               method_handle,
+                                               callsite_type,
+                                               args /* unused */,
+                                               first_arg,
+                                               result);
+    }
   } else {
     // Get the register arguments for the invoke.
     inst->GetVarArgs(args, inst_data);
     // Drop the first register which is the method handle performing the invoke.
     memmove(args, args + 1, sizeof(args[0]) * (Instruction::kMaxVarArgRegs - 1));
     args[Instruction::kMaxVarArgRegs - 1] = 0;
-    return DoInvokePolymorphic<is_range>(self,
-                                         invoke_method,
-                                         shadow_frame,
-                                         method_handle,
-                                         callsite_type,
-                                         args,
-                                         args[0],
-                                         result);
+    static const bool kIsRange = false;
+    if (invoke_exact) {
+      return art::MethodHandleInvokeExact<kIsRange>(self,
+                                                    shadow_frame,
+                                                    method_handle,
+                                                    callsite_type,
+                                                    args,
+                                                    args[0],
+                                                    result);
+    } else {
+      return art::MethodHandleInvoke<kIsRange>(self,
+                                               shadow_frame,
+                                               method_handle,
+                                               callsite_type,
+                                               args,
+                                               args[0],
+                                               result);
+    }
+  }
+}
+
+bool DoMethodHandleInvokeExact(Thread* self,
+                               ShadowFrame& shadow_frame,
+                               const Instruction* inst,
+                               uint16_t inst_data,
+                               JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  if (inst->Opcode() == Instruction::INVOKE_POLYMORPHIC) {
+    static const bool kIsRange = false;
+    return DoMethodHandleInvokeCommon<kIsRange>(
+        self, shadow_frame, true /* is_exact */, inst, inst_data, result);
+  } else {
+    DCHECK_EQ(inst->Opcode(), Instruction::INVOKE_POLYMORPHIC_RANGE);
+    static const bool kIsRange = true;
+    return DoMethodHandleInvokeCommon<kIsRange>(
+        self, shadow_frame, true /* is_exact */, inst, inst_data, result);
+  }
+}
+
+bool DoMethodHandleInvoke(Thread* self,
+                          ShadowFrame& shadow_frame,
+                          const Instruction* inst,
+                          uint16_t inst_data,
+                          JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  if (inst->Opcode() == Instruction::INVOKE_POLYMORPHIC) {
+    static const bool kIsRange = false;
+    return DoMethodHandleInvokeCommon<kIsRange>(
+        self, shadow_frame, false /* is_exact */, inst, inst_data, result);
+  } else {
+    DCHECK_EQ(inst->Opcode(), Instruction::INVOKE_POLYMORPHIC_RANGE);
+    static const bool kIsRange = true;
+    return DoMethodHandleInvokeCommon<kIsRange>(
+        self, shadow_frame, false /* is_exact */, inst, inst_data, result);
+  }
+}
+
+static bool UnimplementedSignaturePolymorphicMethod(Thread* self ATTRIBUTE_UNUSED,
+                                                    ShadowFrame& shadow_frame ATTRIBUTE_UNUSED,
+                                                    const Instruction* inst ATTRIBUTE_UNUSED,
+                                                    uint16_t inst_data ATTRIBUTE_UNUSED,
+                                                    JValue* result ATTRIBUTE_UNUSED)
+    REQUIRES_SHARED(Locks::mutator_lock_) {
+  UNIMPLEMENTED(FATAL) << "TODO(oth): b/65872996";
+  return false;
+}
+
+bool DoVarHandleCompareAndExchange(Thread* self,
+                                   ShadowFrame& shadow_frame,
+                                   const Instruction* inst,
+                                   uint16_t inst_data,
+                                   JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleCompareAndExchangeAcquire(Thread* self,
+                                          ShadowFrame& shadow_frame,
+                                          const Instruction* inst,
+                                          uint16_t inst_data,
+                                          JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleCompareAndExchangeRelease(Thread* self,
+                                          ShadowFrame& shadow_frame,
+                                          const Instruction* inst,
+                                          uint16_t inst_data,
+                                          JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleCompareAndSet(Thread* self,
+                              ShadowFrame& shadow_frame,
+                              const Instruction* inst,
+                              uint16_t inst_data,
+                              JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGet(Thread* self,
+                    ShadowFrame& shadow_frame,
+                    const Instruction* inst,
+                    uint16_t inst_data,
+                    JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAcquire(Thread* self,
+                           ShadowFrame& shadow_frame,
+                           const Instruction* inst,
+                           uint16_t inst_data,
+                           JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndAdd(Thread* self,
+                          ShadowFrame& shadow_frame,
+                          const Instruction* inst,
+                          uint16_t inst_data,
+                          JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndAddAcquire(Thread* self,
+                                 ShadowFrame& shadow_frame,
+                                 const Instruction* inst,
+                                 uint16_t inst_data,
+                                 JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndAddRelease(Thread* self,
+                                 ShadowFrame& shadow_frame,
+                                 const Instruction* inst,
+                                 uint16_t inst_data,
+                                 JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndBitwiseAnd(Thread* self,
+                                 ShadowFrame& shadow_frame,
+                                 const Instruction* inst,
+                                 uint16_t inst_data,
+                                 JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndBitwiseAndAcquire(Thread* self,
+                                        ShadowFrame& shadow_frame,
+                                        const Instruction* inst,
+                                        uint16_t inst_data,
+                                        JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndBitwiseAndRelease(Thread* self,
+                                        ShadowFrame& shadow_frame,
+                                        const Instruction* inst,
+                                        uint16_t inst_data,
+                                        JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndBitwiseOr(Thread* self,
+                                ShadowFrame& shadow_frame,
+                                const Instruction* inst,
+                                uint16_t inst_data,
+                                JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndBitwiseOrAcquire(Thread* self,
+                                       ShadowFrame& shadow_frame,
+                                       const Instruction* inst,
+                                       uint16_t inst_data,
+                                       JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndBitwiseOrRelease(Thread* self,
+                                       ShadowFrame& shadow_frame,
+                                       const Instruction* inst,
+                                       uint16_t inst_data,
+                                       JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndBitwiseXor(Thread* self,
+                                 ShadowFrame& shadow_frame,
+                                 const Instruction* inst,
+                                 uint16_t inst_data,
+                                 JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndBitwiseXorAcquire(Thread* self,
+                                        ShadowFrame& shadow_frame,
+                                        const Instruction* inst,
+                                        uint16_t inst_data,
+                                        JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndBitwiseXorRelease(Thread* self,
+                                        ShadowFrame& shadow_frame,
+                                        const Instruction* inst,
+                                        uint16_t inst_data,
+                                        JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndSet(Thread* self,
+                          ShadowFrame& shadow_frame,
+                          const Instruction* inst,
+                          uint16_t inst_data,
+                          JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndSetAcquire(Thread* self,
+                                 ShadowFrame& shadow_frame,
+                                 const Instruction* inst,
+                                 uint16_t inst_data,
+                                 JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetAndSetRelease(Thread* self,
+                                 ShadowFrame& shadow_frame,
+                                 const Instruction* inst,
+                                 uint16_t inst_data,
+                                 JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetOpaque(Thread* self,
+                          ShadowFrame& shadow_frame,
+                          const Instruction* inst,
+                          uint16_t inst_data,
+                          JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleGetVolatile(Thread* self,
+                            ShadowFrame& shadow_frame,
+                            const Instruction* inst,
+                            uint16_t inst_data,
+                            JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleSet(Thread* self,
+                    ShadowFrame& shadow_frame,
+                    const Instruction* inst,
+                    uint16_t inst_data,
+                    JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleSetOpaque(Thread* self,
+                          ShadowFrame& shadow_frame,
+                          const Instruction* inst,
+                          uint16_t inst_data,
+                          JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleSetRelease(Thread* self,
+                           ShadowFrame& shadow_frame,
+                           const Instruction* inst,
+                           uint16_t inst_data,
+                           JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleSetVolatile(Thread* self,
+                            ShadowFrame& shadow_frame,
+                            const Instruction* inst,
+                            uint16_t inst_data,
+                            JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleWeakCompareAndSet(Thread* self,
+                                  ShadowFrame& shadow_frame,
+                                  const Instruction* inst,
+                                  uint16_t inst_data,
+                                  JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleWeakCompareAndSetAcquire(Thread* self,
+                                         ShadowFrame& shadow_frame,
+                                         const Instruction* inst,
+                                         uint16_t inst_data,
+                                         JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleWeakCompareAndSetPlain(Thread* self,
+                                       ShadowFrame& shadow_frame,
+                                       const Instruction* inst,
+                                       uint16_t inst_data,
+                                       JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+bool DoVarHandleWeakCompareAndSetRelease(Thread* self,
+                                         ShadowFrame& shadow_frame,
+                                         const Instruction* inst,
+                                         uint16_t inst_data,
+                                         JValue* result) REQUIRES_SHARED(Locks::mutator_lock_) {
+  return UnimplementedSignaturePolymorphicMethod(self, shadow_frame, inst, inst_data, result);
+}
+
+template<bool is_range>
+bool DoInvokePolymorphic(Thread* self,
+                         ShadowFrame& shadow_frame,
+                         const Instruction* inst,
+                         uint16_t inst_data,
+                         JValue* result) {
+  const int invoke_method_idx = inst->VRegB();
+  ClassLinker* class_linker = Runtime::Current()->GetClassLinker();
+  ArtMethod* invoke_method =
+      class_linker->ResolveMethod<ClassLinker::ResolveMode::kCheckICCEAndIAE>(
+          self, invoke_method_idx, shadow_frame.GetMethod(), kVirtual);
+
+  // Ensure intrinsic identifiers are initialized.
+  DCHECK(invoke_method->IsIntrinsic());
+
+  // Dispatch based on intrinsic identifier associated with method.
+  switch (static_cast<art::Intrinsics>(invoke_method->GetIntrinsic())) {
+#define CASE_SIGNATURE_POLYMORPHIC_INTRINSIC(Name, ...) \
+    case Intrinsics::k##Name:                           \
+      return Do ## Name(self, shadow_frame, inst, inst_data, result);
+#include "intrinsics_list.h"
+    SIGNATURE_POLYMORPHIC_INTRINSICS_LIST(CASE_SIGNATURE_POLYMORPHIC_INTRINSIC)
+#undef INTRINSICS_LIST
+#undef SIGNATURE_POLYMORPHIC_INTRINSICS_LIST
+#undef CASE_SIGNATURE_POLYMORPHIC_INTRINSIC
+    default:
+      LOG(FATAL) << "Unreachable: " << invoke_method->GetIntrinsic();
+      UNREACHABLE();
+      return false;
   }
 }
 
@@ -646,7 +1034,7 @@ static ObjPtr<mirror::CallSite> InvokeBootstrapMethod(Thread* self,
   uint32_t method_handle_idx = static_cast<uint32_t>(it.GetJavaValue().i);
   ClassLinker* class_linker = Runtime::Current()->GetClassLinker();
   Handle<mirror::MethodHandle>
-      bootstrap(hs.NewHandle(class_linker->ResolveMethodHandle(method_handle_idx, referrer)));
+      bootstrap(hs.NewHandle(class_linker->ResolveMethodHandle(self, method_handle_idx, referrer)));
   if (bootstrap.IsNull()) {
     DCHECK(self->IsExceptionPending());
     return nullptr;
@@ -679,7 +1067,7 @@ static ObjPtr<mirror::CallSite> InvokeBootstrapMethod(Thread* self,
   // The second parameter is the name to lookup.
   {
     dex::StringIndex name_idx(static_cast<uint32_t>(it.GetJavaValue().i));
-    ObjPtr<mirror::String> name = class_linker->ResolveString(*dex_file, name_idx, dex_cache);
+    ObjPtr<mirror::String> name = class_linker->ResolveString(name_idx, dex_cache);
     if (name.IsNull()) {
       DCHECK(self->IsExceptionPending());
       return nullptr;
@@ -690,11 +1078,8 @@ static ObjPtr<mirror::CallSite> InvokeBootstrapMethod(Thread* self,
 
   // The third parameter is the method type associated with the name.
   uint32_t method_type_idx = static_cast<uint32_t>(it.GetJavaValue().i);
-  Handle<mirror::MethodType>
-      method_type(hs.NewHandle(class_linker->ResolveMethodType(*dex_file,
-                                                               method_type_idx,
-                                                               dex_cache,
-                                                               class_loader)));
+  Handle<mirror::MethodType> method_type(hs.NewHandle(
+      class_linker->ResolveMethodType(self, method_type_idx, dex_cache, class_loader)));
   if (method_type.IsNull()) {
     DCHECK(self->IsExceptionPending());
     return nullptr;
@@ -729,7 +1114,7 @@ static ObjPtr<mirror::CallSite> InvokeBootstrapMethod(Thread* self,
       case EncodedArrayValueIterator::ValueType::kMethodType: {
         uint32_t idx = static_cast<uint32_t>(jvalue.i);
         ObjPtr<mirror::MethodType> ref =
-            class_linker->ResolveMethodType(*dex_file, idx, dex_cache, class_loader);
+            class_linker->ResolveMethodType(self, idx, dex_cache, class_loader);
         if (ref.IsNull()) {
           DCHECK(self->IsExceptionPending());
           return nullptr;
@@ -741,7 +1126,7 @@ static ObjPtr<mirror::CallSite> InvokeBootstrapMethod(Thread* self,
       case EncodedArrayValueIterator::ValueType::kMethodHandle: {
         uint32_t idx = static_cast<uint32_t>(jvalue.i);
         ObjPtr<mirror::MethodHandle> ref =
-            class_linker->ResolveMethodHandle(idx, referrer);
+            class_linker->ResolveMethodHandle(self, idx, referrer);
         if (ref.IsNull()) {
           DCHECK(self->IsExceptionPending());
           return nullptr;
@@ -752,7 +1137,7 @@ static ObjPtr<mirror::CallSite> InvokeBootstrapMethod(Thread* self,
       }
       case EncodedArrayValueIterator::ValueType::kString: {
         dex::StringIndex idx(static_cast<uint32_t>(jvalue.i));
-        ObjPtr<mirror::String> ref = class_linker->ResolveString(*dex_file, idx, dex_cache);
+        ObjPtr<mirror::String> ref = class_linker->ResolveString(idx, dex_cache);
         if (ref.IsNull()) {
           DCHECK(self->IsExceptionPending());
           return nullptr;
@@ -763,8 +1148,7 @@ static ObjPtr<mirror::CallSite> InvokeBootstrapMethod(Thread* self,
       }
       case EncodedArrayValueIterator::ValueType::kType: {
         dex::TypeIndex idx(static_cast<uint32_t>(jvalue.i));
-        ObjPtr<mirror::Class> ref =
-            class_linker->ResolveType(*dex_file, idx, dex_cache, class_loader);
+        ObjPtr<mirror::Class> ref = class_linker->ResolveType(idx, dex_cache, class_loader);
         if (ref.IsNull()) {
           DCHECK(self->IsExceptionPending());
           return nullptr;
@@ -792,19 +1176,16 @@ static ObjPtr<mirror::CallSite> InvokeBootstrapMethod(Thread* self,
   // Invoke the bootstrap method handle.
   JValue result;
 
-  // This array of arguments is unused. DoInvokePolymorphic() operates on either a
+  // This array of arguments is unused. DoMethodHandleInvokeExact() operates on either a
   // an argument array or a range, but always takes an array argument.
   uint32_t args_unused[Instruction::kMaxVarArgRegs];
-  ArtMethod* invoke_exact =
-      jni::DecodeArtMethod(WellKnownClasses::java_lang_invoke_MethodHandle_invokeExact);
-  bool invoke_success = DoInvokePolymorphic<true /* is_range */>(self,
-                                                                 invoke_exact,
-                                                                 *bootstrap_frame,
-                                                                 bootstrap,
-                                                                 bootstrap_method_type,
-                                                                 args_unused,
-                                                                 0,
-                                                                 &result);
+  bool invoke_success = art::MethodHandleInvokeExact<true /* is_range */>(self,
+                                                                          *bootstrap_frame,
+                                                                          bootstrap,
+                                                                          bootstrap_method_type,
+                                                                          args_unused,
+                                                                          0,
+                                                                          &result);
   if (!invoke_success) {
     DCHECK(self->IsExceptionPending());
     return nullptr;
@@ -854,6 +1235,10 @@ bool DoInvokeCustom(Thread* self,
                     uint16_t inst_data,
                     JValue* result)
     REQUIRES_SHARED(Locks::mutator_lock_) {
+  // Make sure to check for async exceptions
+  if (UNLIKELY(self->ObserveAsyncException())) {
+    return false;
+  }
   // invoke-custom is not supported in transactions. In transactions
   // there is a limited set of types supported. invoke-custom allows
   // running arbitrary code and instantiating arbitrary types.
@@ -891,16 +1276,13 @@ bool DoInvokeCustom(Thread* self,
     inst->GetVarArgs(args, inst_data);
   }
 
-  ArtMethod* invoke_exact =
-      jni::DecodeArtMethod(WellKnownClasses::java_lang_invoke_MethodHandle_invokeExact);
-  return DoInvokePolymorphic<is_range>(self,
-                                       invoke_exact,
-                                       shadow_frame,
-                                       target,
-                                       target_method_type,
-                                       args,
-                                       args[0],
-                                       result);
+  return art::MethodHandleInvokeExact<is_range>(self,
+                                                shadow_frame,
+                                                target,
+                                                target_method_type,
+                                                args,
+                                                args[0],
+                                                result);
 }
 
 template <bool is_range>
@@ -1070,7 +1452,7 @@ static inline bool DoCallCommon(ArtMethod* called_method,
               // Preserve o since it is used below and GetClassFromTypeIndex may cause thread
               // suspension.
               HandleWrapperObjPtr<mirror::Object> h = hs.NewHandleWrapper(&o);
-              arg_type = method->GetClassFromTypeIndex(type_idx, true /* resolve */);
+              arg_type = method->ResolveClassFromTypeIndex(type_idx);
               if (arg_type == nullptr) {
                 CHECK(self->IsExceptionPending());
                 return false;
@@ -1293,16 +1675,6 @@ EXPLICIT_DO_CALL_TEMPLATE_DECL(true, false);
 EXPLICIT_DO_CALL_TEMPLATE_DECL(true, true);
 #undef EXPLICIT_DO_CALL_TEMPLATE_DECL
 
-// Explicit DoInvokeCustom template function declarations.
-#define EXPLICIT_DO_INVOKE_CUSTOM_TEMPLATE_DECL(_is_range)               \
-  template REQUIRES_SHARED(Locks::mutator_lock_)                         \
-  bool DoInvokeCustom<_is_range>(                                        \
-      Thread* self, ShadowFrame& shadow_frame, const Instruction* inst,  \
-      uint16_t inst_data, JValue* result)
-EXPLICIT_DO_INVOKE_CUSTOM_TEMPLATE_DECL(false);
-EXPLICIT_DO_INVOKE_CUSTOM_TEMPLATE_DECL(true);
-#undef EXPLICIT_DO_INVOKE_CUSTOM_TEMPLATE_DECL
-
 // Explicit DoInvokePolymorphic template function declarations.
 #define EXPLICIT_DO_INVOKE_POLYMORPHIC_TEMPLATE_DECL(_is_range)          \
   template REQUIRES_SHARED(Locks::mutator_lock_)                         \
@@ -1312,6 +1684,16 @@ EXPLICIT_DO_INVOKE_CUSTOM_TEMPLATE_DECL(true);
 EXPLICIT_DO_INVOKE_POLYMORPHIC_TEMPLATE_DECL(false);
 EXPLICIT_DO_INVOKE_POLYMORPHIC_TEMPLATE_DECL(true);
 #undef EXPLICIT_DO_INVOKE_POLYMORPHIC_TEMPLATE_DECL
+
+// Explicit DoInvokeCustom template function declarations.
+#define EXPLICIT_DO_INVOKE_CUSTOM_TEMPLATE_DECL(_is_range)               \
+  template REQUIRES_SHARED(Locks::mutator_lock_)                         \
+  bool DoInvokeCustom<_is_range>(                                        \
+      Thread* self, ShadowFrame& shadow_frame, const Instruction* inst,  \
+      uint16_t inst_data, JValue* result)
+EXPLICIT_DO_INVOKE_CUSTOM_TEMPLATE_DECL(false);
+EXPLICIT_DO_INVOKE_CUSTOM_TEMPLATE_DECL(true);
+#undef EXPLICIT_DO_INVOKE_CUSTOM_TEMPLATE_DECL
 
 // Explicit DoFilledNewArray template function declarations.
 #define EXPLICIT_DO_FILLED_NEW_ARRAY_TEMPLATE_DECL(_is_range_, _check, _transaction_active)       \

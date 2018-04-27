@@ -52,6 +52,7 @@ jclass WellKnownClasses::java_lang_ClassNotFoundException;
 jclass WellKnownClasses::java_lang_Daemons;
 jclass WellKnownClasses::java_lang_Error;
 jclass WellKnownClasses::java_lang_invoke_MethodHandle;
+jclass WellKnownClasses::java_lang_invoke_VarHandle;
 jclass WellKnownClasses::java_lang_IllegalAccessError;
 jclass WellKnownClasses::java_lang_NoClassDefFoundError;
 jclass WellKnownClasses::java_lang_Object;
@@ -80,6 +81,7 @@ jclass WellKnownClasses::libcore_util_EmptyArray;
 jclass WellKnownClasses::org_apache_harmony_dalvik_ddmc_Chunk;
 jclass WellKnownClasses::org_apache_harmony_dalvik_ddmc_DdmServer;
 
+jmethodID WellKnownClasses::dalvik_system_BaseDexClassLoader_getLdLibraryPath;
 jmethodID WellKnownClasses::dalvik_system_VMRuntime_runFinalization;
 jmethodID WellKnownClasses::java_lang_Boolean_valueOf;
 jmethodID WellKnownClasses::java_lang_Byte_valueOf;
@@ -298,6 +300,7 @@ void WellKnownClasses::Init(JNIEnv* env) {
   java_lang_Error = CacheClass(env, "java/lang/Error");
   java_lang_IllegalAccessError = CacheClass(env, "java/lang/IllegalAccessError");
   java_lang_invoke_MethodHandle = CacheClass(env, "java/lang/invoke/MethodHandle");
+  java_lang_invoke_VarHandle = CacheClass(env, "java/lang/invoke/VarHandle");
   java_lang_NoClassDefFoundError = CacheClass(env, "java/lang/NoClassDefFoundError");
   java_lang_reflect_Constructor = CacheClass(env, "java/lang/reflect/Constructor");
   java_lang_reflect_Executable = CacheClass(env, "java/lang/reflect/Executable");
@@ -323,6 +326,7 @@ void WellKnownClasses::Init(JNIEnv* env) {
   org_apache_harmony_dalvik_ddmc_Chunk = CacheClass(env, "org/apache/harmony/dalvik/ddmc/Chunk");
   org_apache_harmony_dalvik_ddmc_DdmServer = CacheClass(env, "org/apache/harmony/dalvik/ddmc/DdmServer");
 
+  dalvik_system_BaseDexClassLoader_getLdLibraryPath = CacheMethod(env, dalvik_system_BaseDexClassLoader, false, "getLdLibraryPath", "()Ljava/lang/String;");
   dalvik_system_VMRuntime_runFinalization = CacheMethod(env, dalvik_system_VMRuntime, true, "runFinalization", "(J)V");
   java_lang_ClassNotFoundException_init = CacheMethod(env, java_lang_ClassNotFoundException, false, "<init>", "(Ljava/lang/String;Ljava/lang/Throwable;)V");
   java_lang_ClassLoader_loadClass = CacheMethod(env, java_lang_ClassLoader, false, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
@@ -334,6 +338,7 @@ void WellKnownClasses::Init(JNIEnv* env) {
   java_lang_invoke_MethodHandle_invokeExact = CacheMethod(env, java_lang_invoke_MethodHandle, false, "invokeExact", "([Ljava/lang/Object;)Ljava/lang/Object;");
   java_lang_invoke_MethodHandles_lookup = CacheMethod(env, "java/lang/invoke/MethodHandles", true, "lookup", "()Ljava/lang/invoke/MethodHandles$Lookup;");
   java_lang_invoke_MethodHandles_Lookup_findConstructor = CacheMethod(env, "java/lang/invoke/MethodHandles$Lookup", false, "findConstructor", "(Ljava/lang/Class;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/MethodHandle;");
+
   java_lang_ref_FinalizerReference_add = CacheMethod(env, "java/lang/ref/FinalizerReference", true, "add", "(Ljava/lang/Object;)V");
   java_lang_ref_ReferenceQueue_add = CacheMethod(env, "java/lang/ref/ReferenceQueue", true, "add", "(Ljava/lang/ref/Reference;)V");
 
@@ -403,7 +408,7 @@ void WellKnownClasses::LateInit(JNIEnv* env) {
   // to make sure these JNI methods are available.
   java_lang_Runtime_nativeLoad =
       CacheMethod(env, java_lang_Runtime.get(), true, "nativeLoad",
-                  "(Ljava/lang/String;Ljava/lang/ClassLoader;Ljava/lang/String;)"
+                  "(Ljava/lang/String;Ljava/lang/ClassLoader;)"
                       "Ljava/lang/String;");
   java_lang_reflect_Proxy_invoke =
     CacheMethod(env, java_lang_reflect_Proxy, true, "invoke",
@@ -412,6 +417,126 @@ void WellKnownClasses::LateInit(JNIEnv* env) {
   java_lang_reflect_Proxy_h =
     CacheField(env, java_lang_reflect_Proxy, false, "h",
                "Ljava/lang/reflect/InvocationHandler;");
+}
+
+void WellKnownClasses::Clear() {
+  dalvik_annotation_optimization_CriticalNative = nullptr;
+  dalvik_annotation_optimization_FastNative = nullptr;
+  dalvik_system_BaseDexClassLoader = nullptr;
+  dalvik_system_DelegateLastClassLoader = nullptr;
+  dalvik_system_DexClassLoader = nullptr;
+  dalvik_system_DexFile = nullptr;
+  dalvik_system_DexPathList = nullptr;
+  dalvik_system_DexPathList__Element = nullptr;
+  dalvik_system_EmulatedStackFrame = nullptr;
+  dalvik_system_PathClassLoader = nullptr;
+  dalvik_system_VMRuntime = nullptr;
+  java_lang_annotation_Annotation__array = nullptr;
+  java_lang_BootClassLoader = nullptr;
+  java_lang_ClassLoader = nullptr;
+  java_lang_ClassNotFoundException = nullptr;
+  java_lang_Daemons = nullptr;
+  java_lang_Error = nullptr;
+  java_lang_IllegalAccessError = nullptr;
+  java_lang_invoke_MethodHandle = nullptr;
+  java_lang_invoke_VarHandle = nullptr;
+  java_lang_NoClassDefFoundError = nullptr;
+  java_lang_Object = nullptr;
+  java_lang_OutOfMemoryError = nullptr;
+  java_lang_reflect_Constructor = nullptr;
+  java_lang_reflect_Executable = nullptr;
+  java_lang_reflect_Field = nullptr;
+  java_lang_reflect_Method = nullptr;
+  java_lang_reflect_Parameter = nullptr;
+  java_lang_reflect_Parameter__array = nullptr;
+  java_lang_reflect_Proxy = nullptr;
+  java_lang_RuntimeException = nullptr;
+  java_lang_StackOverflowError = nullptr;
+  java_lang_String = nullptr;
+  java_lang_StringFactory = nullptr;
+  java_lang_System = nullptr;
+  java_lang_Thread = nullptr;
+  java_lang_ThreadGroup = nullptr;
+  java_lang_Throwable = nullptr;
+  java_util_ArrayList = nullptr;
+  java_util_Collections = nullptr;
+  java_nio_DirectByteBuffer = nullptr;
+  libcore_reflect_AnnotationFactory = nullptr;
+  libcore_reflect_AnnotationMember = nullptr;
+  libcore_util_EmptyArray = nullptr;
+  org_apache_harmony_dalvik_ddmc_Chunk = nullptr;
+  org_apache_harmony_dalvik_ddmc_DdmServer = nullptr;
+
+  dalvik_system_BaseDexClassLoader_getLdLibraryPath = nullptr;
+  dalvik_system_VMRuntime_runFinalization = nullptr;
+  java_lang_Boolean_valueOf = nullptr;
+  java_lang_Byte_valueOf = nullptr;
+  java_lang_Character_valueOf = nullptr;
+  java_lang_ClassLoader_loadClass = nullptr;
+  java_lang_ClassNotFoundException_init = nullptr;
+  java_lang_Daemons_requestHeapTrim = nullptr;
+  java_lang_Daemons_start = nullptr;
+  java_lang_Daemons_stop = nullptr;
+  java_lang_Double_valueOf = nullptr;
+  java_lang_Float_valueOf = nullptr;
+  java_lang_Integer_valueOf = nullptr;
+  java_lang_invoke_MethodHandle_invoke = nullptr;
+  java_lang_invoke_MethodHandle_invokeExact = nullptr;
+  java_lang_invoke_MethodHandles_lookup = nullptr;
+  java_lang_invoke_MethodHandles_Lookup_findConstructor = nullptr;
+  java_lang_Long_valueOf = nullptr;
+  java_lang_ref_FinalizerReference_add = nullptr;
+  java_lang_ref_ReferenceQueue_add = nullptr;
+  java_lang_reflect_Parameter_init = nullptr;
+  java_lang_reflect_Proxy_invoke = nullptr;
+  java_lang_Runtime_nativeLoad = nullptr;
+  java_lang_Short_valueOf = nullptr;
+  java_lang_String_charAt = nullptr;
+  java_lang_System_runFinalization = nullptr;
+  java_lang_Thread_dispatchUncaughtException = nullptr;
+  java_lang_Thread_init = nullptr;
+  java_lang_Thread_run = nullptr;
+  java_lang_ThreadGroup_removeThread = nullptr;
+  java_nio_DirectByteBuffer_init = nullptr;
+  libcore_reflect_AnnotationFactory_createAnnotation = nullptr;
+  libcore_reflect_AnnotationMember_init = nullptr;
+  org_apache_harmony_dalvik_ddmc_DdmServer_broadcast = nullptr;
+  org_apache_harmony_dalvik_ddmc_DdmServer_dispatch = nullptr;
+
+  dalvik_system_BaseDexClassLoader_pathList = nullptr;
+  dalvik_system_DexFile_cookie = nullptr;
+  dalvik_system_DexFile_fileName = nullptr;
+  dalvik_system_DexPathList_dexElements = nullptr;
+  dalvik_system_DexPathList__Element_dexFile = nullptr;
+  java_lang_reflect_Executable_artMethod = nullptr;
+  java_lang_reflect_Proxy_h = nullptr;
+  java_lang_Thread_daemon = nullptr;
+  java_lang_Thread_group = nullptr;
+  java_lang_Thread_lock = nullptr;
+  java_lang_Thread_name = nullptr;
+  java_lang_Thread_priority = nullptr;
+  java_lang_Thread_nativePeer = nullptr;
+  java_lang_ThreadGroup_groups = nullptr;
+  java_lang_ThreadGroup_ngroups = nullptr;
+  java_lang_ThreadGroup_mainThreadGroup = nullptr;
+  java_lang_ThreadGroup_name = nullptr;
+  java_lang_ThreadGroup_parent = nullptr;
+  java_lang_ThreadGroup_systemThreadGroup = nullptr;
+  java_lang_Throwable_cause = nullptr;
+  java_lang_Throwable_detailMessage = nullptr;
+  java_lang_Throwable_stackTrace = nullptr;
+  java_lang_Throwable_stackState = nullptr;
+  java_lang_Throwable_suppressedExceptions = nullptr;
+  java_nio_DirectByteBuffer_capacity = nullptr;
+  java_nio_DirectByteBuffer_effectiveDirectAddress = nullptr;
+  java_util_ArrayList_array = nullptr;
+  java_util_ArrayList_size = nullptr;
+  java_util_Collections_EMPTY_LIST = nullptr;
+  libcore_util_EmptyArray_STACK_TRACE_ELEMENT = nullptr;
+  org_apache_harmony_dalvik_ddmc_Chunk_data = nullptr;
+  org_apache_harmony_dalvik_ddmc_Chunk_length = nullptr;
+  org_apache_harmony_dalvik_ddmc_Chunk_offset = nullptr;
+  org_apache_harmony_dalvik_ddmc_Chunk_type = nullptr;
 }
 
 ObjPtr<mirror::Class> WellKnownClasses::ToClass(jclass global_jclass) {

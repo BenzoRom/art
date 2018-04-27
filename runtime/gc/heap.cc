@@ -28,7 +28,9 @@
 #include "base/allocator.h"
 #include "base/arena_allocator.h"
 #include "base/dumpable.h"
+#include "base/file_utils.h"
 #include "base/histogram-inl.h"
+#include "base/logging.h"  // For VLOG.
 #include "base/memory_tool.h"
 #include "base/stl_util.h"
 #include "base/systrace.h"
@@ -123,9 +125,6 @@ static constexpr size_t kVerifyObjectAllocationStackSize = 16 * KB /
     sizeof(mirror::HeapReference<mirror::Object>);
 static constexpr size_t kDefaultAllocationStackSize = 8 * MB /
     sizeof(mirror::HeapReference<mirror::Object>);
-// System.runFinalization can deadlock with native allocations, to deal with this, we have a
-// timeout on how long we wait for finalizers to run. b/21544853
-static constexpr uint64_t kNativeAllocationFinalizeTimeout = MsToNs(250u);
 
 // For deterministic compilation, we need the heap to be at a well-known address.
 static constexpr uint32_t kAllocSpaceBeginForDeterministicAoT = 0x40000000;
@@ -140,6 +139,10 @@ static constexpr bool kLogAllGCs = false;
 // How much we grow the TLAB if we can do it.
 static constexpr size_t kPartialTlabSize = 16 * KB;
 static constexpr bool kUsePartialTlabs = true;
+
+// Use Max heap for 2 seconds, this is smaller than the usual 5s window since we don't want to leave
+// allocate with relaxed ergonomics for that long.
+static constexpr size_t kPostForkMaxHeapDurationMS = 2000;
 
 #if defined(__LP64__) || !defined(ADDRESS_SANITIZER)
 // 300 MB (0x12c00000) - (default non-moving space capacity).
@@ -235,7 +238,7 @@ Heap::Heap(size_t initial_size,
       verify_pre_sweeping_rosalloc_(verify_pre_sweeping_rosalloc),
       verify_post_gc_rosalloc_(verify_post_gc_rosalloc),
       gc_stress_mode_(gc_stress_mode),
-      /* For GC a lot mode, we limit the allocations stacks to be kGcAlotInterval allocations. This
+      /* For GC a lot mode, we limit the allocation stacks to be kGcAlotInterval allocations. This
        * causes a lot of GC since we do a GC for alloc whenever the stack is full. When heap
        * verification is enabled, we limit the size of allocation stacks to speed up their
        * searching.
@@ -556,12 +559,6 @@ Heap::Heap(size_t initial_size,
   gc_complete_lock_ = new Mutex("GC complete lock");
   gc_complete_cond_.reset(new ConditionVariable("GC complete condition variable",
                                                 *gc_complete_lock_));
-  native_blocking_gc_lock_ = new Mutex("Native blocking GC lock");
-  native_blocking_gc_cond_.reset(new ConditionVariable("Native blocking GC condition variable",
-                                                       *native_blocking_gc_lock_));
-  native_blocking_gc_is_assigned_ = false;
-  native_blocking_gc_in_progress_ = false;
-  native_blocking_gcs_finished_ = 0;
 
   thread_flip_lock_ = new Mutex("GC thread flip lock");
   thread_flip_cond_.reset(new ConditionVariable("GC thread flip condition variable",
@@ -1137,7 +1134,6 @@ Heap::~Heap() {
   STLDeleteElements(&continuous_spaces_);
   STLDeleteElements(&discontinuous_spaces_);
   delete gc_complete_lock_;
-  delete native_blocking_gc_lock_;
   delete thread_flip_lock_;
   delete pending_task_lock_;
   delete backtrace_lock_;
@@ -1293,7 +1289,7 @@ class TrimIndirectReferenceTableClosure : public Closure {
   explicit TrimIndirectReferenceTableClosure(Barrier* barrier) : barrier_(barrier) {
   }
   virtual void Run(Thread* thread) OVERRIDE NO_THREAD_SAFETY_ANALYSIS {
-    thread->GetJniEnv()->locals.Trim();
+    thread->GetJniEnv()->TrimLocals();
     // If thread is a running mutator, then act on behalf of the trim thread.
     // See the code in ThreadList::RunCheckpoint.
     barrier_->Pass(Thread::Current());
@@ -1887,16 +1883,19 @@ HomogeneousSpaceCompactResult Heap::PerformHomogeneousSpaceCompact() {
   count_requested_homogeneous_space_compaction_++;
   // Store performed homogeneous space compaction at a new request arrival.
   ScopedThreadStateChange tsc(self, kWaitingPerformingGc);
-  Locks::mutator_lock_->AssertNotHeld(self);
+  // TODO: Clang prebuilt for r316199 produces bogus thread safety analysis warning for holding both
+  // exclusive and shared lock in the same scope. Remove the assertion as a temporary workaround.
+  // http://b/71769596
+  // Locks::mutator_lock_->AssertNotHeld(self);
   {
     ScopedThreadStateChange tsc2(self, kWaitingForGcToComplete);
     MutexLock mu(self, *gc_complete_lock_);
     // Ensure there is only one GC at a time.
     WaitForGcToCompleteLocked(kGcCauseHomogeneousSpaceCompact, self);
-    // Homogeneous space compaction is a copying transition, can't run it if the moving GC disable count
-    // is non zero.
-    // If the collector type changed to something which doesn't benefit from homogeneous space compaction,
-    // exit.
+    // Homogeneous space compaction is a copying transition, can't run it if the moving GC disable
+    // count is non zero.
+    // If the collector type changed to something which doesn't benefit from homogeneous space
+    // compaction, exit.
     if (disable_moving_gc_count_ != 0 || IsMovingGc(collector_type_) ||
         !main_space_->CanMoveObjects()) {
       return kErrorReject;
@@ -1965,7 +1964,10 @@ void Heap::TransitionCollector(CollectorType collector_type) {
   Runtime* const runtime = Runtime::Current();
   Thread* const self = Thread::Current();
   ScopedThreadStateChange tsc(self, kWaitingPerformingGc);
-  Locks::mutator_lock_->AssertNotHeld(self);
+  // TODO: Clang prebuilt for r316199 produces bogus thread safety analysis warning for holding both
+  // exclusive and shared lock in the same scope. Remove the assertion as a temporary workaround.
+  // http://b/71769596
+  // Locks::mutator_lock_->AssertNotHeld(self);
   // Busy wait until we can GC (StartGC can fail if we have a non-zero
   // compacting_gc_disable_count_, this should rarely occurs).
   for (;;) {
@@ -2508,7 +2510,10 @@ collector::GcType Heap::CollectGarbageInternal(collector::GcType gc_type,
     }
   }
   ScopedThreadStateChange tsc(self, kWaitingPerformingGc);
-  Locks::mutator_lock_->AssertNotHeld(self);
+  // TODO: Clang prebuilt for r316199 produces bogus thread safety analysis warning for holding both
+  // exclusive and shared lock in the same scope. Remove the assertion as a temporary workaround.
+  // http://b/71769596
+  // Locks::mutator_lock_->AssertNotHeld(self);
   if (self->IsHandlingStackOverflow()) {
     // If we are throwing a stack overflow error we probably don't have enough remaining stack
     // space to run the GC.
@@ -2543,10 +2548,6 @@ collector::GcType Heap::CollectGarbageInternal(collector::GcType gc_type,
     // old_native_bytes_allocated_ now that GC has been triggered, resetting
     // new_native_bytes_allocated_ to zero in the process.
     old_native_bytes_allocated_.FetchAndAddRelaxed(new_native_bytes_allocated_.ExchangeRelaxed(0));
-    if (gc_cause == kGcCauseForNativeAllocBlocking) {
-      MutexLock mu(self, *native_blocking_gc_lock_);
-      native_blocking_gc_in_progress_ = true;
-    }
   }
 
   DCHECK_LT(gc_type, collector::kGcTypeMax);
@@ -2927,7 +2928,7 @@ void Heap::PushOnAllocationStackWithInternalGC(Thread* self, ObjPtr<mirror::Obje
     // TODO: Add handle VerifyObject.
     StackHandleScope<1> hs(self);
     HandleWrapperObjPtr<mirror::Object> wrapper(hs.NewHandleWrapper(obj));
-    // Push our object into the reserve region of the allocaiton stack. This is only required due
+    // Push our object into the reserve region of the allocation stack. This is only required due
     // to heap verification requiring that roots are live (either in the live bitmap or in the
     // allocation stack).
     CHECK(allocation_stack_->AtomicPushBackIgnoreGrowthLimit(obj->Ptr()));
@@ -3373,7 +3374,6 @@ collector::GcType Heap::WaitForGcToCompleteLocked(GcCause cause, Thread* self) {
     // it results in log spam. kGcCauseExplicit is already logged in LogGC, so avoid it here too.
     if (cause == kGcCauseForAlloc ||
         cause == kGcCauseForNativeAlloc ||
-        cause == kGcCauseForNativeAllocBlocking ||
         cause == kGcCauseDisableMovingGc) {
       VLOG(gc) << "Starting a blocking GC " << cause;
     }
@@ -3438,14 +3438,15 @@ void Heap::GrowForUtilization(collector::GarbageCollector* collector_ran,
   TraceHeapSize(bytes_allocated);
   uint64_t target_size;
   collector::GcType gc_type = collector_ran->GetGcType();
-  const double multiplier = HeapGrowthMultiplier();  // Use the multiplier to grow more for
-  // foreground.
+  // Use the multiplier to grow more for foreground.
+  const double multiplier = HeapGrowthMultiplier();
   const uint64_t adjusted_min_free = static_cast<uint64_t>(min_free_ * multiplier);
   const uint64_t adjusted_max_free = static_cast<uint64_t>(max_free_ * multiplier);
   if (gc_type != collector::kGcTypeSticky) {
     // Grow the heap for non sticky GC.
     ssize_t delta = bytes_allocated / GetTargetHeapUtilization() - bytes_allocated;
-    CHECK_GE(delta, 0);
+    CHECK_GE(delta, 0) << "bytes_allocated=" << bytes_allocated
+                       << " target_utilization_=" << target_utilization_;
     target_size = bytes_allocated + delta * multiplier;
     target_size = std::min(target_size, bytes_allocated + adjusted_max_free);
     target_size = std::max(target_size, bytes_allocated + adjusted_min_free);
@@ -3527,6 +3528,12 @@ void Heap::ClampGrowthLimit() {
 }
 
 void Heap::ClearGrowthLimit() {
+  if (max_allowed_footprint_ == growth_limit_ && growth_limit_ < capacity_) {
+    max_allowed_footprint_ = capacity_;
+    concurrent_start_bytes_ =
+         std::max(max_allowed_footprint_, kMinConcurrentRemainingBytes) -
+         kMinConcurrentRemainingBytes;
+  }
   growth_limit_ = capacity_;
   ScopedObjectAccess soa(Thread::Current());
   for (const auto& space : continuous_spaces_) {
@@ -3759,59 +3766,9 @@ void Heap::RunFinalization(JNIEnv* env, uint64_t timeout) {
 }
 
 void Heap::RegisterNativeAllocation(JNIEnv* env, size_t bytes) {
-  // See the REDESIGN section of go/understanding-register-native-allocation
-  // for an explanation of how RegisterNativeAllocation works.
-  size_t new_value = bytes + new_native_bytes_allocated_.FetchAndAddRelaxed(bytes);
-  if (new_value > NativeAllocationBlockingGcWatermark()) {
-    // Wait for a new GC to finish and finalizers to run, because the
-    // allocation rate is too high.
-    Thread* self = ThreadForEnv(env);
+  size_t old_value = new_native_bytes_allocated_.FetchAndAddRelaxed(bytes);
 
-    bool run_gc = false;
-    {
-      MutexLock mu(self, *native_blocking_gc_lock_);
-      uint32_t initial_gcs_finished = native_blocking_gcs_finished_;
-      if (native_blocking_gc_in_progress_) {
-        // A native blocking GC is in progress from the last time the native
-        // allocation blocking GC watermark was exceeded. Wait for that GC to
-        // finish before addressing the fact that we exceeded the blocking
-        // watermark again.
-        do {
-          ScopedTrace trace("RegisterNativeAllocation: Wait For Prior Blocking GC Completion");
-          native_blocking_gc_cond_->Wait(self);
-        } while (native_blocking_gcs_finished_ == initial_gcs_finished);
-        initial_gcs_finished++;
-      }
-
-      // It's possible multiple threads have seen that we exceeded the
-      // blocking watermark. Ensure that only one of those threads is assigned
-      // to run the blocking GC. The rest of the threads should instead wait
-      // for the blocking GC to complete.
-      if (native_blocking_gcs_finished_ == initial_gcs_finished) {
-        if (native_blocking_gc_is_assigned_) {
-          do {
-            ScopedTrace trace("RegisterNativeAllocation: Wait For Blocking GC Completion");
-            native_blocking_gc_cond_->Wait(self);
-          } while (native_blocking_gcs_finished_ == initial_gcs_finished);
-        } else {
-          native_blocking_gc_is_assigned_ = true;
-          run_gc = true;
-        }
-      }
-    }
-
-    if (run_gc) {
-      CollectGarbageInternal(NonStickyGcType(), kGcCauseForNativeAllocBlocking, false);
-      RunFinalization(env, kNativeAllocationFinalizeTimeout);
-      CHECK(!env->ExceptionCheck());
-
-      MutexLock mu(self, *native_blocking_gc_lock_);
-      native_blocking_gc_is_assigned_ = false;
-      native_blocking_gc_in_progress_ = false;
-      native_blocking_gcs_finished_++;
-      native_blocking_gc_cond_->Broadcast(self);
-    }
-  } else if (new_value > NativeAllocationGcWatermark() * HeapGrowthMultiplier() &&
+  if (old_value > NativeAllocationGcWatermark() * HeapGrowthMultiplier() &&
              !IsGCRequestPending()) {
     // Trigger another GC because there have been enough native bytes
     // allocated since the last GC.
@@ -3850,15 +3807,19 @@ void Heap::AddModUnionTable(accounting::ModUnionTable* mod_union_table) {
 }
 
 void Heap::CheckPreconditionsForAllocObject(ObjPtr<mirror::Class> c, size_t byte_count) {
+  // Compare rounded sizes since the allocation may have been retried after rounding the size.
+  // See b/37885600
   CHECK(c == nullptr || (c->IsClassClass() && byte_count >= sizeof(mirror::Class)) ||
-        (c->IsVariableSize() || c->GetObjectSize() == byte_count))
+        (c->IsVariableSize() ||
+            RoundUp(c->GetObjectSize(), kObjectAlignment) ==
+                RoundUp(byte_count, kObjectAlignment)))
       << "ClassFlags=" << c->GetClassFlags()
       << " IsClassClass=" << c->IsClassClass()
       << " byte_count=" << byte_count
       << " IsVariableSize=" << c->IsVariableSize()
       << " ObjectSize=" << c->GetObjectSize()
       << " sizeof(Class)=" << sizeof(mirror::Class)
-      << verification_->DumpObjectInfo(c.Ptr(), /*tag*/ "klass");
+      << " " << verification_->DumpObjectInfo(c.Ptr(), /*tag*/ "klass");
   CHECK_GE(byte_count, sizeof(mirror::Object));
 }
 
@@ -4137,6 +4098,38 @@ mirror::Object* Heap::AllocWithNewTLAB(Thread* self,
 
 const Verification* Heap::GetVerification() const {
   return verification_.get();
+}
+
+class Heap::TriggerPostForkCCGcTask : public HeapTask {
+ public:
+  explicit TriggerPostForkCCGcTask(uint64_t target_time) : HeapTask(target_time) {}
+  void Run(Thread* self) OVERRIDE {
+    gc::Heap* heap = Runtime::Current()->GetHeap();
+    // Trigger a GC, if not already done. The first GC after fork, whenever
+    // takes place, will adjust the thresholds to normal levels.
+    if (heap->max_allowed_footprint_ == heap->growth_limit_) {
+      heap->RequestConcurrentGC(self, kGcCauseBackground, false);
+    }
+  }
+};
+
+void Heap::PostForkChildAction(Thread* self) {
+  // Temporarily increase max_allowed_footprint_ and concurrent_start_bytes_ to
+  // max values to avoid GC during app launch.
+  if (collector_type_ == kCollectorTypeCC && !IsLowMemoryMode()) {
+    // Set max_allowed_footprint_ to the largest allowed value.
+    SetIdealFootprint(growth_limit_);
+    // Set concurrent_start_bytes_ to half of the heap size.
+    concurrent_start_bytes_ = std::max(max_allowed_footprint_ / 2, GetBytesAllocated());
+
+    GetTaskProcessor()->AddTask(
+        self, new TriggerPostForkCCGcTask(NanoTime() + MsToNs(kPostForkMaxHeapDurationMS)));
+  }
+}
+
+void Heap::VlogHeapGrowth(size_t max_allowed_footprint, size_t new_footprint, size_t alloc_size) {
+  VLOG(heap) << "Growing heap from " << PrettySize(max_allowed_footprint) << " to "
+             << PrettySize(new_footprint) << " for a " << PrettySize(alloc_size) << " allocation";
 }
 
 }  // namespace gc

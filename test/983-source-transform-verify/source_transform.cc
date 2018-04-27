@@ -15,23 +15,24 @@
  */
 
 #include <inttypes.h>
-#include <stdio.h>
-#include <string.h>
 
+#include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <vector>
 
 #include "android-base/stringprintf.h"
+#include "jni.h"
+#include "jvmti.h"
 
 #include "base/logging.h"
 #include "base/macros.h"
 #include "bytecode_utils.h"
 #include "dex_file.h"
+#include "dex_file_loader.h"
 #include "dex_instruction.h"
 #include "jit/jit.h"
-#include "jni.h"
 #include "native_stack_dump.h"
-#include "jvmti.h"
 #include "runtime.h"
 #include "scoped_thread_state_change-inl.h"
 #include "thread-current-inl.h"
@@ -66,14 +67,14 @@ void JNICALL CheckDexFileHook(jvmtiEnv* jvmti_env ATTRIBUTE_UNUSED,
     return;
   }
   std::string error;
-  std::unique_ptr<const DexFile> dex(DexFile::Open(class_data,
-                                                   class_data_len,
-                                                   "fake_location.dex",
-                                                   /*location_checksum*/ 0,
-                                                   /*oat_dex_file*/ nullptr,
-                                                   /*verify*/ true,
-                                                   /*verify_checksum*/ true,
-                                                   &error));
+  std::unique_ptr<const DexFile> dex(DexFileLoader::Open(class_data,
+                                                         class_data_len,
+                                                         "fake_location.dex",
+                                                         /*location_checksum*/ 0,
+                                                         /*oat_dex_file*/ nullptr,
+                                                         /*verify*/ true,
+                                                         /*verify_checksum*/ true,
+                                                         &error));
   if (dex.get() == nullptr) {
     std::cout << "Failed to verify dex file for " << name << " because " << error << std::endl;
     return;
@@ -88,13 +89,13 @@ void JNICALL CheckDexFileHook(jvmtiEnv* jvmti_env ATTRIBUTE_UNUSED,
       if (!it.IsAtMethod() || it.GetMethodCodeItem() == nullptr) {
         continue;
       }
-      for (CodeItemIterator code_it(*it.GetMethodCodeItem()); !code_it.Done(); code_it.Advance()) {
-        const Instruction& inst = code_it.CurrentInstruction();
+      for (const DexInstructionPcPair& pair : it.GetMethodCodeItem()->Instructions()) {
+        const Instruction& inst = pair.Inst();
         int forbiden_flags = (Instruction::kVerifyError | Instruction::kVerifyRuntimeOnly);
         if (inst.Opcode() == Instruction::RETURN_VOID_NO_BARRIER ||
             (inst.GetVerifyExtraFlags() & forbiden_flags) != 0) {
           std::cout << "Unexpected instruction found in " << dex->PrettyMethod(it.GetMemberIndex())
-                    << " [Dex PC: 0x" << std::hex << code_it.CurrentDexPc() << std::dec << "] : "
+                    << " [Dex PC: 0x" << std::hex << pair.DexPc() << std::dec << "] : "
                     << inst.DumpString(dex.get()) << std::endl;
           continue;
         }
@@ -111,7 +112,7 @@ jint OnLoad(JavaVM* vm,
     printf("Unable to get jvmti env!\n");
     return 1;
   }
-  SetAllCapabilities(jvmti_env);
+  SetStandardCapabilities(jvmti_env);
   jvmtiEventCallbacks cb;
   memset(&cb, 0, sizeof(cb));
   cb.ClassFileLoadHook = CheckDexFileHook;

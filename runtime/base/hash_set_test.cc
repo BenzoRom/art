@@ -16,8 +16,8 @@
 
 #include "hash_set.h"
 
-#include <map>
 #include <forward_list>
+#include <map>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -294,7 +294,7 @@ size_t HashIntSequence(T begin, T end) {
     hash = hash * 2 + *iter;
   }
   return hash;
-};
+}
 
 struct VectorIntHashEquals {
   std::size_t operator()(const std::vector<int>& item) const {

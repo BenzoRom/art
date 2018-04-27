@@ -16,17 +16,18 @@
 
 #include "common_runtime_test.h"
 
-#include <cstdio>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <fcntl.h>
-#include "nativehelper/ScopedLocalRef.h"
 #include <stdlib.h>
+#include <cstdio>
+#include "nativehelper/ScopedLocalRef.h"
 
-#include "../../external/icu/icu4c/source/common/unicode/uvernum.h"
 #include "android-base/stringprintf.h"
+#include <unicode/uvernum.h>
 
 #include "art_field-inl.h"
+#include "base/file_utils.h"
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/stl_util.h"
@@ -34,6 +35,7 @@
 #include "class_linker.h"
 #include "compiler_callbacks.h"
 #include "dex_file-inl.h"
+#include "dex_file_loader.h"
 #include "gc/heap.h"
 #include "gc_root-inl.h"
 #include "gtest/gtest.h"
@@ -76,11 +78,11 @@ static const uint8_t kBase64Map[256] = {
   255, 255, 255, 255, 255, 255, 255,  62, 255, 255, 255,  63,
   52,  53,  54,  55,  56,  57,  58,  59,  60,  61, 255, 255,
   255, 254, 255, 255, 255,   0,   1,   2,   3,   4,   5,   6,
-    7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,  // NOLINT
-   19,  20,  21,  22,  23,  24,  25, 255, 255, 255, 255, 255,  // NOLINT
+    7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18,
+   19,  20,  21,  22,  23,  24,  25, 255, 255, 255, 255, 255,
   255,  26,  27,  28,  29,  30,  31,  32,  33,  34,  35,  36,
-   37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,  // NOLINT
-   49,  50,  51, 255, 255, 255, 255, 255, 255, 255, 255, 255,  // NOLINT
+   37,  38,  39,  40,  41,  42,  43,  44,  45,  46,  47,  48,
+   49,  50,  51, 255, 255, 255, 255, 255, 255, 255, 255, 255,
   255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
   255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
   255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -332,26 +334,26 @@ std::string CommonRuntimeTestImpl::GetAndroidHostToolsDir() {
 
 std::string CommonRuntimeTestImpl::GetAndroidTargetToolsDir(InstructionSet isa) {
   switch (isa) {
-    case kArm:
-    case kThumb2:
+    case InstructionSet::kArm:
+    case InstructionSet::kThumb2:
       return GetAndroidToolsDir("prebuilts/gcc/linux-x86/arm",
                                 "arm-linux-androideabi",
                                 "arm-linux-androideabi");
-    case kArm64:
+    case InstructionSet::kArm64:
       return GetAndroidToolsDir("prebuilts/gcc/linux-x86/aarch64",
                                 "aarch64-linux-android",
                                 "aarch64-linux-android");
-    case kX86:
-    case kX86_64:
+    case InstructionSet::kX86:
+    case InstructionSet::kX86_64:
       return GetAndroidToolsDir("prebuilts/gcc/linux-x86/x86",
                                 "x86_64-linux-android",
                                 "x86_64-linux-android");
-    case kMips:
-    case kMips64:
+    case InstructionSet::kMips:
+    case InstructionSet::kMips64:
       return GetAndroidToolsDir("prebuilts/gcc/linux-x86/mips",
                                 "mips64el-linux-android",
                                 "mips64el-linux-android");
-    case kNone:
+    case InstructionSet::kNone:
       break;
   }
   ADD_FAILURE() << "Invalid isa " << isa;
@@ -372,7 +374,8 @@ std::unique_ptr<const DexFile> CommonRuntimeTestImpl::LoadExpectSingleDexFile(
   std::string error_msg;
   MemMap::Init();
   static constexpr bool kVerifyChecksum = true;
-  if (!DexFile::Open(location, location, kVerifyChecksum, &error_msg, &dex_files)) {
+  if (!DexFileLoader::Open(
+        location, location, /* verify */ true, kVerifyChecksum, &error_msg, &dex_files)) {
     LOG(FATAL) << "Could not open .dex file '" << location << "': " << error_msg << "\n";
     UNREACHABLE();
   } else {
@@ -571,8 +574,11 @@ std::vector<std::unique_ptr<const DexFile>> CommonRuntimeTestImpl::OpenTestDexFi
   static constexpr bool kVerifyChecksum = true;
   std::string error_msg;
   std::vector<std::unique_ptr<const DexFile>> dex_files;
-  bool success = DexFile::Open(
-      filename.c_str(), filename.c_str(), kVerifyChecksum, &error_msg, &dex_files);
+  bool success = DexFileLoader::Open(filename.c_str(),
+                                     filename.c_str(),
+                                     /* verify */ true,
+                                     kVerifyChecksum,
+                                     &error_msg, &dex_files);
   CHECK(success) << "Failed to open '" << filename << "': " << error_msg;
   for (auto& dex_file : dex_files) {
     CHECK_EQ(PROT_READ, dex_file->GetPermissions());
@@ -783,6 +789,60 @@ std::string CommonRuntimeTestImpl::CreateClassPathWithChecksums(
         std::to_string(dex_files[i]->GetLocationChecksum());
   }
   return classpath;
+}
+
+void CommonRuntimeTestImpl::FillHeap(Thread* self,
+                                     ClassLinker* class_linker,
+                                     VariableSizedHandleScope* handle_scope) {
+  DCHECK(handle_scope != nullptr);
+
+  Runtime::Current()->GetHeap()->SetIdealFootprint(1 * GB);
+
+  // Class java.lang.Object.
+  Handle<mirror::Class> c(handle_scope->NewHandle(
+      class_linker->FindSystemClass(self, "Ljava/lang/Object;")));
+  // Array helps to fill memory faster.
+  Handle<mirror::Class> ca(handle_scope->NewHandle(
+      class_linker->FindSystemClass(self, "[Ljava/lang/Object;")));
+
+  // Start allocating with ~128K
+  size_t length = 128 * KB;
+  while (length > 40) {
+    const int32_t array_length = length / 4;  // Object[] has elements of size 4.
+    MutableHandle<mirror::Object> h(handle_scope->NewHandle<mirror::Object>(
+        mirror::ObjectArray<mirror::Object>::Alloc(self, ca.Get(), array_length)));
+    if (self->IsExceptionPending() || h == nullptr) {
+      self->ClearException();
+
+      // Try a smaller length
+      length = length / 2;
+      // Use at most a quarter the reported free space.
+      size_t mem = Runtime::Current()->GetHeap()->GetFreeMemory();
+      if (length * 4 > mem) {
+        length = mem / 4;
+      }
+    }
+  }
+
+  // Allocate simple objects till it fails.
+  while (!self->IsExceptionPending()) {
+    handle_scope->NewHandle<mirror::Object>(c->AllocObject(self));
+  }
+  self->ClearException();
+}
+
+void CommonRuntimeTestImpl::SetUpRuntimeOptionsForFillHeap(RuntimeOptions *options) {
+  // Use a smaller heap
+  bool found = false;
+  for (std::pair<std::string, const void*>& pair : *options) {
+    if (pair.first.find("-Xmx") == 0) {
+      pair.first = "-Xmx4M";  // Smallest we can go.
+      found = true;
+    }
+  }
+  if (!found) {
+    options->emplace_back("-Xmx4M", nullptr);
+  }
 }
 
 CheckJniAbortCatcher::CheckJniAbortCatcher() : vm_(Runtime::Current()->GetJavaVM()) {

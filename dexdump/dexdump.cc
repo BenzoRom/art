@@ -44,10 +44,11 @@
 
 #include "android-base/stringprintf.h"
 
-#include "dexdump_cfg.h"
 #include "dex_file-inl.h"
+#include "dex_file_loader.h"
 #include "dex_file_types.h"
 #include "dex_instruction-inl.h"
+#include "dexdump_cfg.h"
 
 namespace art {
 
@@ -906,13 +907,26 @@ static std::unique_ptr<char[]> indexString(const DexFile* pDexFile,
       // Call site information is too large to detail in disassembly so just output the index.
       outSize = snprintf(buf.get(), bufSize, "call_site@%0*x", width, index);
       break;
-    // SOME NOT SUPPORTED:
-    // case Instruction::kIndexVaries:
-    // case Instruction::kIndexInlineMethod:
-    default:
-      outSize = snprintf(buf.get(), bufSize, "<?>");
+    case Instruction::kIndexMethodHandleRef:
+      // Method handle information is too large to detail in disassembly so just output the index.
+      outSize = snprintf(buf.get(), bufSize, "method_handle@%0*x", width, index);
+      break;
+    case Instruction::kIndexProtoRef:
+      if (index < pDexFile->GetHeader().proto_ids_size_) {
+        const DexFile::ProtoId& protoId = pDexFile->GetProtoId(index);
+        const Signature signature = pDexFile->GetProtoSignature(protoId);
+        const std::string& proto = signature.ToString();
+        outSize = snprintf(buf.get(), bufSize, "%s // proto@%0*x", proto.c_str(), width, index);
+      } else {
+        outSize = snprintf(buf.get(), bufSize, "<?> // proto@%0*x", width, index);
+      }
       break;
   }  // switch
+
+  if (outSize == 0) {
+    // The index type has not been handled in the switch above.
+    outSize = snprintf(buf.get(), bufSize, "<?>");
+  }
 
   // Determine success of string construction.
   if (outSize >= bufSize) {
@@ -1188,9 +1202,11 @@ static void dumpCode(const DexFile* pDexFile, u4 idx, u4 flags,
   // Positions and locals table in the debug info.
   bool is_static = (flags & kAccStatic) != 0;
   fprintf(gOutFile, "      positions     : \n");
-  pDexFile->DecodeDebugPositionInfo(pCode, dumpPositionsCb, nullptr);
+  uint32_t debug_info_offset = pDexFile->GetDebugInfoOffset(pCode);
+  pDexFile->DecodeDebugPositionInfo(pCode, debug_info_offset, dumpPositionsCb, nullptr);
   fprintf(gOutFile, "      locals        : \n");
-  pDexFile->DecodeDebugLocalInfo(pCode, is_static, idx, dumpLocalsCb, nullptr);
+  pDexFile->DecodeDebugLocalInfo(
+      pCode, debug_info_offset, is_static, idx, dumpLocalsCb, nullptr);
 }
 
 /*
@@ -1377,16 +1393,10 @@ static void dumpCfg(const DexFile* dex_file, int idx) {
   }
   ClassDataItemIterator it(*dex_file, class_data);
   it.SkipAllFields();
-  while (it.HasNextDirectMethod()) {
+  while (it.HasNextMethod()) {
     dumpCfg(dex_file,
             it.GetMemberIndex(),
             it.GetMethodCodeItem());
-    it.Next();
-  }
-  while (it.HasNextVirtualMethod()) {
-    dumpCfg(dex_file,
-                it.GetMemberIndex(),
-                it.GetMethodCodeItem());
     it.Next();
   }
 }
@@ -1812,7 +1822,7 @@ static void processDexFile(const char* fileName,
     fputs("Opened '", gOutFile);
     fputs(fileName, gOutFile);
     if (n > 1) {
-      fprintf(gOutFile, ":%s", DexFile::GetMultiDexClassesDexName(i).c_str());
+      fprintf(gOutFile, ":%s", DexFileLoader::GetMultiDexClassesDexName(i).c_str());
     }
     fprintf(gOutFile, "', DEX version '%.3s'\n", pDexFile->GetHeader().magic_ + 4);
   }
@@ -1869,7 +1879,8 @@ int processFile(const char* fileName) {
   const bool kVerifyChecksum = !gOptions.ignoreBadChecksum;
   std::string error_msg;
   std::vector<std::unique_ptr<const DexFile>> dex_files;
-  if (!DexFile::Open(fileName, fileName, kVerifyChecksum, &error_msg, &dex_files)) {
+  if (!DexFileLoader::Open(
+        fileName, fileName, /* verify */ true, kVerifyChecksum, &error_msg, &dex_files)) {
     // Display returned error message to user. Note that this error behavior
     // differs from the error messages shown by the original Dalvik dexdump.
     fputs(error_msg.c_str(), stderr);

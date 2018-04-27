@@ -21,7 +21,7 @@
 #include "arch/instruction_set_features.h"
 #include "base/array_ref.h"
 #include "base/macros.h"
-#include "compiled_method.h"
+#include "compiled_method-inl.h"
 #include "dex/verification_results.h"
 #include "driver/compiler_driver.h"
 #include "driver/compiler_options.h"
@@ -52,16 +52,16 @@ class RelativePatcherTest : public testing::Test {
                 /* compiled_classes */ nullptr,
                 /* compiled_methods */ nullptr,
                 /* thread_count */ 1u,
-                /* dump_stats */ false,
-                /* dump_passes */ false,
-                /* timer */ nullptr,
                 /* swap_fd */ -1,
                 /* profile_compilation_info */ nullptr),
         error_msg_(),
         instruction_set_(instruction_set),
         features_(InstructionSetFeatures::FromVariant(instruction_set, variant, &error_msg_)),
         method_offset_map_(),
-        patcher_(RelativePatcher::Create(instruction_set, features_.get(), &method_offset_map_)),
+        patcher_(RelativePatcher::Create(instruction_set,
+                                         features_.get(),
+                                         &thunk_provider_,
+                                         &method_offset_map_)),
         bss_begin_(0u),
         compiled_method_refs_(),
         compiled_methods_(),
@@ -194,8 +194,7 @@ class RelativePatcherTest : public testing::Test {
     // Sanity check: original code size must match linked_code.size().
     size_t idx = 0u;
     for (auto ref : compiled_method_refs_) {
-      if (ref.dex_file == method_ref.dex_file &&
-          ref.dex_method_index == method_ref.dex_method_index) {
+      if (ref == method_ref) {
         break;
       }
       ++idx;
@@ -252,9 +251,75 @@ class RelativePatcherTest : public testing::Test {
     LOG(ERROR) << " " << diff_indicator_str;
   }
 
+  class ThunkProvider : public RelativePatcherThunkProvider {
+   public:
+    ThunkProvider() {}
+
+    void SetThunkCode(const LinkerPatch& patch,
+                      ArrayRef<const uint8_t> code,
+                      const std::string& debug_name) {
+      thunk_map_.emplace(ThunkKey(patch), ThunkValue(code, debug_name));
+    }
+
+    void GetThunkCode(const LinkerPatch& patch,
+                      /*out*/ ArrayRef<const uint8_t>* code,
+                      /*out*/ std::string* debug_name) OVERRIDE {
+      auto it = thunk_map_.find(ThunkKey(patch));
+      CHECK(it != thunk_map_.end());
+      const ThunkValue& value = it->second;
+      CHECK(code != nullptr);
+      *code = value.GetCode();
+      CHECK(debug_name != nullptr);
+      *debug_name = value.GetDebugName();
+    }
+
+   private:
+    class ThunkKey {
+     public:
+      explicit ThunkKey(const LinkerPatch& patch)
+          : type_(patch.GetType()),
+            custom_value1_(patch.GetType() == LinkerPatch::Type::kBakerReadBarrierBranch
+                               ? patch.GetBakerCustomValue1() : 0u),
+            custom_value2_(patch.GetType() == LinkerPatch::Type::kBakerReadBarrierBranch
+                               ? patch.GetBakerCustomValue2() : 0u) {
+        CHECK(patch.GetType() == LinkerPatch::Type::kBakerReadBarrierBranch ||
+              patch.GetType() == LinkerPatch::Type::kCallRelative);
+      }
+
+      bool operator<(const ThunkKey& other) const {
+        if (custom_value1_ != other.custom_value1_) {
+          return custom_value1_ < other.custom_value1_;
+        }
+        if (custom_value2_ != other.custom_value2_) {
+          return custom_value2_ < other.custom_value2_;
+        }
+        return type_ < other.type_;
+      }
+
+     private:
+      const LinkerPatch::Type type_;
+      const uint32_t custom_value1_;
+      const uint32_t custom_value2_;
+    };
+
+    class ThunkValue {
+     public:
+      ThunkValue(ArrayRef<const uint8_t> code, const std::string& debug_name)
+          : code_(code.begin(), code.end()), debug_name_(debug_name) {}
+      ArrayRef<const uint8_t> GetCode() const { return ArrayRef<const uint8_t>(code_); }
+      const std::string& GetDebugName() const { return debug_name_; }
+
+     private:
+      const std::vector<uint8_t> code_;
+      const std::string debug_name_;
+    };
+
+    std::map<ThunkKey, ThunkValue> thunk_map_;
+  };
+
   // Map method reference to assinged offset.
-  // Wrap the map in a class implementing linker::RelativePatcherTargetProvider.
-  class MethodOffsetMap FINAL : public linker::RelativePatcherTargetProvider {
+  // Wrap the map in a class implementing RelativePatcherTargetProvider.
+  class MethodOffsetMap FINAL : public RelativePatcherTargetProvider {
    public:
     std::pair<bool, uint32_t> FindMethodOffset(MethodReference ref) OVERRIDE {
       auto it = map.find(ref);
@@ -264,7 +329,7 @@ class RelativePatcherTest : public testing::Test {
         return std::pair<bool, uint32_t>(true, it->second);
       }
     }
-    SafeMap<MethodReference, uint32_t, MethodReferenceComparator> map;
+    SafeMap<MethodReference, uint32_t> map;
   };
 
   static const uint32_t kTrampolineSize = 4u;
@@ -276,6 +341,7 @@ class RelativePatcherTest : public testing::Test {
   std::string error_msg_;
   InstructionSet instruction_set_;
   std::unique_ptr<const InstructionSetFeatures> features_;
+  ThunkProvider thunk_provider_;
   MethodOffsetMap method_offset_map_;
   std::unique_ptr<RelativePatcher> patcher_;
   uint32_t bss_begin_;

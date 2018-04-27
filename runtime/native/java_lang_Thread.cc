@@ -37,7 +37,7 @@ static jobject Thread_currentThread(JNIEnv* env, jclass) {
 }
 
 static jboolean Thread_interrupted(JNIEnv* env, jclass) {
-  return static_cast<JNIEnvExt*>(env)->self->Interrupted() ? JNI_TRUE : JNI_FALSE;
+  return static_cast<JNIEnvExt*>(env)->GetSelf()->Interrupted() ? JNI_TRUE : JNI_FALSE;
 }
 
 static jboolean Thread_isInterrupted(JNIEnv* env, jobject java_thread) {
@@ -86,6 +86,8 @@ static jint Thread_nativeGetStatus(JNIEnv* env, jobject java_thread, jboolean ha
     case kWaiting:                        return kJavaWaiting;
     case kStarting:                       return kJavaNew;
     case kNative:                         return kJavaRunnable;
+    case kWaitingForTaskProcessor:        return kJavaWaiting;
+    case kWaitingForLockInflation:        return kJavaWaiting;
     case kWaitingForGcToComplete:         return kJavaWaiting;
     case kWaitingPerformingGc:            return kJavaWaiting;
     case kWaitingForCheckPointsToRun:     return kJavaWaiting;

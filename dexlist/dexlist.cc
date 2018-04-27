@@ -23,10 +23,11 @@
  * List all methods in all concrete classes in one or more DEX files.
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "dex_file-inl.h"
+#include "dex_file_loader.h"
 #include "mem_map.h"
 #include "runtime.h"
 
@@ -119,7 +120,8 @@ static void dumpMethod(const DexFile* pDexFile,
 
   // Find the first line.
   int firstLine = -1;
-  pDexFile->DecodeDebugPositionInfo(pCode, positionsCb, &firstLine);
+  uint32_t debug_info_offset = pDexFile->GetDebugInfoOffset(pCode);
+  pDexFile->DecodeDebugPositionInfo(pCode, debug_info_offset, positionsCb, &firstLine);
 
   // Method signature.
   const Signature signature = pDexFile->GetMethodSignature(pMethodId);
@@ -150,16 +152,8 @@ void dumpClass(const DexFile* pDexFile, u4 idx) {
   if (pEncodedData != nullptr) {
     ClassDataItemIterator pClassData(*pDexFile, pEncodedData);
     pClassData.SkipAllFields();
-    // Direct methods.
-    for (; pClassData.HasNextDirectMethod(); pClassData.Next()) {
-      dumpMethod(pDexFile, fileName,
-                 pClassData.GetMemberIndex(),
-                 pClassData.GetRawMemberAccessFlags(),
-                 pClassData.GetMethodCodeItem(),
-                 pClassData.GetMethodCodeItemOffset());
-    }
-    // Virtual methods.
-    for (; pClassData.HasNextVirtualMethod(); pClassData.Next()) {
+    // Direct and virtual methods.
+    for (; pClassData.HasNextMethod(); pClassData.Next()) {
       dumpMethod(pDexFile, fileName,
                  pClassData.GetMemberIndex(),
                  pClassData.GetRawMemberAccessFlags(),
@@ -178,7 +172,8 @@ static int processFile(const char* fileName) {
   static constexpr bool kVerifyChecksum = true;
   std::string error_msg;
   std::vector<std::unique_ptr<const DexFile>> dex_files;
-  if (!DexFile::Open(fileName, fileName, kVerifyChecksum, &error_msg, &dex_files)) {
+  if (!DexFileLoader::Open(
+        fileName, fileName, /* verify */ true, kVerifyChecksum, &error_msg, &dex_files)) {
     fputs(error_msg.c_str(), stderr);
     fputc('\n', stderr);
     return -1;

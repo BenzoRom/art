@@ -26,6 +26,7 @@
 #include "base/macros.h"
 #include "constants_x86.h"
 #include "globals.h"
+#include "heap_poisoning.h"
 #include "managed_register_x86.h"
 #include "offsets.h"
 #include "utils/assembler.h"
@@ -235,6 +236,7 @@ class Address : public Operand {
   }
 };
 
+std::ostream& operator<<(std::ostream& os, const Address& addr);
 
 // This is equivalent to the Label class, used in a slightly different context. We
 // inherit the functionality of the Label class, but prevent unintended
@@ -264,7 +266,8 @@ class NearLabel : private Label {
  */
 class ConstantArea {
  public:
-  explicit ConstantArea(ArenaAllocator* arena) : buffer_(arena->Adapter(kArenaAllocAssembler)) {}
+  explicit ConstantArea(ArenaAllocator* allocator)
+      : buffer_(allocator->Adapter(kArenaAllocAssembler)) {}
 
   // Add a double to the constant area, returning the offset into
   // the constant area where the literal resides.
@@ -305,7 +308,8 @@ class ConstantArea {
 
 class X86Assembler FINAL : public Assembler {
  public:
-  explicit X86Assembler(ArenaAllocator* arena) : Assembler(arena), constant_area_(arena) {}
+  explicit X86Assembler(ArenaAllocator* allocator)
+      : Assembler(allocator), constant_area_(allocator) {}
   virtual ~X86Assembler() {}
 
   /*
@@ -497,6 +501,16 @@ class X86Assembler FINAL : public Assembler {
 
   void pavgb(XmmRegister dst, XmmRegister src);  // no addr variant (for now)
   void pavgw(XmmRegister dst, XmmRegister src);
+  void psadbw(XmmRegister dst, XmmRegister src);
+  void pmaddwd(XmmRegister dst, XmmRegister src);
+  void phaddw(XmmRegister dst, XmmRegister src);
+  void phaddd(XmmRegister dst, XmmRegister src);
+  void haddps(XmmRegister dst, XmmRegister src);
+  void haddpd(XmmRegister dst, XmmRegister src);
+  void phsubw(XmmRegister dst, XmmRegister src);
+  void phsubd(XmmRegister dst, XmmRegister src);
+  void hsubps(XmmRegister dst, XmmRegister src);
+  void hsubpd(XmmRegister dst, XmmRegister src);
 
   void pminsb(XmmRegister dst, XmmRegister src);  // no addr variant (for now)
   void pmaxsb(XmmRegister dst, XmmRegister src);
@@ -535,6 +549,11 @@ class X86Assembler FINAL : public Assembler {
   void punpcklwd(XmmRegister dst, XmmRegister src);
   void punpckldq(XmmRegister dst, XmmRegister src);
   void punpcklqdq(XmmRegister dst, XmmRegister src);
+
+  void punpckhbw(XmmRegister dst, XmmRegister src);
+  void punpckhwd(XmmRegister dst, XmmRegister src);
+  void punpckhdq(XmmRegister dst, XmmRegister src);
+  void punpckhqdq(XmmRegister dst, XmmRegister src);
 
   void psllw(XmmRegister reg, const Immediate& shift_count);
   void pslld(XmmRegister reg, const Immediate& shift_count);

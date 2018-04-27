@@ -44,10 +44,6 @@ func globalFlags(ctx android.BaseContext) ([]string, []string) {
 		cflags = append(cflags, "-DART_USE_TLAB=1")
 	}
 
-	if !envFalse(ctx, "ART_ENABLE_VDEX") {
-		cflags = append(cflags, "-DART_ENABLE_VDEX")
-	}
-
 	imtSize := envDefault(ctx, "ART_IMT_SIZE", "43")
 	cflags = append(cflags, "-DIMT_SIZE="+imtSize)
 
@@ -95,6 +91,11 @@ func globalFlags(ctx android.BaseContext) ([]string, []string) {
 		// Used to enable full sanitization, i.e., user poisoning, under ASAN.
 		cflags = append(cflags, "-DART_ENABLE_ADDRESS_SANITIZER=1")
 		asflags = append(asflags, "-DART_ENABLE_ADDRESS_SANITIZER=1")
+	}
+
+	if envTrue(ctx, "ART_MIPS32_CHECK_ALIGNMENT") {
+		// Enable the use of MIPS32 CHECK_ALIGNMENT macro for debugging purposes
+		asflags = append(asflags, "-DART_MIPS32_CHECK_ALIGNMENT")
 	}
 
 	return cflags, asflags
@@ -152,6 +153,11 @@ func hostFlags(ctx android.BaseContext) []string {
 	maxDelta := envDefault(ctx, "LIBART_IMG_HOST_MAX_BASE_ADDRESS_DELTA", "0x1000000")
 	cflags = append(cflags, "-DART_BASE_ADDRESS_MIN_DELTA="+minDelta)
 	cflags = append(cflags, "-DART_BASE_ADDRESS_MAX_DELTA="+maxDelta)
+
+	if len(ctx.AConfig().SanitizeHost()) > 0 && !envFalse(ctx, "ART_ENABLE_ADDRESS_SANITIZER") {
+		// We enable full sanitization on the host by default.
+		cflags = append(cflags, "-DART_ENABLE_ADDRESS_SANITIZER=1")
+	}
 
 	return cflags
 }
@@ -256,6 +262,7 @@ var artTestMutex sync.Mutex
 
 func init() {
 	android.RegisterModuleType("art_cc_library", artLibrary)
+	android.RegisterModuleType("art_cc_static_library", artStaticLibrary)
 	android.RegisterModuleType("art_cc_binary", artBinary)
 	android.RegisterModuleType("art_cc_test", artTest)
 	android.RegisterModuleType("art_cc_test_library", artTestLibrary)
@@ -287,8 +294,18 @@ func artDefaultsFactory() android.Module {
 }
 
 func artLibrary() android.Module {
-	library, _ := cc.NewLibrary(android.HostAndDeviceSupported)
-	module := library.Init()
+	m, _ := cc.NewLibrary(android.HostAndDeviceSupported)
+	module := m.Init()
+
+	installCodegenCustomizer(module, true)
+
+	return module
+}
+
+func artStaticLibrary() android.Module {
+	m, library := cc.NewLibrary(android.HostAndDeviceSupported)
+	library.BuildOnlyStatic()
+	module := m.Init()
 
 	installCodegenCustomizer(module, true)
 

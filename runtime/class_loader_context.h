@@ -200,6 +200,8 @@ class ClassLoaderContext {
   // Should only be called if OpenDexFiles() returned true.
   std::string EncodeContext(const std::string& base_dir, bool for_dex2oat) const;
 
+  std::unique_ptr<ClassLoaderContext> Slice(size_t start_info_index, size_t start_cp_elem_index);
+
   // Extracts the class loader type from the given spec.
   // Return ClassLoaderContext::kInvalidClassLoader if the class loader type is not
   // recognized.

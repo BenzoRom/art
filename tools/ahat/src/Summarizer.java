@@ -51,7 +51,9 @@ class Summarizer {
     }
 
     // Annotate unreachable objects as such.
-    if (!inst.isReachable()) {
+    if (inst.isWeaklyReachable()) {
+      formatted.append("weak ");
+    } else if (inst.isUnreachable()) {
       formatted.append("unreachable ");
     }
 
@@ -60,19 +62,12 @@ class Summarizer {
       formatted.append("root ");
     }
 
-    // Annotate classes as classes.
-    DocString linkText = new DocString();
-    if (inst.isClassObj()) {
-      linkText.append("class ");
-    }
-
-    linkText.append(inst.toString());
-
+    DocString linkText = DocString.text(inst.toString());
     if (inst.isPlaceHolder()) {
       // Don't make links to placeholder objects.
       formatted.append(linkText);
     } else {
-      URI objTarget = DocString.formattedUri("object?id=%d", inst.getId());
+      URI objTarget = DocString.formattedUri("object?id=0x%x", inst.getId());
       formatted.appendLink(objTarget, linkText);
     }
 
@@ -107,7 +102,7 @@ class Summarizer {
     AhatInstance bitmap = inst.getAssociatedBitmapInstance();
     String thumbnail = "";
     if (bitmap != null) {
-      URI uri = DocString.formattedUri("bitmap?id=%d", bitmap.getId());
+      URI uri = DocString.formattedUri("bitmap?id=0x%x", bitmap.getId());
       formatted.appendThumbnail(uri, "bitmap image");
     }
     return formatted;
@@ -137,7 +132,7 @@ class Summarizer {
     if (site.getLineNumber() > 0) {
       text.append(":").append(Integer.toString(site.getLineNumber()));
     }
-    URI uri = DocString.formattedUri("site?id=%d&depth=%d", site.getId(), site.getDepth());
+    URI uri = DocString.formattedUri("site?id=%d", site.getId());
     return DocString.link(uri, text);
   }
 }

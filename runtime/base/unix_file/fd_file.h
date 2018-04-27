@@ -21,8 +21,8 @@
 
 #include <string>
 
-#include "base/unix_file/random_access_file.h"
 #include "base/macros.h"
+#include "base/unix_file/random_access_file.h"
 
 namespace unix_file {
 
@@ -147,8 +147,8 @@ class FdFile : public RandomAccessFile {
   void MarkUnchecked();
 
   // Compare against another file. Returns 0 if the files are equivalent, otherwise returns -1 or 1
-  // depending on if the lenghts are different. If the lengths are the same, the function returns a
-  // value representing which is file is greater (if they are different).
+  // depending on if the lenghts are different. If the lengths are the same, the function returns
+  // the difference of the first byte that differs.
   int Compare(FdFile* other);
 
  protected:

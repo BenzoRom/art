@@ -32,6 +32,33 @@ std::ostream& operator<<(std::ostream& os, const X87Register& reg) {
   return os << "ST" << static_cast<int>(reg);
 }
 
+std::ostream& operator<<(std::ostream& os, const Address& addr) {
+  switch (addr.mod()) {
+    case 0:
+      if (addr.rm() != ESP || addr.index() == ESP) {
+        return os << "(%" << addr.rm() << ")";
+      } else if (addr.base() == EBP) {
+        return os << static_cast<int>(addr.disp32()) << "(,%" << addr.index()
+                  << "," << (1 << addr.scale()) << ")";
+      }
+      return os << "(%" << addr.base() << ",%" << addr.index() << "," << (1 << addr.scale()) << ")";
+    case 1:
+      if (addr.rm() != ESP || addr.index() == ESP) {
+        return os << static_cast<int>(addr.disp8()) << "(%" << addr.rm() << ")";
+      }
+      return os << static_cast<int>(addr.disp8()) << "(%" << addr.base() << ",%"
+                << addr.index() << "," << (1 << addr.scale()) << ")";
+    case 2:
+      if (addr.rm() != ESP || addr.index() == ESP) {
+        return os << static_cast<int>(addr.disp32()) << "(%" << addr.rm() << ")";
+      }
+      return os << static_cast<int>(addr.disp32()) << "(%" << addr.base() << ",%"
+                << addr.index() << "," << (1 << addr.scale()) << ")";
+    default:
+      return os << "<address?>";
+  }
+}
+
 void X86Assembler::call(Register reg) {
   AssemblerBuffer::EnsureCapacity ensured(&buffer_);
   EmitUint8(0xFF);
@@ -1238,6 +1265,101 @@ void X86Assembler::pavgw(XmmRegister dst, XmmRegister src) {
   EmitXmmRegisterOperand(dst, src);
 }
 
+
+void X86Assembler::psadbw(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0xF6);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::pmaddwd(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0xF5);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::phaddw(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0x38);
+  EmitUint8(0x01);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::phaddd(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0x38);
+  EmitUint8(0x02);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::haddps(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0xF2);
+  EmitUint8(0x0F);
+  EmitUint8(0x7C);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::haddpd(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0x7C);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::phsubw(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0x38);
+  EmitUint8(0x05);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::phsubd(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0x38);
+  EmitUint8(0x06);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::hsubps(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0xF2);
+  EmitUint8(0x0F);
+  EmitUint8(0x7D);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::hsubpd(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0x7D);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
 void X86Assembler::pminsb(XmmRegister dst, XmmRegister src) {
   AssemblerBuffer::EnsureCapacity ensured(&buffer_);
   EmitUint8(0x66);
@@ -1507,6 +1629,42 @@ void X86Assembler::punpcklqdq(XmmRegister dst, XmmRegister src) {
   EmitUint8(0x66);
   EmitUint8(0x0F);
   EmitUint8(0x6C);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::punpckhbw(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0x68);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::punpckhwd(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0x69);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::punpckhdq(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0x6A);
+  EmitXmmRegisterOperand(dst, src);
+}
+
+
+void X86Assembler::punpckhqdq(XmmRegister dst, XmmRegister src) {
+  AssemblerBuffer::EnsureCapacity ensured(&buffer_);
+  EmitUint8(0x66);
+  EmitUint8(0x0F);
+  EmitUint8(0x6D);
   EmitXmmRegisterOperand(dst, src);
 }
 

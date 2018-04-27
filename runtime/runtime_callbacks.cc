@@ -21,13 +21,10 @@
 #include "art_method.h"
 #include "base/macros.h"
 #include "class_linker.h"
+#include "monitor.h"
 #include "thread.h"
 
 namespace art {
-
-void RuntimeCallbacks::AddThreadLifecycleCallback(ThreadLifecycleCallback* cb) {
-  thread_callbacks_.push_back(cb);
-}
 
 template <typename T>
 ALWAYS_INLINE
@@ -36,6 +33,59 @@ static inline void Remove(T* cb, std::vector<T*>* data) {
   if (it != data->end()) {
     data->erase(it);
   }
+}
+
+void RuntimeCallbacks::AddMethodInspectionCallback(MethodInspectionCallback* cb) {
+  method_inspection_callbacks_.push_back(cb);
+}
+
+void RuntimeCallbacks::RemoveMethodInspectionCallback(MethodInspectionCallback* cb) {
+  Remove(cb, &method_inspection_callbacks_);
+}
+
+bool RuntimeCallbacks::IsMethodBeingInspected(ArtMethod* m) {
+  for (MethodInspectionCallback* cb : method_inspection_callbacks_) {
+    if (cb->IsMethodBeingInspected(m)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void RuntimeCallbacks::AddThreadLifecycleCallback(ThreadLifecycleCallback* cb) {
+  thread_callbacks_.push_back(cb);
+}
+
+void RuntimeCallbacks::MonitorContendedLocking(Monitor* m) {
+  for (MonitorCallback* cb : monitor_callbacks_) {
+    cb->MonitorContendedLocking(m);
+  }
+}
+
+void RuntimeCallbacks::MonitorContendedLocked(Monitor* m) {
+  for (MonitorCallback* cb : monitor_callbacks_) {
+    cb->MonitorContendedLocked(m);
+  }
+}
+
+void RuntimeCallbacks::ObjectWaitStart(Handle<mirror::Object> m, int64_t timeout) {
+  for (MonitorCallback* cb : monitor_callbacks_) {
+    cb->ObjectWaitStart(m, timeout);
+  }
+}
+
+void RuntimeCallbacks::MonitorWaitFinished(Monitor* m, bool timeout) {
+  for (MonitorCallback* cb : monitor_callbacks_) {
+    cb->MonitorWaitFinished(m, timeout);
+  }
+}
+
+void RuntimeCallbacks::AddMonitorCallback(MonitorCallback* cb) {
+  monitor_callbacks_.push_back(cb);
+}
+
+void RuntimeCallbacks::RemoveMonitorCallback(MonitorCallback* cb) {
+  Remove(cb, &monitor_callbacks_);
 }
 
 void RuntimeCallbacks::RemoveThreadLifecycleCallback(ThreadLifecycleCallback* cb) {

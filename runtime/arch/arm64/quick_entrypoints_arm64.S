@@ -287,7 +287,7 @@
      * when the SP has already been decremented by FRAME_SIZE_SAVE_EVERYTHING
      * and saving registers x29 and LR is handled elsewhere.
      */
-.macro SETUP_SAVE_EVERYTHING_FRAME_DECREMENTED_SP_SKIP_X29_LR
+.macro SETUP_SAVE_EVERYTHING_FRAME_DECREMENTED_SP_SKIP_X29_LR runtime_method_offset = RUNTIME_SAVE_EVERYTHING_METHOD_OFFSET
     // Ugly compile-time check, but we only have the preprocessor.
 #if (FRAME_SIZE_SAVE_EVERYTHING != 512)
 #error "FRAME_SIZE_SAVE_EVERYTHING(ARM64) size not as expected."
@@ -337,7 +337,7 @@
     ldr xIP0, [xIP0]  // art::Runtime* xIP0 = art::Runtime::instance_;
 
     // ArtMethod* xIP0 = Runtime::instance_->callee_save_methods_[kSaveEverything];
-    ldr xIP0, [xIP0, RUNTIME_SAVE_EVERYTHING_METHOD_OFFSET]
+    ldr xIP0, [xIP0, \runtime_method_offset]
 
     // Store ArtMethod* Runtime::callee_save_methods_[kSaveEverything].
     str xIP0, [sp]
@@ -350,10 +350,10 @@
      * Macro that sets up the callee save frame to conform with
      * Runtime::CreateCalleeSaveMethod(kSaveEverything)
      */
-.macro SETUP_SAVE_EVERYTHING_FRAME
+.macro SETUP_SAVE_EVERYTHING_FRAME runtime_method_offset = RUNTIME_SAVE_EVERYTHING_METHOD_OFFSET
     INCREASE_FRAME 512
     SAVE_TWO_REGS x29, xLR, 496
-    SETUP_SAVE_EVERYTHING_FRAME_DECREMENTED_SP_SKIP_X29_LR
+    SETUP_SAVE_EVERYTHING_FRAME_DECREMENTED_SP_SKIP_X29_LR \runtime_method_offset
 .endm
 
 .macro RESTORE_SAVE_EVERYTHING_FRAME_KEEP_X0
@@ -398,7 +398,7 @@
 .endm
 
 .macro RESTORE_SAVE_EVERYTHING_FRAME
-    RESTORE_REG       x0,      264
+    RESTORE_REG  x0, 264
     RESTORE_SAVE_EVERYTHING_FRAME_KEEP_X0
 .endm
 
@@ -1593,10 +1593,10 @@ END \name
 .endm
 
 // Macro for string and type resolution and initialization.
-.macro ONE_ARG_SAVE_EVERYTHING_DOWNCALL name, entrypoint
+.macro ONE_ARG_SAVE_EVERYTHING_DOWNCALL name, entrypoint, runtime_method_offset = RUNTIME_SAVE_EVERYTHING_METHOD_OFFSET
     .extern \entrypoint
 ENTRY \name
-    SETUP_SAVE_EVERYTHING_FRAME       // save everything for stack crawl
+    SETUP_SAVE_EVERYTHING_FRAME \runtime_method_offset       // save everything for stack crawl
     mov   x1, xSELF                   // pass Thread::Current
     bl    \entrypoint                 // (int32_t index, Thread* self)
     cbz   w0, 1f                      // If result is null, deliver the OOME.
@@ -1609,6 +1609,10 @@ ENTRY \name
 1:
     DELIVER_PENDING_EXCEPTION_FRAME_READY
 END \name
+.endm
+
+.macro ONE_ARG_SAVE_EVERYTHING_DOWNCALL_FOR_CLINIT name, entrypoint
+    ONE_ARG_SAVE_EVERYTHING_DOWNCALL \name, \entrypoint, RUNTIME_SAVE_EVERYTHING_FOR_CLINIT_METHOD_OFFSET
 .endm
 
 .macro RETURN_IF_RESULT_IS_NON_ZERO_OR_DELIVER
@@ -1629,9 +1633,8 @@ TWO_ARG_REF_DOWNCALL art_quick_handle_fill_data, artHandleFillArrayDataFromCode,
      * initializer and deliver the exception on error. On success the static storage base is
      * returned.
      */
-ONE_ARG_SAVE_EVERYTHING_DOWNCALL art_quick_initialize_static_storage, artInitializeStaticStorageFromCode
-
-ONE_ARG_SAVE_EVERYTHING_DOWNCALL art_quick_initialize_type, artInitializeTypeFromCode
+ONE_ARG_SAVE_EVERYTHING_DOWNCALL_FOR_CLINIT art_quick_initialize_static_storage, artInitializeStaticStorageFromCode
+ONE_ARG_SAVE_EVERYTHING_DOWNCALL_FOR_CLINIT art_quick_initialize_type, artInitializeTypeFromCode
 ONE_ARG_SAVE_EVERYTHING_DOWNCALL art_quick_initialize_type_and_verify_access, artInitializeTypeAndVerifyAccessFromCode
 ONE_ARG_SAVE_EVERYTHING_DOWNCALL art_quick_resolve_string, artResolveStringFromCode
 
@@ -2008,7 +2011,7 @@ GENERATE_ALLOC_ARRAY_TLAB art_quick_alloc_array_resolved64_tlab, artAllocArrayFr
      */
     .extern artTestSuspendFromCode
 ENTRY art_quick_test_suspend
-    SETUP_SAVE_EVERYTHING_FRAME               // save callee saves for stack crawl
+    SETUP_SAVE_EVERYTHING_FRAME RUNTIME_SAVE_EVERYTHING_FOR_SUSPEND_CHECK_METHOD_OFFSET  // save callee saves for stack crawl
     mov    x0, xSELF
     bl     artTestSuspendFromCode             // (Thread*)
     RESTORE_SAVE_EVERYTHING_FRAME
@@ -2057,8 +2060,18 @@ END art_quick_proxy_invoke_handler
     .extern artLookupResolvedMethod
 ENTRY art_quick_imt_conflict_trampoline
     ldr xIP0, [sp, #0]  // Load referrer
+    // Load the declaring class (without read barrier) and access flags (for obsolete method check).
+    // The obsolete flag is set with suspended threads, so we do not need an acquire operation here.
+#if ART_METHOD_ACCESS_FLAGS_OFFSET != ART_METHOD_DECLARING_CLASS_OFFSET + 4
+#error "Expecting declaring class and access flags to be consecutive for LDP."
+#endif
+    ldp wIP0, w15, [xIP0, #ART_METHOD_DECLARING_CLASS_OFFSET]
+    // If the method is obsolete, just go through the dex cache miss slow path.
+    tbnz x15, #ACC_OBSOLETE_METHOD_SHIFT, .Limt_conflict_trampoline_dex_cache_miss
+    ldr wIP0, [xIP0, #MIRROR_CLASS_DEX_CACHE_OFFSET]  // Load the DexCache (without read barrier).
+    UNPOISON_HEAP_REF wIP0
     ubfx x15, xIP1, #0, #METHOD_DEX_CACHE_HASH_BITS  // Calculate DexCache method slot index.
-    ldr xIP0, [xIP0, #ART_METHOD_DEX_CACHE_METHODS_OFFSET_64]   // Load dex cache methods array
+    ldr xIP0, [xIP0, #MIRROR_DEX_CACHE_RESOLVED_METHODS_OFFSET]  // Load the resolved methods.
     add xIP0, xIP0, x15, lsl #(POINTER_SIZE_SHIFT + 1)  // Load DexCache method slot address.
 
     // Relaxed atomic load x14:x15 from the dex cache slot.
@@ -2286,7 +2299,7 @@ ENTRY art_quick_generic_jni_trampoline
 .Lexception_in_native:
     // Move to x1 then sp to please assembler.
     ldr x1, [xSELF, # THREAD_TOP_QUICK_FRAME_OFFSET]
-    mov sp, x1
+    add sp, x1, #-1  // Remove the GenericJNI tag.
     .cfi_def_cfa_register sp
     # This will create a new save-all frame, required by the runtime.
     DELIVER_PENDING_EXCEPTION
@@ -2352,32 +2365,31 @@ END art_quick_instrumentation_entry
     .extern artInstrumentationMethodExitFromCode
 ENTRY art_quick_instrumentation_exit
     mov   xLR, #0             // Clobber LR for later checks.
+    SETUP_SAVE_EVERYTHING_FRAME
 
-    SETUP_SAVE_REFS_ONLY_FRAME
-
-    str x0, [sp, #-16]!       // Save integer result.
-    .cfi_adjust_cfa_offset 16
-    str d0, [sp, #8]          // Save floating-point result.
-
-    add   x3, sp, #8          // Pass floating-point result pointer.
-    mov   x2, sp              // Pass integer result pointer.
-    add   x1, sp, #16         // Pass SP.
+    add   x3, sp, #8          // Pass floating-point result pointer, in kSaveEverything frame.
+    add   x2, sp, #264        // Pass integer result pointer, in kSaveEverything frame.
+    mov   x1, sp              // Pass SP.
     mov   x0, xSELF           // Pass Thread.
     bl   artInstrumentationMethodExitFromCode    // (Thread*, SP, gpr_res*, fpr_res*)
 
-    mov   xIP0, x0            // Return address from instrumentation call.
-    mov   xLR, x1             // r1 is holding link register if we're to bounce to deoptimize
-
-    ldr   d0, [sp, #8]        // Restore floating-point result.
-    ldr   x0, [sp], #16       // Restore integer result, and drop stack area.
-    .cfi_adjust_cfa_offset -16
-
-    RESTORE_SAVE_REFS_ONLY_FRAME
+    cbz   x0, .Ldo_deliver_instrumentation_exception
+                              // Handle error
+    cbnz  x1, .Ldeoptimize
+    // Normal return.
+    str   x0, [sp, #FRAME_SIZE_SAVE_EVERYTHING - 8]
+                              // Set return pc.
+    RESTORE_SAVE_EVERYTHING_FRAME
     REFRESH_MARKING_REGISTER
-    cbz   xIP0, 1f            // Handle error
-    br    xIP0                // Tail-call out.
-1:
-    DELIVER_PENDING_EXCEPTION
+    br    lr
+.Ldo_deliver_instrumentation_exception:
+    DELIVER_PENDING_EXCEPTION_FRAME_READY
+.Ldeoptimize:
+    str   x1, [sp, #FRAME_SIZE_SAVE_EVERYTHING - 8]
+                              // Set return pc.
+    RESTORE_SAVE_EVERYTHING_FRAME
+    // Jump to art_quick_deoptimize.
+    b     art_quick_deoptimize
 END art_quick_instrumentation_exit
 
     /*
@@ -2386,7 +2398,7 @@ END art_quick_instrumentation_exit
      */
     .extern artDeoptimize
 ENTRY art_quick_deoptimize
-    SETUP_SAVE_ALL_CALLEE_SAVES_FRAME
+    SETUP_SAVE_EVERYTHING_FRAME
     mov    x0, xSELF          // Pass thread.
     bl     artDeoptimize      // (Thread*)
     brk 0
@@ -2909,7 +2921,7 @@ ENTRY art_quick_invoke_polymorphic
     INCREASE_FRAME 16                             // Reserve space for JValue result.
     str     xzr, [sp, #0]                         // Initialize result to zero.
     mov     x0, sp                                // Set r0 to point to result.
-    bl      artInvokePolymorphic                  // ArtInvokePolymorphic(result, receiver, thread, save_area)
+    bl      artInvokePolymorphic                  // artInvokePolymorphic(result, receiver, thread, save_area)
     uxtb    w0, w0                                // Result is the return type descriptor as a char.
     sub     w0, w0, 'A'                           // Convert to zero based index.
     cmp     w0, 'Z' - 'A'

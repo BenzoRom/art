@@ -30,9 +30,10 @@
 #include "base/macros.h"
 #include "base/mutex-inl.h"
 #include "bytecode_utils.h"
-#include "dex_file-inl.h"
 #include "dex2oat_environment_test.h"
 #include "dex2oat_return_codes.h"
+#include "dex_file-inl.h"
+#include "dex_file_loader.h"
 #include "jit/profile_compilation_info.h"
 #include "oat.h"
 #include "oat_file.h"
@@ -89,13 +90,31 @@ class Dex2oatTest : public Dex2oatEnvironmentTest {
     return status;
   }
 
-  void GenerateOdexForTest(const std::string& dex_location,
-                           const std::string& odex_location,
-                           CompilerFilter::Filter filter,
-                           const std::vector<std::string>& extra_args = {},
-                           bool expect_success = true,
-                           bool use_fd = false,
-                           std::function<void(const OatFile&)> check_oat = [](const OatFile&) {}) {
+  void GenerateOdexForTest(
+      const std::string& dex_location,
+      const std::string& odex_location,
+      CompilerFilter::Filter filter,
+      const std::vector<std::string>& extra_args = {},
+      bool expect_success = true,
+      bool use_fd = false) {
+    GenerateOdexForTest(dex_location,
+                        odex_location,
+                        filter,
+                        extra_args,
+                        expect_success,
+                        use_fd,
+                        [](const OatFile&) {});
+  }
+
+  template <typename T>
+  void GenerateOdexForTest(
+      const std::string& dex_location,
+      const std::string& odex_location,
+      CompilerFilter::Filter filter,
+      const std::vector<std::string>& extra_args,
+      bool expect_success,
+      bool use_fd,
+      T check_oat) {
     std::string error_msg;
     int status = GenerateOdexForTestWithStatus({dex_location},
                                                odex_location,
@@ -659,7 +678,8 @@ class Dex2oatLayoutTest : public Dex2oatTest {
     const char* location = dex_location.c_str();
     std::string error_msg;
     std::vector<std::unique_ptr<const DexFile>> dex_files;
-    ASSERT_TRUE(DexFile::Open(location, location, true, &error_msg, &dex_files));
+    ASSERT_TRUE(DexFileLoader::Open(
+        location, location, /* verify */ true, /* verify_checksum */ true, &error_msg, &dex_files));
     EXPECT_EQ(dex_files.size(), 1U);
     std::unique_ptr<const DexFile>& dex_file = dex_files[0];
     GenerateProfile(profile_location,
@@ -688,7 +708,7 @@ class Dex2oatLayoutTest : public Dex2oatTest {
     }
   }
 
-  uint64_t GetImageSize(const std::string& image_file_name) {
+  uint64_t GetImageObjectSectionSize(const std::string& image_file_name) {
     EXPECT_FALSE(image_file_name.empty());
     std::unique_ptr<File> file(OS::OpenFileForReading(image_file_name.c_str()));
     CHECK(file != nullptr);
@@ -697,7 +717,7 @@ class Dex2oatLayoutTest : public Dex2oatTest {
     CHECK(success);
     CHECK(image_header.IsValid());
     ReaderMutexLock mu(Thread::Current(), *Locks::mutator_lock_);
-    return image_header.GetImageSize();
+    return image_header.GetObjectsSection().Size();
   }
 
   void RunTest(bool app_image) {
@@ -716,7 +736,7 @@ class Dex2oatLayoutTest : public Dex2oatTest {
       CheckValidity();
       ASSERT_TRUE(success_);
       // Don't check the result since CheckResult relies on the class being in the profile.
-      image_file_empty_profile = GetImageSize(app_image_file);
+      image_file_empty_profile = GetImageObjectSectionSize(app_image_file);
       EXPECT_GT(image_file_empty_profile, 0u);
     }
 
@@ -732,8 +752,8 @@ class Dex2oatLayoutTest : public Dex2oatTest {
 
     if (app_image) {
       // Test that the profile made a difference by adding more classes.
-      const uint64_t image_file_small_profile = GetImageSize(app_image_file);
-      CHECK_LT(image_file_empty_profile, image_file_small_profile);
+      const uint64_t image_file_small_profile = GetImageObjectSectionSize(app_image_file);
+      ASSERT_LT(image_file_empty_profile, image_file_small_profile);
     }
   }
 
@@ -793,7 +813,8 @@ class Dex2oatLayoutTest : public Dex2oatTest {
 
     const char* location = dex_location.c_str();
     std::vector<std::unique_ptr<const DexFile>> dex_files;
-    ASSERT_TRUE(DexFile::Open(location, location, true, &error_msg, &dex_files));
+    ASSERT_TRUE(DexFileLoader::Open(
+        location, location, /* verify */ true, /* verify_checksum */ true, &error_msg, &dex_files));
     EXPECT_EQ(dex_files.size(), 1U);
     std::unique_ptr<const DexFile>& old_dex_file = dex_files[0];
 
@@ -804,13 +825,13 @@ class Dex2oatLayoutTest : public Dex2oatTest {
       ASSERT_LT(class_def_count, std::numeric_limits<uint16_t>::max());
       ASSERT_GE(class_def_count, 2U);
 
-      // The new layout swaps the classes at indexes 0 and 1.
+      // Make sure the indexes stay the same.
       std::string old_class0 = old_dex_file->PrettyType(old_dex_file->GetClassDef(0).class_idx_);
       std::string old_class1 = old_dex_file->PrettyType(old_dex_file->GetClassDef(1).class_idx_);
       std::string new_class0 = new_dex_file->PrettyType(new_dex_file->GetClassDef(0).class_idx_);
       std::string new_class1 = new_dex_file->PrettyType(new_dex_file->GetClassDef(1).class_idx_);
-      EXPECT_EQ(old_class0, new_class1);
-      EXPECT_EQ(old_class1, new_class0);
+      EXPECT_EQ(old_class0, new_class0);
+      EXPECT_EQ(old_class1, new_class1);
     }
 
     EXPECT_EQ(odex_file->GetCompilerFilter(), CompilerFilter::kSpeedProfile);
@@ -822,7 +843,7 @@ class Dex2oatLayoutTest : public Dex2oatTest {
       bool success = file->ReadFully(&image_header, sizeof(image_header));
       ASSERT_TRUE(success);
       ASSERT_TRUE(image_header.IsValid());
-      EXPECT_GT(image_header.GetImageSection(ImageHeader::kSectionObjects).Size(), 0u);
+      EXPECT_GT(image_header.GetObjectsSection().Size(), 0u);
     }
   }
 
@@ -919,8 +940,8 @@ class Dex2oatUnquickenTest : public Dex2oatTest {
                class_it.HasNext();
                class_it.Next()) {
             if (class_it.IsAtMethod() && class_it.GetMethodCodeItem() != nullptr) {
-              for (CodeItemIterator it(*class_it.GetMethodCodeItem()); !it.Done(); it.Advance()) {
-                Instruction* inst = const_cast<Instruction*>(&it.CurrentInstruction());
+              for (const DexInstructionPcPair& inst :
+                       class_it.GetMethodCodeItem()->Instructions()) {
                 ASSERT_FALSE(inst->IsQuickened());
               }
             }
@@ -968,6 +989,7 @@ TEST_F(Dex2oatWatchdogTest, TestWatchdogOK) {
 }
 
 TEST_F(Dex2oatWatchdogTest, TestWatchdogTrigger) {
+  TEST_DISABLED_FOR_MEMORY_TOOL_VALGRIND();  // b/63052624
   // Check with ten milliseconds.
   RunTest(false, { "--watchdog-timeout=10" });
 }
@@ -1039,6 +1061,27 @@ class Dex2oatClassLoaderContextTest : public Dex2oatTest {
     return GetOdexDir() + "/Context.odex";
   }
 
+  std::string GetExpectedPCLClassPathKey(const std::string& location) {
+    std::string expected_classpath_key;
+    {
+      // Open the oat file to get the expected classpath.
+      OatFileAssistant oat_file_assistant(location.c_str(), kRuntimeISA, false);
+      std::unique_ptr<OatFile> oat_file(oat_file_assistant.GetBestOatFile());
+      std::vector<std::unique_ptr<const DexFile>> oat_dex_files =
+          OatFileAssistant::LoadDexFiles(*oat_file, location.c_str());
+      expected_classpath_key = "PCL[";
+      for (size_t i = 0; i < oat_dex_files.size(); i++) {
+        if (i > 0) {
+          expected_classpath_key + ":";
+        }
+        expected_classpath_key += oat_dex_files[i]->GetLocation() + "*" +
+            std::to_string(oat_dex_files[i]->GetLocationChecksum());
+      }
+      expected_classpath_key += "]";
+    }
+    return expected_classpath_key;
+  }
+
   const char* kEmptyClassPathKey = "PCL[]";
 };
 
@@ -1070,6 +1113,26 @@ TEST_F(Dex2oatClassLoaderContextTest, ContextWithOtherDexFiles) {
   RunTest(context.c_str(), expected_classpath_key.c_str(), true);
 }
 
+TEST_F(Dex2oatClassLoaderContextTest, ContextWithOtherDexFilesBackedByOdex) {
+  std::string dex_file = GetScratchDir() + "/dex_file.jar";
+  std::string odex_for_classpath = GetOdexDir() + "/dex_file.odex";
+
+  Copy(GetDexSrc2(), dex_file);
+
+  GenerateOdexForTest(dex_file,
+                      odex_for_classpath,
+                      CompilerFilter::kQuicken,
+                      {},
+                      true);
+
+  std::string context = "PCL[" + dex_file + "]";
+  std::string expected_classpath_key = GetExpectedPCLClassPathKey(dex_file);
+  RunTest(context.c_str(),
+          expected_classpath_key.c_str(),
+          /*expected_success*/ true,
+          /*use_second_source*/ true);
+}
+
 TEST_F(Dex2oatClassLoaderContextTest, ContextWithStrippedDexFiles) {
   std::string stripped_classpath = GetScratchDir() + "/stripped_classpath.jar";
   Copy(GetStrippedDexSrc1(), stripped_classpath);
@@ -1095,23 +1158,7 @@ TEST_F(Dex2oatClassLoaderContextTest, ContextWithStrippedDexFilesBackedByOdex) {
   Copy(GetStrippedDexSrc1(), stripped_classpath);
 
   std::string context = "PCL[" + stripped_classpath + "]";
-  std::string expected_classpath_key;
-  {
-    // Open the oat file to get the expected classpath.
-    OatFileAssistant oat_file_assistant(stripped_classpath.c_str(), kRuntimeISA, false);
-    std::unique_ptr<OatFile> oat_file(oat_file_assistant.GetBestOatFile());
-    std::vector<std::unique_ptr<const DexFile>> oat_dex_files =
-        OatFileAssistant::LoadDexFiles(*oat_file, stripped_classpath.c_str());
-    expected_classpath_key = "PCL[";
-    for (size_t i = 0; i < oat_dex_files.size(); i++) {
-      if (i > 0) {
-        expected_classpath_key + ":";
-      }
-      expected_classpath_key += oat_dex_files[i]->GetLocation() + "*" +
-          std::to_string(oat_dex_files[i]->GetLocationChecksum());
-    }
-    expected_classpath_key += "]";
-  }
+  std::string expected_classpath_key = GetExpectedPCLClassPathKey(stripped_classpath);
 
   RunTest(context.c_str(),
           expected_classpath_key.c_str(),
@@ -1221,7 +1268,7 @@ TEST_F(Dex2oatTest, LayoutSections) {
     ClassDataItemIterator it(*dex, dex->GetClassData(*class_def));
     it.SkipAllFields();
     std::set<size_t> code_item_offsets;
-    for (; it.HasNextDirectMethod() || it.HasNextVirtualMethod(); it.Next()) {
+    for (; it.HasNextMethod(); it.Next()) {
       const uint16_t method_idx = it.GetMemberIndex();
       const size_t code_item_offset = it.GetMethodCodeItemOffset();
       if (code_item_offsets.insert(code_item_offset).second) {
@@ -1309,10 +1356,10 @@ TEST_F(Dex2oatTest, LayoutSections) {
         code_section.parts_[static_cast<size_t>(LayoutType::kLayoutTypeUnused)];
 
     // All the sections should be non-empty.
-    EXPECT_GT(section_hot_code.size_, 0u);
-    EXPECT_GT(section_sometimes_used.size_, 0u);
-    EXPECT_GT(section_startup_only.size_, 0u);
-    EXPECT_GT(section_unused.size_, 0u);
+    EXPECT_GT(section_hot_code.Size(), 0u);
+    EXPECT_GT(section_sometimes_used.Size(), 0u);
+    EXPECT_GT(section_startup_only.Size(), 0u);
+    EXPECT_GT(section_unused.Size(), 0u);
 
     // Open the dex file since we need to peek at the code items to verify the layout matches what
     // we expect.
@@ -1333,7 +1380,7 @@ TEST_F(Dex2oatTest, LayoutSections) {
     // corresponding code item offsets to verify the layout.
     ClassDataItemIterator it(*dex_file, dex_file->GetClassData(*class_def));
     it.SkipAllFields();
-    for (; it.HasNextDirectMethod() || it.HasNextVirtualMethod(); it.Next()) {
+    for (; it.HasNextMethod(); it.Next()) {
       const size_t method_idx = it.GetMemberIndex();
       const size_t code_item_offset = it.GetMethodCodeItemOffset();
       const bool is_hot = ContainsElement(hot_methods, method_idx);
@@ -1341,20 +1388,30 @@ TEST_F(Dex2oatTest, LayoutSections) {
       const bool is_post_startup = ContainsElement(post_methods, method_idx);
       if (is_hot) {
         // Hot is highest precedence, check that the hot methods are in the hot section.
-        EXPECT_LT(code_item_offset - section_hot_code.offset_, section_hot_code.size_);
+        EXPECT_TRUE(section_hot_code.Contains(code_item_offset));
         ++hot_count;
       } else if (is_post_startup) {
         // Post startup is sometimes used section.
-        EXPECT_LT(code_item_offset - section_sometimes_used.offset_, section_sometimes_used.size_);
+        EXPECT_TRUE(section_sometimes_used.Contains(code_item_offset));
         ++post_startup_count;
       } else if (is_startup) {
         // Startup at this point means not hot or post startup, these must be startup only then.
-        EXPECT_LT(code_item_offset - section_startup_only.offset_, section_startup_only.size_);
+        EXPECT_TRUE(section_startup_only.Contains(code_item_offset));
         ++startup_count;
       } else {
-        // If no flags are set, the method should be unused.
-        EXPECT_LT(code_item_offset - section_unused.offset_, section_unused.size_);
-        ++unused_count;
+        if (section_unused.Contains(code_item_offset)) {
+          // If no flags are set, the method should be unused ...
+          ++unused_count;
+        } else {
+          // or this method is part of the last code item and the end is 4 byte aligned.
+          ClassDataItemIterator it2(*dex_file, dex_file->GetClassData(*class_def));
+          it2.SkipAllFields();
+          for (; it2.HasNextMethod(); it2.Next()) {
+              EXPECT_LE(it2.GetMethodCodeItemOffset(), code_item_offset);
+          }
+          uint32_t code_item_size = dex_file->FindCodeItemOffset(*class_def, method_idx);
+          EXPECT_EQ((code_item_offset + code_item_size) % 4, 0u);
+        }
       }
     }
     DCHECK(!it.HasNext());
@@ -1363,6 +1420,121 @@ TEST_F(Dex2oatTest, LayoutSections) {
     EXPECT_GT(startup_count, 0u);
     EXPECT_GT(unused_count, 0u);
   }
+}
+
+// Test that generating compact dex works.
+TEST_F(Dex2oatTest, GenerateCompactDex) {
+  std::unique_ptr<const DexFile> dex(OpenTestDexFile("ManyMethods"));
+  // Generate a compact dex based odex.
+  const std::string dir = GetScratchDir();
+  const std::string oat_filename = dir + "/base.oat";
+  const std::string vdex_filename = dir + "/base.vdex";
+  std::string error_msg;
+  const int res = GenerateOdexForTestWithStatus(
+      {dex->GetLocation()},
+      oat_filename,
+      CompilerFilter::Filter::kQuicken,
+      &error_msg,
+      {"--compact-dex-level=fast"});
+  EXPECT_EQ(res, 0);
+  // Open our generated oat file.
+  std::unique_ptr<OatFile> odex_file(OatFile::Open(oat_filename.c_str(),
+                                                   oat_filename.c_str(),
+                                                   nullptr,
+                                                   nullptr,
+                                                   false,
+                                                   /*low_4gb*/false,
+                                                   dex->GetLocation().c_str(),
+                                                   &error_msg));
+  ASSERT_TRUE(odex_file != nullptr);
+  std::vector<const OatDexFile*> oat_dex_files = odex_file->GetOatDexFiles();
+  ASSERT_EQ(oat_dex_files.size(), 1u);
+  // Check that each dex is a compact dex.
+  for (const OatDexFile* oat_dex : oat_dex_files) {
+    std::unique_ptr<const DexFile> dex_file(oat_dex->OpenDexFile(&error_msg));
+    ASSERT_TRUE(dex_file != nullptr) << error_msg;
+    ASSERT_TRUE(dex_file->IsCompactDexFile());
+  }
+}
+
+class Dex2oatVerifierAbort : public Dex2oatTest {};
+
+TEST_F(Dex2oatVerifierAbort, HardFail) {
+  // Use VerifierDeps as it has hard-failing classes.
+  std::unique_ptr<const DexFile> dex(OpenTestDexFile("VerifierDeps"));
+  std::string out_dir = GetScratchDir();
+  const std::string base_oat_name = out_dir + "/base.oat";
+  std::string error_msg;
+  const int res_fail = GenerateOdexForTestWithStatus(
+        {dex->GetLocation()},
+        base_oat_name,
+        CompilerFilter::Filter::kQuicken,
+        &error_msg,
+        {"--abort-on-hard-verifier-error"});
+  EXPECT_NE(0, res_fail);
+
+  const int res_no_fail = GenerateOdexForTestWithStatus(
+        {dex->GetLocation()},
+        base_oat_name,
+        CompilerFilter::Filter::kQuicken,
+        &error_msg,
+        {"--no-abort-on-hard-verifier-error"});
+  EXPECT_EQ(0, res_no_fail);
+}
+
+TEST_F(Dex2oatVerifierAbort, SoftFail) {
+  // Use VerifierDepsMulti as it has hard-failing classes.
+  std::unique_ptr<const DexFile> dex(OpenTestDexFile("VerifierDepsMulti"));
+  std::string out_dir = GetScratchDir();
+  const std::string base_oat_name = out_dir + "/base.oat";
+  std::string error_msg;
+  const int res_fail = GenerateOdexForTestWithStatus(
+        {dex->GetLocation()},
+        base_oat_name,
+        CompilerFilter::Filter::kQuicken,
+        &error_msg,
+        {"--abort-on-soft-verifier-error"});
+  EXPECT_NE(0, res_fail);
+
+  const int res_no_fail = GenerateOdexForTestWithStatus(
+        {dex->GetLocation()},
+        base_oat_name,
+        CompilerFilter::Filter::kQuicken,
+        &error_msg,
+        {"--no-abort-on-soft-verifier-error"});
+  EXPECT_EQ(0, res_no_fail);
+}
+
+class Dex2oatDedupeCode : public Dex2oatTest {};
+
+TEST_F(Dex2oatDedupeCode, DedupeTest) {
+  // Use MyClassNatives. It has lots of native methods that will produce deduplicate-able code.
+  std::unique_ptr<const DexFile> dex(OpenTestDexFile("MyClassNatives"));
+  std::string out_dir = GetScratchDir();
+  const std::string base_oat_name = out_dir + "/base.oat";
+  size_t no_dedupe_size = 0;
+  GenerateOdexForTest(dex->GetLocation(),
+                      base_oat_name,
+                      CompilerFilter::Filter::kSpeed,
+                      { "--deduplicate-code=false" },
+                      true,  // expect_success
+                      false,  // use_fd
+                      [&no_dedupe_size](const OatFile& o) {
+                        no_dedupe_size = o.Size();
+                      });
+
+  size_t dedupe_size = 0;
+  GenerateOdexForTest(dex->GetLocation(),
+                      base_oat_name,
+                      CompilerFilter::Filter::kSpeed,
+                      { "--deduplicate-code=true" },
+                      true,  // expect_success
+                      false,  // use_fd
+                      [&dedupe_size](const OatFile& o) {
+                        dedupe_size = o.Size();
+                      });
+
+  EXPECT_LT(dedupe_size, no_dedupe_size);
 }
 
 }  // namespace art

@@ -16,17 +16,17 @@
 
 #include <gtest/gtest.h>
 
-#include "base/unix_file/fd_file.h"
 #include "art_method-inl.h"
+#include "base/unix_file/fd_file.h"
 #include "class_linker-inl.h"
 #include "common_runtime_test.h"
 #include "dex_file.h"
-#include "method_reference.h"
-#include "mirror/class-inl.h"
-#include "mirror/class_loader.h"
 #include "handle_scope-inl.h"
 #include "jit/profile_compilation_info.h"
 #include "linear_alloc.h"
+#include "method_reference.h"
+#include "mirror/class-inl.h"
+#include "mirror/class_loader.h"
 #include "scoped_thread_state_change-inl.h"
 #include "type_reference.h"
 
@@ -39,7 +39,7 @@ static constexpr size_t kMaxMethodIds = 65535;
 class ProfileCompilationInfoTest : public CommonRuntimeTest {
  public:
   void PostRuntimeCreate() OVERRIDE {
-    arena_.reset(new ArenaAllocator(Runtime::Current()->GetArenaPool()));
+    allocator_.reset(new ArenaAllocator(Runtime::Current()->GetArenaPool()));
   }
 
  protected:
@@ -176,7 +176,7 @@ class ProfileCompilationInfoTest : public CommonRuntimeTest {
   // Creates an inline cache which will be destructed at the end of the test.
   ProfileCompilationInfo::InlineCacheMap* CreateInlineCacheMap() {
     used_inline_caches.emplace_back(new ProfileCompilationInfo::InlineCacheMap(
-        std::less<uint16_t>(), arena_->Adapter(kArenaAllocProfile)));
+        std::less<uint16_t>(), allocator_->Adapter(kArenaAllocProfile)));
     return used_inline_caches.back().get();
   }
 
@@ -188,14 +188,14 @@ class ProfileCompilationInfoTest : public CommonRuntimeTest {
     for (const auto& inline_cache : pmi.inline_caches) {
       ProfileCompilationInfo::DexPcData& dex_pc_data =
           ic_map->FindOrAdd(
-              inline_cache.dex_pc, ProfileCompilationInfo::DexPcData(arena_.get()))->second;
+              inline_cache.dex_pc, ProfileCompilationInfo::DexPcData(allocator_.get()))->second;
       if (inline_cache.is_missing_types) {
         dex_pc_data.SetIsMissingTypes();
       }
       for (const auto& class_ref : inline_cache.classes) {
         uint8_t dex_profile_index = dex_map.FindOrAdd(const_cast<DexFile*>(class_ref.dex_file),
                                                       static_cast<uint8_t>(dex_map.size()))->second;
-        dex_pc_data.AddClass(dex_profile_index, class_ref.type_index);
+        dex_pc_data.AddClass(dex_profile_index, class_ref.TypeIndex());
         if (dex_profile_index >= offline_pmi.dex_references.size()) {
           // This is a new dex.
           const std::string& dex_key = ProfileCompilationInfo::GetProfileDexFileKey(
@@ -215,13 +215,13 @@ class ProfileCompilationInfoTest : public CommonRuntimeTest {
 
     // Monomorphic
     for (uint16_t dex_pc = 0; dex_pc < 11; dex_pc++) {
-      ProfileCompilationInfo::DexPcData dex_pc_data(arena_.get());
+      ProfileCompilationInfo::DexPcData dex_pc_data(allocator_.get());
       dex_pc_data.AddClass(0, dex::TypeIndex(0));
       ic_map->Put(dex_pc, dex_pc_data);
     }
     // Polymorphic
     for (uint16_t dex_pc = 11; dex_pc < 22; dex_pc++) {
-      ProfileCompilationInfo::DexPcData dex_pc_data(arena_.get());
+      ProfileCompilationInfo::DexPcData dex_pc_data(allocator_.get());
       dex_pc_data.AddClass(0, dex::TypeIndex(0));
       dex_pc_data.AddClass(1, dex::TypeIndex(1));
       dex_pc_data.AddClass(2, dex::TypeIndex(2));
@@ -230,13 +230,13 @@ class ProfileCompilationInfoTest : public CommonRuntimeTest {
     }
     // Megamorphic
     for (uint16_t dex_pc = 22; dex_pc < 33; dex_pc++) {
-      ProfileCompilationInfo::DexPcData dex_pc_data(arena_.get());
+      ProfileCompilationInfo::DexPcData dex_pc_data(allocator_.get());
       dex_pc_data.SetIsMegamorphic();
       ic_map->Put(dex_pc, dex_pc_data);
     }
     // Missing types
     for (uint16_t dex_pc = 33; dex_pc < 44; dex_pc++) {
-      ProfileCompilationInfo::DexPcData dex_pc_data(arena_.get());
+      ProfileCompilationInfo::DexPcData dex_pc_data(allocator_.get());
       dex_pc_data.SetIsMissingTypes();
       ic_map->Put(dex_pc, dex_pc_data);
     }
@@ -273,7 +273,7 @@ class ProfileCompilationInfoTest : public CommonRuntimeTest {
   static constexpr int kProfileMagicSize = 4;
   static constexpr int kProfileVersionSize = 4;
 
-  std::unique_ptr<ArenaAllocator> arena_;
+  std::unique_ptr<ArenaAllocator> allocator_;
 
   // Cache of inline caches generated during tests.
   // This makes it easier to pass data between different utilities and ensure that
@@ -385,6 +385,23 @@ TEST_F(ProfileCompilationInfoTest, MergeFail) {
   ASSERT_TRUE(AddMethod("dex_location", /* checksum */ 2, /* method_idx */ 2, &info2));
 
   ASSERT_FALSE(info1.MergeWith(info2));
+}
+
+
+TEST_F(ProfileCompilationInfoTest, MergeFdFail) {
+  ScratchFile profile;
+
+  ProfileCompilationInfo info1;
+  ASSERT_TRUE(AddMethod("dex_location", /* checksum */ 1, /* method_idx */ 1, &info1));
+  // Use the same file, change the checksum.
+  ProfileCompilationInfo info2;
+  ASSERT_TRUE(AddMethod("dex_location", /* checksum */ 2, /* method_idx */ 2, &info2));
+
+  ASSERT_TRUE(info1.Save(profile.GetFd()));
+  ASSERT_EQ(0, profile.GetFile()->Flush());
+  ASSERT_TRUE(profile.GetFile()->ResetOffset());
+
+  ASSERT_FALSE(info2.Load(profile.GetFd()));
 }
 
 TEST_F(ProfileCompilationInfoTest, SaveMaxMethods) {
@@ -713,7 +730,7 @@ TEST_F(ProfileCompilationInfoTest, MergeInlineCacheTriggerReindex) {
   pmi.dex_references.emplace_back("dex_location1", /* checksum */ 1, kMaxMethodIds);
   pmi.dex_references.emplace_back("dex_location2", /* checksum */ 2, kMaxMethodIds);
   for (uint16_t dex_pc = 1; dex_pc < 5; dex_pc++) {
-    ProfileCompilationInfo::DexPcData dex_pc_data(arena_.get());
+    ProfileCompilationInfo::DexPcData dex_pc_data(allocator_.get());
     dex_pc_data.AddClass(0, dex::TypeIndex(0));
     dex_pc_data.AddClass(1, dex::TypeIndex(1));
     ic_map->Put(dex_pc, dex_pc_data);
@@ -724,7 +741,7 @@ TEST_F(ProfileCompilationInfoTest, MergeInlineCacheTriggerReindex) {
   pmi_reindexed.dex_references.emplace_back("dex_location2", /* checksum */ 2, kMaxMethodIds);
   pmi_reindexed.dex_references.emplace_back("dex_location1", /* checksum */ 1, kMaxMethodIds);
   for (uint16_t dex_pc = 1; dex_pc < 5; dex_pc++) {
-    ProfileCompilationInfo::DexPcData dex_pc_data(arena_.get());
+    ProfileCompilationInfo::DexPcData dex_pc_data(allocator_.get());
     dex_pc_data.AddClass(1, dex::TypeIndex(0));
     dex_pc_data.AddClass(0, dex::TypeIndex(1));
     ic_map_reindexed->Put(dex_pc, dex_pc_data);
@@ -778,7 +795,7 @@ TEST_F(ProfileCompilationInfoTest, MegamorphicInlineCachesMerge) {
   ProfileCompilationInfo::InlineCacheMap* ic_map = CreateInlineCacheMap();
   ProfileCompilationInfo::OfflineProfileMethodInfo pmi(ic_map);
   pmi.dex_references.emplace_back("dex_location1", /* checksum */ 1, kMaxMethodIds);
-  ProfileCompilationInfo::DexPcData dex_pc_data(arena_.get());
+  ProfileCompilationInfo::DexPcData dex_pc_data(allocator_.get());
   dex_pc_data.SetIsMegamorphic();
   ic_map->Put(/*dex_pc*/ 0, dex_pc_data);
 
@@ -808,7 +825,7 @@ TEST_F(ProfileCompilationInfoTest, MissingTypesInlineCachesMerge) {
   ProfileCompilationInfo::InlineCacheMap* ic_map = CreateInlineCacheMap();
   ProfileCompilationInfo::OfflineProfileMethodInfo pmi(ic_map);
   pmi.dex_references.emplace_back("dex_location1", /* checksum */ 1, kMaxMethodIds);
-  ProfileCompilationInfo::DexPcData dex_pc_data(arena_.get());
+  ProfileCompilationInfo::DexPcData dex_pc_data(allocator_.get());
   dex_pc_data.SetIsMissingTypes();
   ic_map->Put(/*dex_pc*/ 0, dex_pc_data);
 
@@ -831,29 +848,6 @@ TEST_F(ProfileCompilationInfoTest, MissingTypesInlineCachesMerge) {
   ASSERT_TRUE(info_no_inline_cache.MergeWith(info_megamorphic));
   ScratchFile profile;
   ASSERT_TRUE(info_no_inline_cache.Save(GetFd(profile)));
-}
-
-TEST_F(ProfileCompilationInfoTest, LoadShouldClearExistingDataFromProfiles) {
-  ScratchFile profile;
-
-  ProfileCompilationInfo saved_info;
-  // Save a few methods.
-  for (uint16_t i = 0; i < 10; i++) {
-    ASSERT_TRUE(AddMethod("dex_location1", /* checksum */ 1, /* method_idx */ i, &saved_info));
-  }
-  ASSERT_TRUE(saved_info.Save(GetFd(profile)));
-  ASSERT_EQ(0, profile.GetFile()->Flush());
-  ASSERT_TRUE(profile.GetFile()->ResetOffset());
-
-  // Add a bunch of methods to test_info.
-  ProfileCompilationInfo test_info;
-  for (uint16_t i = 0; i < 10; i++) {
-    ASSERT_TRUE(AddMethod("dex_location2", /* checksum */ 2, /* method_idx */ i, &test_info));
-  }
-
-  // Attempt to load the saved profile into test_info.
-  // This should fail since the test_info already contains data and the load would overwrite it.
-  ASSERT_FALSE(test_info.Load(GetFd(profile)));
 }
 
 TEST_F(ProfileCompilationInfoTest, SampledMethodsTest) {

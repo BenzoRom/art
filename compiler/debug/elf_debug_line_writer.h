@@ -20,12 +20,13 @@
 #include <unordered_set>
 #include <vector>
 
-#include "compiled_method.h"
 #include "debug/dwarf/debug_line_opcode_writer.h"
 #include "debug/dwarf/headers.h"
 #include "debug/elf_compilation_unit.h"
+#include "debug/src_map_elem.h"
 #include "dex_file-inl.h"
-#include "elf_builder.h"
+#include "linker/elf_builder.h"
+#include "oat_file.h"
 #include "stack_map.h"
 
 namespace art {
@@ -43,7 +44,7 @@ class ElfDebugLineWriter {
   using Elf_Addr = typename ElfTypes::Addr;
 
  public:
-  explicit ElfDebugLineWriter(ElfBuilder<ElfTypes>* builder) : builder_(builder) {
+  explicit ElfDebugLineWriter(linker::ElfBuilder<ElfTypes>* builder) : builder_(builder) {
   }
 
   void Start() {
@@ -68,19 +69,19 @@ class ElfDebugLineWriter {
     int code_factor_bits_ = 0;
     int dwarf_isa = -1;
     switch (isa) {
-      case kArm:  // arm actually means thumb2.
-      case kThumb2:
+      case InstructionSet::kArm:  // arm actually means thumb2.
+      case InstructionSet::kThumb2:
         code_factor_bits_ = 1;  // 16-bit instuctions
         dwarf_isa = 1;  // DW_ISA_ARM_thumb.
         break;
-      case kArm64:
-      case kMips:
-      case kMips64:
+      case InstructionSet::kArm64:
+      case InstructionSet::kMips:
+      case InstructionSet::kMips64:
         code_factor_bits_ = 2;  // 32-bit instructions
         break;
-      case kNone:
-      case kX86:
-      case kX86_64:
+      case InstructionSet::kNone:
+      case InstructionSet::kX86:
+      case InstructionSet::kX86_64:
         break;
     }
     std::unordered_set<uint64_t> seen_addresses(compilation_unit.methods.size());
@@ -158,7 +159,9 @@ class ElfDebugLineWriter {
       PositionInfos dex2line_map;
       DCHECK(mi->dex_file != nullptr);
       const DexFile* dex = mi->dex_file;
-      if (!dex->DecodeDebugPositionInfo(mi->code_item, PositionInfoCallback, &dex2line_map)) {
+      uint32_t debug_info_offset = OatFile::GetDebugInfoOffset(*dex, mi->code_item);
+      if (!dex->DecodeDebugPositionInfo(
+              mi->code_item, debug_info_offset, PositionInfoCallback, &dex2line_map)) {
         continue;
       }
 
@@ -280,7 +283,7 @@ class ElfDebugLineWriter {
   }
 
  private:
-  ElfBuilder<ElfTypes>* builder_;
+  linker::ElfBuilder<ElfTypes>* builder_;
   std::vector<uintptr_t> debug_line_patches_;
 };
 

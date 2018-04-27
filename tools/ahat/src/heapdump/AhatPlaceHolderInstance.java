@@ -16,6 +16,9 @@
 
 package com.android.ahat.heapdump;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Generic PlaceHolder instance to take the place of a real AhatInstance for
  * the purposes of displaying diffs.
@@ -31,6 +34,10 @@ public class AhatPlaceHolderInstance extends AhatInstance {
 
   @Override public Size getSize() {
     return Size.ZERO;
+  }
+
+  @Override protected long getExtraJavaSize() {
+    return 0;
   }
 
   @Override public Size getRetainedSize(AhatHeap heap) {
@@ -59,5 +66,11 @@ public class AhatPlaceHolderInstance extends AhatInstance {
 
   @Override public boolean isPlaceHolder() {
     return true;
+  }
+
+  @Override
+  Iterable<Reference> getReferences() {
+    List<Reference> refs = Collections.emptyList();
+    return refs;
   }
 }

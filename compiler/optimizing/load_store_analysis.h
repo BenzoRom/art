@@ -25,7 +25,7 @@ namespace art {
 
 // A ReferenceInfo contains additional info about a reference such as
 // whether it's a singleton, returned, etc.
-class ReferenceInfo : public ArenaObject<kArenaAllocMisc> {
+class ReferenceInfo : public ArenaObject<kArenaAllocLSA> {
  public:
   ReferenceInfo(HInstruction* reference, size_t pos)
       : reference_(reference),
@@ -99,7 +99,7 @@ class ReferenceInfo : public ArenaObject<kArenaAllocMisc> {
 
 // A heap location is a reference-offset/index pair that a value can be loaded from
 // or stored to.
-class HeapLocation : public ArenaObject<kArenaAllocMisc> {
+class HeapLocation : public ArenaObject<kArenaAllocLSA> {
  public:
   static constexpr size_t kInvalidFieldOffset = -1;
 
@@ -172,12 +172,12 @@ class HeapLocationCollector : public HGraphVisitor {
 
   explicit HeapLocationCollector(HGraph* graph)
       : HGraphVisitor(graph),
-        ref_info_array_(graph->GetArena()->Adapter(kArenaAllocLSE)),
-        heap_locations_(graph->GetArena()->Adapter(kArenaAllocLSE)),
-        aliasing_matrix_(graph->GetArena(),
+        ref_info_array_(graph->GetAllocator()->Adapter(kArenaAllocLSA)),
+        heap_locations_(graph->GetAllocator()->Adapter(kArenaAllocLSA)),
+        aliasing_matrix_(graph->GetAllocator(),
                          kInitialAliasingMatrixBitVectorSize,
                          true,
-                         kArenaAllocLSE),
+                         kArenaAllocLSA),
         has_heap_stores_(false),
         has_volatile_(false),
         has_monitor_operations_(false) {}
@@ -196,8 +196,12 @@ class HeapLocationCollector : public HGraphVisitor {
   }
 
   HInstruction* HuntForOriginalReference(HInstruction* ref) const {
+    // An original reference can be transformed by instructions like:
+    //   i0 NewArray
+    //   i1 HInstruction(i0)  <-- NullCheck, BoundType, IntermediateAddress.
+    //   i2 ArrayGet(i1, index)
     DCHECK(ref != nullptr);
-    while (ref->IsNullCheck() || ref->IsBoundType()) {
+    while (ref->IsNullCheck() || ref->IsBoundType() || ref->IsIntermediateAddress()) {
       ref = ref->InputAt(0);
     }
     return ref;
@@ -362,14 +366,14 @@ class HeapLocationCollector : public HGraphVisitor {
     ReferenceInfo* ref_info = FindReferenceInfoOf(instruction);
     if (ref_info == nullptr) {
       size_t pos = ref_info_array_.size();
-      ref_info = new (GetGraph()->GetArena()) ReferenceInfo(instruction, pos);
+      ref_info = new (GetGraph()->GetAllocator()) ReferenceInfo(instruction, pos);
       ref_info_array_.push_back(ref_info);
     }
     return ref_info;
   }
 
   void CreateReferenceInfoForReferenceType(HInstruction* instruction) {
-    if (instruction->GetType() != Primitive::kPrimNot) {
+    if (instruction->GetType() != DataType::Type::kReference) {
       return;
     }
     DCHECK(FindReferenceInfoOf(instruction) == nullptr);
@@ -385,7 +389,7 @@ class HeapLocationCollector : public HGraphVisitor {
     size_t heap_location_idx = FindHeapLocationIndex(
         ref_info, offset, index, declaring_class_def_index);
     if (heap_location_idx == kHeapLocationNotFound) {
-      HeapLocation* heap_loc = new (GetGraph()->GetArena())
+      HeapLocation* heap_loc = new (GetGraph()->GetAllocator())
           HeapLocation(ref_info, offset, index, declaring_class_def_index);
       heap_locations_.push_back(heap_loc);
       return heap_loc;
@@ -461,49 +465,15 @@ class HeapLocationCollector : public HGraphVisitor {
     has_heap_stores_ = true;
   }
 
-  void VisitNewInstance(HNewInstance* new_instance) OVERRIDE {
-    // Any references appearing in the ref_info_array_ so far cannot alias with new_instance.
-    CreateReferenceInfoForReferenceType(new_instance);
-  }
-
-  void VisitNewArray(HNewArray* new_array) OVERRIDE {
-    // Any references appearing in the ref_info_array_ so far cannot alias with new_array.
-    CreateReferenceInfoForReferenceType(new_array);
-  }
-
-  void VisitInvokeStaticOrDirect(HInvokeStaticOrDirect* instruction) OVERRIDE {
-    CreateReferenceInfoForReferenceType(instruction);
-  }
-
-  void VisitInvokeVirtual(HInvokeVirtual* instruction) OVERRIDE {
-    CreateReferenceInfoForReferenceType(instruction);
-  }
-
-  void VisitInvokeInterface(HInvokeInterface* instruction) OVERRIDE {
-    CreateReferenceInfoForReferenceType(instruction);
-  }
-
-  void VisitInvokeUnresolved(HInvokeUnresolved* instruction) OVERRIDE {
-    CreateReferenceInfoForReferenceType(instruction);
-  }
-
-  void VisitInvokePolymorphic(HInvokePolymorphic* instruction) OVERRIDE {
-    CreateReferenceInfoForReferenceType(instruction);
-  }
-
-  void VisitLoadString(HLoadString* instruction) OVERRIDE {
-    CreateReferenceInfoForReferenceType(instruction);
-  }
-
-  void VisitPhi(HPhi* instruction) OVERRIDE {
-    CreateReferenceInfoForReferenceType(instruction);
-  }
-
-  void VisitParameterValue(HParameterValue* instruction) OVERRIDE {
-    CreateReferenceInfoForReferenceType(instruction);
-  }
-
-  void VisitSelect(HSelect* instruction) OVERRIDE {
+  void VisitInstruction(HInstruction* instruction) OVERRIDE {
+    // Any new-instance or new-array cannot alias with references that
+    // pre-exist the new-instance/new-array. We append entries into
+    // ref_info_array_ which keeps track of the order of creation
+    // of reference values since we visit the blocks in reverse post order.
+    //
+    // By default, VisitXXX() (including VisitPhi()) calls VisitInstruction(),
+    // unless VisitXXX() is overridden. VisitInstanceFieldGet() etc. above
+    // also call CreateReferenceInfoForReferenceType() explicitly.
     CreateReferenceInfoForReferenceType(instruction);
   }
 
@@ -524,8 +494,8 @@ class HeapLocationCollector : public HGraphVisitor {
 
 class LoadStoreAnalysis : public HOptimization {
  public:
-  explicit LoadStoreAnalysis(HGraph* graph)
-    : HOptimization(graph, kLoadStoreAnalysisPassName),
+  explicit LoadStoreAnalysis(HGraph* graph, const char* name = kLoadStoreAnalysisPassName)
+    : HOptimization(graph, name),
       heap_location_collector_(graph) {}
 
   const HeapLocationCollector& GetHeapLocationCollector() const {

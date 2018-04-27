@@ -20,9 +20,9 @@
 
 #include <list>
 
-#include "memory_representation.h"
-#include "detail/cmdline_debug_detail.h"
 #include "cmdline_type_parser.h"
+#include "detail/cmdline_debug_detail.h"
+#include "memory_representation.h"
 
 #include "android-base/strings.h"
 
@@ -36,6 +36,7 @@
 #include "jdwp/jdwp.h"
 #include "jit/profile_saver_options.h"
 #include "plugin.h"
+#include "read_barrier_config.h"
 #include "ti/agent.h"
 #include "unit.h"
 
@@ -56,7 +57,7 @@ template <>
 struct CmdlineType<Unit> : CmdlineTypeParser<Unit> {
   Result Parse(const std::string& args) {
     if (args == "") {
-      return Result::Success(Unit{});  // NOLINT [whitespace/braces] [5]
+      return Result::Success(Unit{});
     }
     return Result::Failure("Unexpected extra characters " + args);
   }
@@ -289,26 +290,42 @@ struct CmdlineType<double> : CmdlineTypeParser<double> {
   static const char* Name() { return "double"; }
 };
 
+template <typename T>
+static inline CmdlineParseResult<T> ParseNumeric(const std::string& str) {
+  static_assert(sizeof(T) < sizeof(long long int),  // NOLINT [runtime/int] [4]
+                "Current support is restricted.");
+
+  const char* begin = str.c_str();
+  char* end;
+
+  // Parse into a larger type (long long) because we can't use strtoul
+  // since it silently converts negative values into unsigned long and doesn't set errno.
+  errno = 0;
+  long long int result = strtoll(begin, &end, 10);  // NOLINT [runtime/int] [4]
+  if (begin == end || *end != '\0' || errno == EINVAL) {
+    return CmdlineParseResult<T>::Failure("Failed to parse integer from " + str);
+  } else if ((errno == ERANGE) ||  // NOLINT [runtime/int] [4]
+      result < std::numeric_limits<T>::min() || result > std::numeric_limits<T>::max()) {
+    return CmdlineParseResult<T>::OutOfRange(
+        "Failed to parse integer from " + str + "; out of range");
+  }
+
+  return CmdlineParseResult<T>::Success(static_cast<T>(result));
+}
+
 template <>
 struct CmdlineType<unsigned int> : CmdlineTypeParser<unsigned int> {
   Result Parse(const std::string& str) {
-    const char* begin = str.c_str();
-    char* end;
+    return ParseNumeric<unsigned int>(str);
+  }
 
-    // Parse into a larger type (long long) because we can't use strtoul
-    // since it silently converts negative values into unsigned long and doesn't set errno.
-    errno = 0;
-    long long int result = strtoll(begin, &end, 10);  // NOLINT [runtime/int] [4]
-    if (begin == end || *end != '\0' || errno == EINVAL) {
-      return Result::Failure("Failed to parse integer from " + str);
-    } else if ((errno == ERANGE) ||  // NOLINT [runtime/int] [4]
-        result < std::numeric_limits<int>::min()
-        || result > std::numeric_limits<unsigned int>::max() || result < 0) {
-      return Result::OutOfRange(
-          "Failed to parse integer from " + str + "; out of unsigned int range");
-    }
+  static const char* Name() { return "unsigned integer"; }
+};
 
-    return Result::Success(static_cast<unsigned int>(result));
+template <>
+struct CmdlineType<int> : CmdlineTypeParser<int> {
+  Result Parse(const std::string& str) {
+    return ParseNumeric<int>(str);
   }
 
   static const char* Name() { return "unsigned integer"; }
@@ -403,19 +420,19 @@ struct CmdlineType<std::vector<Plugin>> : CmdlineTypeParser<std::vector<Plugin>>
 };
 
 template <>
-struct CmdlineType<std::list<ti::Agent>> : CmdlineTypeParser<std::list<ti::Agent>> {
+struct CmdlineType<std::list<ti::AgentSpec>> : CmdlineTypeParser<std::list<ti::AgentSpec>> {
   Result Parse(const std::string& args) {
     assert(false && "Use AppendValues() for an Agent list type");
     return Result::Failure("Unconditional failure: Agent list must be appended: " + args);
   }
 
   Result ParseAndAppend(const std::string& args,
-                        std::list<ti::Agent>& existing_value) {
+                        std::list<ti::AgentSpec>& existing_value) {
     existing_value.emplace_back(args);
     return Result::SuccessNoValue();
   }
 
-  static const char* Name() { return "std::list<ti::Agent>"; }
+  static const char* Name() { return "std::list<ti::AgentSpec>"; }
 };
 
 template <>
@@ -515,7 +532,7 @@ struct XGcOption {
 template <>
 struct CmdlineType<XGcOption> : CmdlineTypeParser<XGcOption> {
   Result Parse(const std::string& option) {  // -Xgc: already stripped
-    XGcOption xgc{};  // NOLINT [readability/braces] [4]
+    XGcOption xgc{};
 
     std::vector<std::string> gc_options;
     Split(option, ',', &gc_options);

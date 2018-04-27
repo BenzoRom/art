@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
+#include "jni_macro_assembler_arm_vixl.h"
+
 #include <iostream>
 #include <type_traits>
 
-#include "jni_macro_assembler_arm_vixl.h"
 #include "entrypoints/quick/quick_entrypoints.h"
 #include "thread.h"
 
@@ -116,7 +117,8 @@ void ArmVIXLJNIMacroAssembler::BuildFrame(size_t frame_size,
 }
 
 void ArmVIXLJNIMacroAssembler::RemoveFrame(size_t frame_size,
-                                           ArrayRef<const ManagedRegister> callee_save_regs) {
+                                           ArrayRef<const ManagedRegister> callee_save_regs,
+                                           bool may_suspend) {
   CHECK_ALIGNED(frame_size, kStackAlignment);
   cfi().RememberState();
 
@@ -151,9 +153,18 @@ void ArmVIXLJNIMacroAssembler::RemoveFrame(size_t frame_size,
   ___ Pop(RegisterList(core_spill_mask));
 
   if (kEmitCompilerReadBarrier && kUseBakerReadBarrier) {
-    // Refresh Mark Register.
-    // TODO: Refresh MR only if suspend is taken.
-    ___ Ldr(mr, MemOperand(tr, Thread::IsGcMarkingOffset<kArmPointerSize>().Int32Value()));
+    if (may_suspend) {
+      // The method may be suspended; refresh the Marking Register.
+      ___ Ldr(mr, MemOperand(tr, Thread::IsGcMarkingOffset<kArmPointerSize>().Int32Value()));
+    } else {
+      // The method shall not be suspended; no need to refresh the Marking Register.
+
+      // Check that the Marking Register is a callee-save register,
+      // and thus has been preserved by native code following the
+      // AAPCS calling convention.
+      DCHECK_NE(core_spill_mask & (1 << MR), 0)
+          << "core_spill_mask should contain Marking Register R" << MR;
+    }
   }
 
   // Return to LR.
@@ -598,14 +609,8 @@ void ArmVIXLJNIMacroAssembler::ExceptionPoll(ManagedRegister m_scratch, size_t s
                       Thread::ExceptionOffset<kArmPointerSize>().Int32Value());
 
   ___ Cmp(scratch.AsVIXLRegister(), 0);
-  {
-    ExactAssemblyScope guard(asm_.GetVIXLAssembler(),
-                             vixl32::kMaxInstructionSizeInBytes,
-                             CodeBufferCheckScope::kMaximumSize);
-    vixl32::Label* label = exception_blocks_.back()->Entry();
-    ___ b(ne, Narrow, label);
-    ___ AddBranchLabel(label);
-  }
+  vixl32::Label* label = exception_blocks_.back()->Entry();
+  ___ BPreferNear(ne, label);
   // TODO: think about using CBNZ here.
 }
 

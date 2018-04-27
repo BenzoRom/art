@@ -99,11 +99,6 @@ extern LogVerbosity gLogVerbosity;
 bool RegisterRuntimeDebugFlag(bool* runtime_debug_flag);
 void SetRuntimeDebugFlagsEnabled(bool enabled);
 
-// 0 if not abort, non-zero if an abort is in progress. Used on fatal exit to prevents recursive
-// aborts. Global declaration allows us to disable some error checking to ensure fatal shutdown
-// makes forward progress.
-extern std::atomic<unsigned int> gAborting;
-
 // Configure logging based on ANDROID_LOG_TAGS environment variable.
 // We need to parse a string that looks like
 //

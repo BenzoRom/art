@@ -17,12 +17,13 @@
 #ifndef ART_RUNTIME_THREAD_H_
 #define ART_RUNTIME_THREAD_H_
 
+#include <setjmp.h>
+
 #include <bitset>
 #include <deque>
 #include <iosfwd>
 #include <list>
 #include <memory>
-#include <setjmp.h>
 #include <string>
 
 #include "arch/context.h"
@@ -39,6 +40,7 @@
 #include "jvalue.h"
 #include "managed_stack.h"
 #include "offsets.h"
+#include "read_barrier_config.h"
 #include "runtime_stats.h"
 #include "suspend_reason.h"
 #include "thread_state.h"
@@ -49,29 +51,29 @@ namespace art {
 
 namespace gc {
 namespace accounting {
-  template<class T> class AtomicStack;
+template<class T> class AtomicStack;
 }  // namespace accounting
 namespace collector {
-  class SemiSpace;
+class SemiSpace;
 }  // namespace collector
 }  // namespace gc
 
 namespace mirror {
-  class Array;
-  class Class;
-  class ClassLoader;
-  class Object;
-  template<class T> class ObjectArray;
-  template<class T> class PrimitiveArray;
-  typedef PrimitiveArray<int32_t> IntArray;
-  class StackTraceElement;
-  class String;
-  class Throwable;
+class Array;
+class Class;
+class ClassLoader;
+class Object;
+template<class T> class ObjectArray;
+template<class T> class PrimitiveArray;
+typedef PrimitiveArray<int32_t> IntArray;
+class StackTraceElement;
+class String;
+class Throwable;
 }  // namespace mirror
 
 namespace verifier {
-  class MethodVerifier;
-  class VerifierDeps;
+class MethodVerifier;
+class VerifierDeps;
 }  // namespace verifier
 
 class ArtMethod;
@@ -84,7 +86,7 @@ class DeoptimizationContextRecord;
 class DexFile;
 class FrameIdToShadowFrame;
 class JavaVMExt;
-struct JNIEnvExt;
+class JNIEnvExt;
 class Monitor;
 class RootVisitor;
 class ScopedObjectAccessAlreadyRunnable;
@@ -114,6 +116,13 @@ enum ThreadFlag {
 enum class StackedShadowFrameType {
   kShadowFrameUnderConstruction,
   kDeoptimizationShadowFrame,
+};
+
+// The type of method that triggers deoptimization. It contains info on whether
+// the deoptimized method should advance dex_pc.
+enum class DeoptimizationMethodType {
+  kKeepDexPc,  // dex pc is required to be kept upon deoptimization.
+  kDefault     // dex pc may or may not advance depending on other conditions.
 };
 
 // This should match RosAlloc::kNumThreadLocalSizeBrackets.
@@ -256,9 +265,13 @@ class Thread {
 
   bool RequestCheckpoint(Closure* function)
       REQUIRES(Locks::thread_suspend_count_lock_);
+
+  // RequestSynchronousCheckpoint releases the thread_list_lock_ as a part of its execution. This is
+  // due to the fact that Thread::Current() needs to go to sleep to allow the targeted thread to
+  // execute the checkpoint for us if it is Runnable.
   bool RequestSynchronousCheckpoint(Closure* function)
       REQUIRES_SHARED(Locks::mutator_lock_)
-      REQUIRES(Locks::thread_list_lock_)
+      RELEASE(Locks::thread_list_lock_)
       REQUIRES(!Locks::thread_suspend_count_lock_);
   bool RequestEmptyCheckpoint()
       REQUIRES(Locks::thread_suspend_count_lock_);
@@ -392,6 +405,10 @@ class Thread {
     return tlsPtr_.exception != nullptr;
   }
 
+  bool IsAsyncExceptionPending() const {
+    return tlsPtr_.async_exception != nullptr;
+  }
+
   mirror::Throwable* GetException() const REQUIRES_SHARED(Locks::mutator_lock_) {
     return tlsPtr_.exception;
   }
@@ -403,9 +420,23 @@ class Thread {
 
   void SetException(ObjPtr<mirror::Throwable> new_exception) REQUIRES_SHARED(Locks::mutator_lock_);
 
+  // Set an exception that is asynchronously thrown from a different thread. This will be checked
+  // periodically and might overwrite the current 'Exception'. This can only be called from a
+  // checkpoint.
+  //
+  // The caller should also make sure that the thread has been deoptimized so that the exception
+  // could be detected on back-edges.
+  void SetAsyncException(ObjPtr<mirror::Throwable> new_exception)
+      REQUIRES_SHARED(Locks::mutator_lock_);
+
   void ClearException() REQUIRES_SHARED(Locks::mutator_lock_) {
     tlsPtr_.exception = nullptr;
   }
+
+  // Move the current async-exception to the main exception. This should be called when the current
+  // thread is ready to deal with any async exceptions. Returns true if there is an async exception
+  // that needs to be dealt with, false otherwise.
+  bool ObserveAsyncException() REQUIRES_SHARED(Locks::mutator_lock_);
 
   // Find catch block and perform long jump to appropriate exception handle
   NO_RETURN void QuickDeliverException() REQUIRES_SHARED(Locks::mutator_lock_);
@@ -443,13 +474,16 @@ class Thread {
     tlsPtr_.managed_stack.SetTopQuickFrame(top_method);
   }
 
+  void SetTopOfStackTagged(ArtMethod** top_method) {
+    tlsPtr_.managed_stack.SetTopQuickFrameTagged(top_method);
+  }
+
   void SetTopOfShadowStack(ShadowFrame* top) {
     tlsPtr_.managed_stack.SetTopShadowFrame(top);
   }
 
   bool HasManagedStack() const {
-    return (tlsPtr_.managed_stack.GetTopQuickFrame() != nullptr) ||
-        (tlsPtr_.managed_stack.GetTopShadowFrame() != nullptr);
+    return tlsPtr_.managed_stack.HasTopQuickFrame() || tlsPtr_.managed_stack.HasTopShadowFrame();
   }
 
   // If 'msg' is null, no detail message is set.
@@ -802,7 +836,7 @@ class Thread {
   static ThreadOffset<pointer_size> TopOfManagedStackOffset() {
     return ThreadOffsetFromTlsPtr<pointer_size>(
         OFFSETOF_MEMBER(tls_ptr_sized_values, managed_stack) +
-        ManagedStack::TopQuickFrameOffset());
+        ManagedStack::TaggedTopQuickFrameOffset());
   }
 
   const ManagedStack* GetManagedStack() const {
@@ -830,7 +864,7 @@ class Thread {
   // Is the given obj in this thread's stack indirect reference table?
   bool HandleScopeContains(jobject obj) const;
 
-  void HandleScopeVisitRoots(RootVisitor* visitor, uint32_t thread_id)
+  void HandleScopeVisitRoots(RootVisitor* visitor, pid_t thread_id)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   BaseHandleScope* GetTopHandleScope() {
@@ -959,14 +993,18 @@ class Thread {
   // values on stacks.
   // 'from_code' denotes whether the deoptimization was explicitly made from
   // compiled code.
+  // 'method_type' contains info on whether deoptimization should advance
+  // dex_pc.
   void PushDeoptimizationContext(const JValue& return_value,
                                  bool is_reference,
+                                 ObjPtr<mirror::Throwable> exception,
                                  bool from_code,
-                                 ObjPtr<mirror::Throwable> exception)
+                                 DeoptimizationMethodType method_type)
       REQUIRES_SHARED(Locks::mutator_lock_);
   void PopDeoptimizationContext(JValue* result,
                                 ObjPtr<mirror::Throwable>* exception,
-                                bool* from_code)
+                                bool* from_code,
+                                DeoptimizationMethodType* method_type)
       REQUIRES_SHARED(Locks::mutator_lock_);
   void AssertHasDeoptimizationContext()
       REQUIRES_SHARED(Locks::mutator_lock_);
@@ -1505,7 +1543,8 @@ class Thread {
       thread_local_objects(0), mterp_current_ibase(nullptr), mterp_default_ibase(nullptr),
       mterp_alt_ibase(nullptr), thread_local_alloc_stack_top(nullptr),
       thread_local_alloc_stack_end(nullptr),
-      flip_function(nullptr), method_verifier(nullptr), thread_local_mark_stack(nullptr) {
+      flip_function(nullptr), method_verifier(nullptr), thread_local_mark_stack(nullptr),
+      async_exception(nullptr) {
       std::fill(held_mutexes, held_mutexes + kLockLevelCount, nullptr);
     }
 
@@ -1662,6 +1701,9 @@ class Thread {
 
     // Thread-local mark stack for the concurrent copying collector.
     gc::accounting::AtomicStack<mirror::Object>* thread_local_mark_stack;
+
+    // The pending async-exception or null.
+    mirror::Throwable* async_exception;
   } tlsPtr_;
 
   // Guards the 'wait_monitor_' members.
@@ -1704,8 +1746,13 @@ class Thread {
 
 class SCOPED_CAPABILITY ScopedAssertNoThreadSuspension {
  public:
-  ALWAYS_INLINE explicit ScopedAssertNoThreadSuspension(const char* cause)
-      ACQUIRE(Roles::uninterruptible_) {
+  ALWAYS_INLINE ScopedAssertNoThreadSuspension(const char* cause,
+                                               bool enabled = true)
+      ACQUIRE(Roles::uninterruptible_)
+      : enabled_(enabled) {
+    if (!enabled_) {
+      return;
+    }
     if (kIsDebugBuild) {
       self_ = Thread::Current();
       old_cause_ = self_->StartAssertNoThreadSuspension(cause);
@@ -1714,6 +1761,9 @@ class SCOPED_CAPABILITY ScopedAssertNoThreadSuspension {
     }
   }
   ALWAYS_INLINE ~ScopedAssertNoThreadSuspension() RELEASE(Roles::uninterruptible_) {
+    if (!enabled_) {
+      return;
+    }
     if (kIsDebugBuild) {
       self_->EndAssertNoThreadSuspension(old_cause_);
     } else {
@@ -1723,6 +1773,7 @@ class SCOPED_CAPABILITY ScopedAssertNoThreadSuspension {
 
  private:
   Thread* self_;
+  const bool enabled_;
   const char* old_cause_;
 };
 

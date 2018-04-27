@@ -123,8 +123,8 @@ RUNTIME_OPTIONS_KEY (Unit,                NoDexFileFallback)
 RUNTIME_OPTIONS_KEY (std::string,         CpuAbiList)
 RUNTIME_OPTIONS_KEY (std::string,         Fingerprint)
 RUNTIME_OPTIONS_KEY (ExperimentalFlags,   Experimental,     ExperimentalFlags::kNone) // -Xexperimental:{...}
-RUNTIME_OPTIONS_KEY (std::list<ti::Agent>,         AgentLib)  // -agentlib:<libname>=<options>
-RUNTIME_OPTIONS_KEY (std::list<ti::Agent>,         AgentPath)  // -agentpath:<libname>=<options>
+RUNTIME_OPTIONS_KEY (std::list<ti::AgentSpec>,         AgentLib)  // -agentlib:<libname>=<options>
+RUNTIME_OPTIONS_KEY (std::list<ti::AgentSpec>,         AgentPath)  // -agentpath:<libname>=<options>
 RUNTIME_OPTIONS_KEY (std::vector<Plugin>,            Plugins)  // -Xplugin:<library>
 
 // Not parse-able from command line, but can be provided explicitly.
@@ -145,5 +145,7 @@ RUNTIME_OPTIONS_KEY (void (*)(int32_t status), \
 RUNTIME_OPTIONS_KEY (void (*)(),          HookAbort,                      nullptr)
 
 RUNTIME_OPTIONS_KEY (bool,                SlowDebug,                      false)
+
+RUNTIME_OPTIONS_KEY (unsigned int,        GlobalRefAllocStackTraceLimit,  0)  // 0 = off
 
 #undef RUNTIME_OPTIONS_KEY

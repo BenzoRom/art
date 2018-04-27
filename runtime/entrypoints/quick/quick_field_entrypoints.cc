@@ -79,12 +79,12 @@ static ArtMethod* GetReferrer(Thread* self) REQUIRES_SHARED(Locks::mutator_lock_
         field_idx, referrer, Static ## PrimitiveOrObject ## Read,              \
         sizeof(PrimitiveType));                                                \
     if (LIKELY(field != nullptr)) {                                            \
-      return field->Get ## Kind (field->GetDeclaringClass())Ptr;               \
+      return field->Get ## Kind (field->GetDeclaringClass())Ptr;  /* NOLINT */ \
     }                                                                          \
     field = FindFieldFromCode<Static ## PrimitiveOrObject ## Read, true>(      \
         field_idx, referrer, self, sizeof(PrimitiveType));                     \
     if (LIKELY(field != nullptr)) {                                            \
-      return field->Get ## Kind (field->GetDeclaringClass())Ptr;               \
+      return field->Get ## Kind (field->GetDeclaringClass())Ptr;  /* NOLINT */ \
     }                                                                          \
     /* Will throw exception by checking with Thread::Current. */               \
     return 0;                                                                  \
@@ -100,12 +100,12 @@ static ArtMethod* GetReferrer(Thread* self) REQUIRES_SHARED(Locks::mutator_lock_
         field_idx, referrer, Instance ## PrimitiveOrObject ## Read,            \
         sizeof(PrimitiveType));                                                \
     if (LIKELY(field != nullptr) && obj != nullptr) {                          \
-      return field->Get ## Kind (obj)Ptr;                                      \
+      return field->Get ## Kind (obj)Ptr;  /* NOLINT */                        \
     }                                                                          \
     field = FindInstanceField<Instance ## PrimitiveOrObject ## Read, true>(    \
         field_idx, referrer, self, sizeof(PrimitiveType), &obj);               \
     if (LIKELY(field != nullptr)) {                                            \
-      return field->Get ## Kind (obj)Ptr;                                      \
+      return field->Get ## Kind (obj)Ptr;  /* NOLINT */                        \
     }                                                                          \
     /* Will throw exception by checking with Thread::Current. */               \
     return 0;                                                                  \
@@ -301,6 +301,7 @@ extern "C" mirror::Object* artReadBarrierMark(mirror::Object* obj) {
 extern "C" mirror::Object* artReadBarrierSlow(mirror::Object* ref ATTRIBUTE_UNUSED,
                                               mirror::Object* obj,
                                               uint32_t offset) {
+  // Used only in connection with non-volatile loads.
   DCHECK(kEmitCompilerReadBarrier);
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(obj) + offset;
   mirror::HeapReference<mirror::Object>* ref_addr =
@@ -308,9 +309,10 @@ extern "C" mirror::Object* artReadBarrierSlow(mirror::Object* ref ATTRIBUTE_UNUS
   constexpr ReadBarrierOption kReadBarrierOption =
       kUseReadBarrier ? kWithReadBarrier : kWithoutReadBarrier;
   mirror::Object* result =
-      ReadBarrier::Barrier<mirror::Object, kReadBarrierOption>(obj,
-                                                               MemberOffset(offset),
-                                                               ref_addr);
+      ReadBarrier::Barrier<mirror::Object, /* kIsVolatile */ false, kReadBarrierOption>(
+        obj,
+        MemberOffset(offset),
+        ref_addr);
   return result;
 }
 

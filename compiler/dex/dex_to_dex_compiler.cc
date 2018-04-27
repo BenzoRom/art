@@ -20,7 +20,7 @@
 
 #include "art_field-inl.h"
 #include "art_method-inl.h"
-#include "base/logging.h"
+#include "base/logging.h"  // For VLOG
 #include "base/mutex.h"
 #include "bytecode_utils.h"
 #include "compiled_method.h"
@@ -112,9 +112,10 @@ class DexCompiler {
 
 void DexCompiler::Compile() {
   DCHECK_EQ(dex_to_dex_compilation_level_, DexToDexCompilationLevel::kOptimize);
-  for (CodeItemIterator it(*unit_.GetCodeItem()); !it.Done(); it.Advance()) {
-    Instruction* inst = const_cast<Instruction*>(&it.CurrentInstruction());
-    const uint32_t dex_pc = it.CurrentDexPc();
+  IterationRange<DexInstructionIterator> instructions = unit_.GetCodeItem()->Instructions();
+  for (DexInstructionIterator it = instructions.begin(); it != instructions.end(); ++it) {
+    const uint32_t dex_pc = it.DexPc();
+    Instruction* inst = const_cast<Instruction*>(&it.Inst());
     switch (inst->Opcode()) {
       case Instruction::RETURN_VOID:
         CompileReturnVoid(inst, dex_pc);
@@ -125,7 +126,7 @@ void DexCompiler::Compile() {
         if (inst->Opcode() == Instruction::NOP) {
           // We turned the CHECK_CAST into two NOPs, avoid visiting the second NOP twice since this
           // would add 2 quickening info entries.
-          it.Advance();
+          ++it;
         }
         break;
 
@@ -293,7 +294,6 @@ void DexCompiler::CompileInvokeVirtual(Instruction* inst, uint32_t dex_pc,
   ClassLinker* class_linker = unit_.GetClassLinker();
   ArtMethod* resolved_method =
       class_linker->ResolveMethod<ClassLinker::ResolveMode::kCheckICCEAndIAE>(
-          GetDexFile(),
           method_idx,
           unit_.GetDexCache(),
           unit_.GetClassLoader(),
@@ -362,8 +362,8 @@ CompiledMethod* ArtCompileDEX(
     if (kIsDebugBuild) {
       // Double check that the counts line up with the size of the quicken info.
       size_t quicken_count = 0;
-      for (CodeItemIterator it(*code_item); !it.Done(); it.Advance()) {
-        if (QuickenInfoTable::NeedsIndexForInstruction(&it.CurrentInstruction())) {
+      for (const DexInstructionPcPair& pair : code_item->Instructions()) {
+        if (QuickenInfoTable::NeedsIndexForInstruction(&pair.Inst())) {
           ++quicken_count;
         }
       }
@@ -374,16 +374,16 @@ CompiledMethod* ArtCompileDEX(
       // Dex pc is not serialized, only used for checking the instructions. Since we access the
       // array based on the index of the quickened instruction, the indexes must line up perfectly.
       // The reader side uses the NeedsIndexForInstruction function too.
-      const Instruction* inst = Instruction::At(code_item->insns_ + info.dex_pc);
-      CHECK(QuickenInfoTable::NeedsIndexForInstruction(inst)) << inst->Opcode();
+      const Instruction& inst = code_item->InstructionAt(info.dex_pc);
+      CHECK(QuickenInfoTable::NeedsIndexForInstruction(&inst)) << inst.Opcode();
       // Add the index.
       quicken_data.push_back(static_cast<uint8_t>(info.dex_member_index >> 0));
       quicken_data.push_back(static_cast<uint8_t>(info.dex_member_index >> 8));
     }
     InstructionSet instruction_set = driver->GetInstructionSet();
-    if (instruction_set == kThumb2) {
+    if (instruction_set == InstructionSet::kThumb2) {
       // Don't use the thumb2 instruction set to avoid the one off code delta.
-      instruction_set = kArm;
+      instruction_set = InstructionSet::kArm;
     }
     return CompiledMethod::SwapAllocCompiledMethod(
         driver,
@@ -395,7 +395,7 @@ CompiledMethod* ArtCompileDEX(
         ArrayRef<const uint8_t>(),                   // method_info
         ArrayRef<const uint8_t>(quicken_data),       // vmap_table
         ArrayRef<const uint8_t>(),                   // cfi data
-        ArrayRef<const LinkerPatch>());
+        ArrayRef<const linker::LinkerPatch>());
   }
   return nullptr;
 }

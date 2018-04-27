@@ -81,8 +81,8 @@ class InvokeDexCallingConventionVisitorMIPS : public InvokeDexCallingConventionV
   InvokeDexCallingConventionVisitorMIPS() {}
   virtual ~InvokeDexCallingConventionVisitorMIPS() {}
 
-  Location GetNextLocation(Primitive::Type type) OVERRIDE;
-  Location GetReturnLocation(Primitive::Type type) const OVERRIDE;
+  Location GetNextLocation(DataType::Type type) OVERRIDE;
+  Location GetReturnLocation(DataType::Type type) const OVERRIDE;
   Location GetMethodLocation() const OVERRIDE;
 
  private:
@@ -100,7 +100,7 @@ class InvokeRuntimeCallingConvention : public CallingConvention<Register, FRegis
                           kRuntimeParameterFpuRegistersLength,
                           kMipsPointerSize) {}
 
-  Location GetReturnLocation(Primitive::Type return_type);
+  Location GetReturnLocation(DataType::Type return_type);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(InvokeRuntimeCallingConvention);
@@ -116,17 +116,17 @@ class FieldAccessCallingConventionMIPS : public FieldAccessCallingConvention {
   Location GetFieldIndexLocation() const OVERRIDE {
     return Location::RegisterLocation(A0);
   }
-  Location GetReturnLocation(Primitive::Type type) const OVERRIDE {
-    return Primitive::Is64BitType(type)
+  Location GetReturnLocation(DataType::Type type) const OVERRIDE {
+    return DataType::Is64BitType(type)
         ? Location::RegisterPairLocation(V0, V1)
         : Location::RegisterLocation(V0);
   }
-  Location GetSetValueLocation(Primitive::Type type, bool is_instance) const OVERRIDE {
-    return Primitive::Is64BitType(type)
+  Location GetSetValueLocation(DataType::Type type, bool is_instance) const OVERRIDE {
+    return DataType::Is64BitType(type)
         ? Location::RegisterPairLocation(A2, A3)
         : (is_instance ? Location::RegisterLocation(A2) : Location::RegisterLocation(A1));
   }
-  Location GetFpuLocation(Primitive::Type type ATTRIBUTE_UNUSED) const OVERRIDE {
+  Location GetFpuLocation(DataType::Type type ATTRIBUTE_UNUSED) const OVERRIDE {
     return Location::FpuRegisterLocation(F0);
   }
 
@@ -285,7 +285,8 @@ class InstructionCodeGeneratorMIPS : public InstructionCodeGenerator {
                                Location root,
                                Register obj,
                                uint32_t offset,
-                               ReadBarrierOption read_barrier_option);
+                               ReadBarrierOption read_barrier_option,
+                               MipsLabel* label_low = nullptr);
 
   void GenerateIntCompare(IfCondition cond, LocationSummary* locations);
   // When the function returns `false` it means that the condition holds if `dst` is non-zero
@@ -303,14 +304,14 @@ class InstructionCodeGeneratorMIPS : public InstructionCodeGenerator {
                                     MipsLabel* label);
   void GenerateFpCompare(IfCondition cond,
                          bool gt_bias,
-                         Primitive::Type type,
+                         DataType::Type type,
                          LocationSummary* locations);
   // When the function returns `false` it means that the condition holds if the condition
   // code flag `cc` is non-zero and doesn't hold if `cc` is zero. If it returns `true`,
   // the roles of zero and non-zero values of the `cc` flag are exchanged.
   bool MaterializeFpCompareR2(IfCondition cond,
                               bool gt_bias,
-                              Primitive::Type type,
+                              DataType::Type type,
                               LocationSummary* input_locations,
                               int cc);
   // When the function returns `false` it means that the condition holds if `dst` is non-zero
@@ -318,12 +319,12 @@ class InstructionCodeGeneratorMIPS : public InstructionCodeGenerator {
   // `dst` are exchanged.
   bool MaterializeFpCompareR6(IfCondition cond,
                               bool gt_bias,
-                              Primitive::Type type,
+                              DataType::Type type,
                               LocationSummary* input_locations,
                               FRegister dst);
   void GenerateFpCompareAndBranch(IfCondition cond,
                                   bool gt_bias,
-                                  Primitive::Type type,
+                                  DataType::Type type,
                                   LocationSummary* locations,
                                   MipsLabel* label);
   void GenerateTestAndBranch(HInstruction* instruction,
@@ -394,7 +395,7 @@ class CodeGeneratorMIPS : public CodeGenerator {
   const MipsAssembler& GetAssembler() const OVERRIDE { return assembler_; }
 
   // Emit linker patches.
-  void EmitLinkerPatches(ArenaVector<LinkerPatch>* linker_patches) OVERRIDE;
+  void EmitLinkerPatches(ArenaVector<linker::LinkerPatch>* linker_patches) OVERRIDE;
   void EmitJitRootPatches(uint8_t* code, const uint8_t* roots_data) OVERRIDE;
 
   // Fast path implementation of ReadBarrier::Barrier for a heap
@@ -517,7 +518,7 @@ class CodeGeneratorMIPS : public CodeGenerator {
 
   // Code generation helpers.
 
-  void MoveLocation(Location dst, Location src, Primitive::Type dst_type) OVERRIDE;
+  void MoveLocation(Location dst, Location src, DataType::Type dst_type) OVERRIDE;
 
   void MoveConstant(Location destination, int32_t value) OVERRIDE;
 
@@ -540,8 +541,8 @@ class CodeGeneratorMIPS : public CodeGenerator {
 
   ParallelMoveResolver* GetMoveResolver() OVERRIDE { return &move_resolver_; }
 
-  bool NeedsTwoRegisters(Primitive::Type type) const OVERRIDE {
-    return type == Primitive::kPrimLong;
+  bool NeedsTwoRegisters(DataType::Type type) const OVERRIDE {
+    return type == DataType::Type::kInt64;
   }
 
   // Check if the desired_string_load_kind is supported. If it is, return it,
@@ -566,7 +567,7 @@ class CodeGeneratorMIPS : public CodeGenerator {
       HInvokeVirtual* invoke, Location temp, SlowPathCode* slow_path = nullptr) OVERRIDE;
 
   void MoveFromReturnRegister(Location trg ATTRIBUTE_UNUSED,
-                              Primitive::Type type ATTRIBUTE_UNUSED) OVERRIDE {
+                              DataType::Type type ATTRIBUTE_UNUSED) OVERRIDE {
     UNIMPLEMENTED(FATAL) << "Not implemented on MIPS";
   }
 
@@ -632,12 +633,14 @@ class CodeGeneratorMIPS : public CodeGenerator {
   PcRelativePatchInfo* NewPcRelativeStringPatch(const DexFile& dex_file,
                                                 dex::StringIndex string_index,
                                                 const PcRelativePatchInfo* info_high = nullptr);
+  PcRelativePatchInfo* NewStringBssEntryPatch(const DexFile& dex_file,
+                                              dex::StringIndex string_index,
+                                              const PcRelativePatchInfo* info_high = nullptr);
   Literal* DeduplicateBootImageAddressLiteral(uint32_t address);
 
   void EmitPcRelativeAddressPlaceholderHigh(PcRelativePatchInfo* info_high,
                                             Register out,
-                                            Register base,
-                                            PcRelativePatchInfo* info_low);
+                                            Register base);
 
   // The JitPatchInfo is used for JIT string and class loads.
   struct JitPatchInfo {
@@ -649,8 +652,9 @@ class CodeGeneratorMIPS : public CodeGenerator {
     // String/type index.
     uint64_t index;
     // Label for the instruction loading the most significant half of the address.
-    // The least significant half is loaded with the instruction that follows immediately.
     MipsLabel high_label;
+    // Label for the instruction supplying the least significant half of the address.
+    MipsLabel low_label;
   };
 
   void PatchJitRootUse(uint8_t* code,
@@ -658,10 +662,10 @@ class CodeGeneratorMIPS : public CodeGenerator {
                        const JitPatchInfo& info,
                        uint64_t index_in_table) const;
   JitPatchInfo* NewJitRootStringPatch(const DexFile& dex_file,
-                                      dex::StringIndex dex_index,
+                                      dex::StringIndex string_index,
                                       Handle<mirror::String> handle);
   JitPatchInfo* NewJitRootClassPatch(const DexFile& dex_file,
-                                     dex::TypeIndex dex_index,
+                                     dex::TypeIndex type_index,
                                      Handle<mirror::Class> handle);
 
  private:
@@ -675,9 +679,9 @@ class CodeGeneratorMIPS : public CodeGenerator {
                                           const PcRelativePatchInfo* info_high,
                                           ArenaDeque<PcRelativePatchInfo>* patches);
 
-  template <LinkerPatch (*Factory)(size_t, const DexFile*, uint32_t, uint32_t)>
+  template <linker::LinkerPatch (*Factory)(size_t, const DexFile*, uint32_t, uint32_t)>
   void EmitPcRelativeLinkerPatches(const ArenaDeque<PcRelativePatchInfo>& infos,
-                                   ArenaVector<LinkerPatch>* linker_patches);
+                                   ArenaVector<linker::LinkerPatch>* linker_patches);
 
   // Labels for each block that will be compiled.
   MipsLabel* block_labels_;
@@ -698,8 +702,10 @@ class CodeGeneratorMIPS : public CodeGenerator {
   ArenaDeque<PcRelativePatchInfo> pc_relative_type_patches_;
   // PC-relative type patch info for kBssEntry.
   ArenaDeque<PcRelativePatchInfo> type_bss_entry_patches_;
-  // PC-relative String patch info; type depends on configuration (app .bss or boot image PIC).
+  // PC-relative String patch info; type depends on configuration (intern table or boot image PIC).
   ArenaDeque<PcRelativePatchInfo> pc_relative_string_patches_;
+  // PC-relative String patch info for kBssEntry.
+  ArenaDeque<PcRelativePatchInfo> string_bss_entry_patches_;
 
   // Patches for string root accesses in JIT compiled code.
   ArenaDeque<JitPatchInfo> jit_string_patches_;

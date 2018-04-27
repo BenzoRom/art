@@ -22,19 +22,15 @@
 
 namespace art {
 
-class LoadStoreAnalysisTest : public CommonCompilerTest {
+class LoadStoreAnalysisTest : public OptimizingUnitTest {
  public:
-  LoadStoreAnalysisTest() : pool_(), allocator_(&pool_) {
-    graph_ = CreateGraph(&allocator_);
-  }
+  LoadStoreAnalysisTest() : graph_(CreateGraph()) { }
 
-  ArenaPool pool_;
-  ArenaAllocator allocator_;
   HGraph* graph_;
 };
 
 TEST_F(LoadStoreAnalysisTest, ArrayHeapLocations) {
-  HBasicBlock* entry = new (&allocator_) HBasicBlock(graph_);
+  HBasicBlock* entry = new (GetAllocator()) HBasicBlock(graph_);
   graph_->AddBlock(entry);
   graph_->SetEntryBlock(entry);
 
@@ -48,17 +44,19 @@ TEST_F(LoadStoreAnalysisTest, ArrayHeapLocations) {
   // array_get2    ArrayGet [array, c2]
   // array_set1    ArraySet [array, c1, c3]
   // array_set2    ArraySet [array, index, c3]
-  HInstruction* array = new (&allocator_) HParameterValue(
-      graph_->GetDexFile(), dex::TypeIndex(0), 0, Primitive::kPrimNot);
-  HInstruction* index = new (&allocator_) HParameterValue(
-      graph_->GetDexFile(), dex::TypeIndex(1), 1, Primitive::kPrimInt);
+  HInstruction* array = new (GetAllocator()) HParameterValue(
+      graph_->GetDexFile(), dex::TypeIndex(0), 0, DataType::Type::kReference);
+  HInstruction* index = new (GetAllocator()) HParameterValue(
+      graph_->GetDexFile(), dex::TypeIndex(1), 1, DataType::Type::kInt32);
   HInstruction* c1 = graph_->GetIntConstant(1);
   HInstruction* c2 = graph_->GetIntConstant(2);
   HInstruction* c3 = graph_->GetIntConstant(3);
-  HInstruction* array_get1 = new (&allocator_) HArrayGet(array, c1, Primitive::kPrimInt, 0);
-  HInstruction* array_get2 = new (&allocator_) HArrayGet(array, c2, Primitive::kPrimInt, 0);
-  HInstruction* array_set1 = new (&allocator_) HArraySet(array, c1, c3, Primitive::kPrimInt, 0);
-  HInstruction* array_set2 = new (&allocator_) HArraySet(array, index, c3, Primitive::kPrimInt, 0);
+  HInstruction* array_get1 = new (GetAllocator()) HArrayGet(array, c1, DataType::Type::kInt32, 0);
+  HInstruction* array_get2 = new (GetAllocator()) HArrayGet(array, c2, DataType::Type::kInt32, 0);
+  HInstruction* array_set1 =
+      new (GetAllocator()) HArraySet(array, c1, c3, DataType::Type::kInt32, 0);
+  HInstruction* array_set2 =
+      new (GetAllocator()) HArraySet(array, index, c3, DataType::Type::kInt32, 0);
   entry->AddInstruction(array);
   entry->AddInstruction(index);
   entry->AddInstruction(array_get1);
@@ -106,7 +104,7 @@ TEST_F(LoadStoreAnalysisTest, ArrayHeapLocations) {
 }
 
 TEST_F(LoadStoreAnalysisTest, FieldHeapLocations) {
-  HBasicBlock* entry = new (&allocator_) HBasicBlock(graph_);
+  HBasicBlock* entry = new (GetAllocator()) HBasicBlock(graph_);
   graph_->AddBlock(entry);
   graph_->SetEntryBlock(entry);
 
@@ -118,38 +116,38 @@ TEST_F(LoadStoreAnalysisTest, FieldHeapLocations) {
   // get_field20         InstanceFieldGet [object, 20]
 
   HInstruction* c1 = graph_->GetIntConstant(1);
-  HInstruction* object = new (&allocator_) HParameterValue(graph_->GetDexFile(),
-                                                           dex::TypeIndex(0),
-                                                           0,
-                                                           Primitive::kPrimNot);
-  HInstanceFieldSet* set_field10 = new (&allocator_) HInstanceFieldSet(object,
-                                                                       c1,
-                                                                       nullptr,
-                                                                       Primitive::kPrimInt,
-                                                                       MemberOffset(10),
-                                                                       false,
-                                                                       kUnknownFieldIndex,
-                                                                       kUnknownClassDefIndex,
-                                                                       graph_->GetDexFile(),
-                                                                       0);
-  HInstanceFieldGet* get_field10 = new (&allocator_) HInstanceFieldGet(object,
-                                                                       nullptr,
-                                                                       Primitive::kPrimInt,
-                                                                       MemberOffset(10),
-                                                                       false,
-                                                                       kUnknownFieldIndex,
-                                                                       kUnknownClassDefIndex,
-                                                                       graph_->GetDexFile(),
-                                                                       0);
-  HInstanceFieldGet* get_field20 = new (&allocator_) HInstanceFieldGet(object,
-                                                                       nullptr,
-                                                                       Primitive::kPrimInt,
-                                                                       MemberOffset(20),
-                                                                       false,
-                                                                       kUnknownFieldIndex,
-                                                                       kUnknownClassDefIndex,
-                                                                       graph_->GetDexFile(),
-                                                                       0);
+  HInstruction* object = new (GetAllocator()) HParameterValue(graph_->GetDexFile(),
+                                                              dex::TypeIndex(0),
+                                                              0,
+                                                              DataType::Type::kReference);
+  HInstanceFieldSet* set_field10 = new (GetAllocator()) HInstanceFieldSet(object,
+                                                                          c1,
+                                                                          nullptr,
+                                                                          DataType::Type::kInt32,
+                                                                          MemberOffset(10),
+                                                                          false,
+                                                                          kUnknownFieldIndex,
+                                                                          kUnknownClassDefIndex,
+                                                                          graph_->GetDexFile(),
+                                                                          0);
+  HInstanceFieldGet* get_field10 = new (GetAllocator()) HInstanceFieldGet(object,
+                                                                          nullptr,
+                                                                          DataType::Type::kInt32,
+                                                                          MemberOffset(10),
+                                                                          false,
+                                                                          kUnknownFieldIndex,
+                                                                          kUnknownClassDefIndex,
+                                                                          graph_->GetDexFile(),
+                                                                          0);
+  HInstanceFieldGet* get_field20 = new (GetAllocator()) HInstanceFieldGet(object,
+                                                                          nullptr,
+                                                                          DataType::Type::kInt32,
+                                                                          MemberOffset(20),
+                                                                          false,
+                                                                          kUnknownFieldIndex,
+                                                                          kUnknownClassDefIndex,
+                                                                          graph_->GetDexFile(),
+                                                                          0);
   entry->AddInstruction(object);
   entry->AddInstruction(set_field10);
   entry->AddInstruction(get_field10);
@@ -185,32 +183,38 @@ TEST_F(LoadStoreAnalysisTest, FieldHeapLocations) {
 }
 
 TEST_F(LoadStoreAnalysisTest, ArrayIndexAliasingTest) {
-  HBasicBlock* entry = new (&allocator_) HBasicBlock(graph_);
+  HBasicBlock* entry = new (GetAllocator()) HBasicBlock(graph_);
   graph_->AddBlock(entry);
   graph_->SetEntryBlock(entry);
   graph_->BuildDominatorTree();
 
-  HInstruction* array = new (&allocator_) HParameterValue(
-      graph_->GetDexFile(), dex::TypeIndex(0), 0, Primitive::kPrimNot);
-  HInstruction* index = new (&allocator_) HParameterValue(
-      graph_->GetDexFile(), dex::TypeIndex(1), 1, Primitive::kPrimInt);
+  HInstruction* array = new (GetAllocator()) HParameterValue(
+      graph_->GetDexFile(), dex::TypeIndex(0), 0, DataType::Type::kReference);
+  HInstruction* index = new (GetAllocator()) HParameterValue(
+      graph_->GetDexFile(), dex::TypeIndex(1), 1, DataType::Type::kInt32);
   HInstruction* c0 = graph_->GetIntConstant(0);
   HInstruction* c1 = graph_->GetIntConstant(1);
   HInstruction* c_neg1 = graph_->GetIntConstant(-1);
-  HInstruction* add0 = new (&allocator_) HAdd(Primitive::kPrimInt, index, c0);
-  HInstruction* add1 = new (&allocator_) HAdd(Primitive::kPrimInt, index, c1);
-  HInstruction* sub0 = new (&allocator_) HSub(Primitive::kPrimInt, index, c0);
-  HInstruction* sub1 = new (&allocator_) HSub(Primitive::kPrimInt, index, c1);
-  HInstruction* sub_neg1 = new (&allocator_) HSub(Primitive::kPrimInt, index, c_neg1);
-  HInstruction* rev_sub1 = new (&allocator_) HSub(Primitive::kPrimInt, c1, index);
-  HInstruction* arr_set1 = new (&allocator_) HArraySet(array, c0, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set2 = new (&allocator_) HArraySet(array, c1, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set3 = new (&allocator_) HArraySet(array, add0, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set4 = new (&allocator_) HArraySet(array, add1, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set5 = new (&allocator_) HArraySet(array, sub0, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set6 = new (&allocator_) HArraySet(array, sub1, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set7 = new (&allocator_) HArraySet(array, rev_sub1, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set8 = new (&allocator_) HArraySet(array, sub_neg1, c0, Primitive::kPrimInt, 0);
+  HInstruction* add0 = new (GetAllocator()) HAdd(DataType::Type::kInt32, index, c0);
+  HInstruction* add1 = new (GetAllocator()) HAdd(DataType::Type::kInt32, index, c1);
+  HInstruction* sub0 = new (GetAllocator()) HSub(DataType::Type::kInt32, index, c0);
+  HInstruction* sub1 = new (GetAllocator()) HSub(DataType::Type::kInt32, index, c1);
+  HInstruction* sub_neg1 = new (GetAllocator()) HSub(DataType::Type::kInt32, index, c_neg1);
+  HInstruction* rev_sub1 = new (GetAllocator()) HSub(DataType::Type::kInt32, c1, index);
+  HInstruction* arr_set1 = new (GetAllocator()) HArraySet(array, c0, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set2 = new (GetAllocator()) HArraySet(array, c1, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set3 =
+      new (GetAllocator()) HArraySet(array, add0, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set4 =
+      new (GetAllocator()) HArraySet(array, add1, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set5 =
+      new (GetAllocator()) HArraySet(array, sub0, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set6 =
+      new (GetAllocator()) HArraySet(array, sub1, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set7 =
+      new (GetAllocator()) HArraySet(array, rev_sub1, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set8 =
+      new (GetAllocator()) HArraySet(array, sub_neg1, c0, DataType::Type::kInt32, 0);
 
   entry->AddInstruction(array);
   entry->AddInstruction(index);
@@ -269,15 +273,15 @@ TEST_F(LoadStoreAnalysisTest, ArrayIndexAliasingTest) {
 }
 
 TEST_F(LoadStoreAnalysisTest, ArrayIndexCalculationOverflowTest) {
-  HBasicBlock* entry = new (&allocator_) HBasicBlock(graph_);
+  HBasicBlock* entry = new (GetAllocator()) HBasicBlock(graph_);
   graph_->AddBlock(entry);
   graph_->SetEntryBlock(entry);
   graph_->BuildDominatorTree();
 
-  HInstruction* array = new (&allocator_) HParameterValue(
-      graph_->GetDexFile(), dex::TypeIndex(0), 0, Primitive::kPrimNot);
-  HInstruction* index = new (&allocator_) HParameterValue(
-      graph_->GetDexFile(), dex::TypeIndex(1), 1, Primitive::kPrimInt);
+  HInstruction* array = new (GetAllocator()) HParameterValue(
+      graph_->GetDexFile(), dex::TypeIndex(0), 0, DataType::Type::kReference);
+  HInstruction* index = new (GetAllocator()) HParameterValue(
+      graph_->GetDexFile(), dex::TypeIndex(1), 1, DataType::Type::kInt32);
 
   HInstruction* c0 = graph_->GetIntConstant(0);
   HInstruction* c_0x80000000 = graph_->GetIntConstant(0x80000000);
@@ -287,34 +291,41 @@ TEST_F(LoadStoreAnalysisTest, ArrayIndexCalculationOverflowTest) {
   HInstruction* c_0x80000001 = graph_->GetIntConstant(0x80000001);
 
   // `index+0x80000000` and `index-0x80000000` array indices MAY alias.
-  HInstruction* add_0x80000000 = new (&allocator_) HAdd(Primitive::kPrimInt, index, c_0x80000000);
-  HInstruction* sub_0x80000000 = new (&allocator_) HSub(Primitive::kPrimInt, index, c_0x80000000);
-  HInstruction* arr_set_1 = new (&allocator_) HArraySet(
-      array, add_0x80000000, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set_2 = new (&allocator_) HArraySet(
-      array, sub_0x80000000, c0, Primitive::kPrimInt, 0);
+  HInstruction* add_0x80000000 = new (GetAllocator()) HAdd(
+      DataType::Type::kInt32, index, c_0x80000000);
+  HInstruction* sub_0x80000000 = new (GetAllocator()) HSub(
+      DataType::Type::kInt32, index, c_0x80000000);
+  HInstruction* arr_set_1 = new (GetAllocator()) HArraySet(
+      array, add_0x80000000, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set_2 = new (GetAllocator()) HArraySet(
+      array, sub_0x80000000, c0, DataType::Type::kInt32, 0);
 
   // `index+0x10` and `index-0xFFFFFFF0` array indices MAY alias.
-  HInstruction* add_0x10 = new (&allocator_) HAdd(Primitive::kPrimInt, index, c_0x10);
-  HInstruction* sub_0xFFFFFFF0 = new (&allocator_) HSub(Primitive::kPrimInt, index, c_0xFFFFFFF0);
-  HInstruction* arr_set_3 = new (&allocator_) HArraySet(
-      array, add_0x10, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set_4 = new (&allocator_) HArraySet(
-      array, sub_0xFFFFFFF0, c0, Primitive::kPrimInt, 0);
+  HInstruction* add_0x10 = new (GetAllocator()) HAdd(DataType::Type::kInt32, index, c_0x10);
+  HInstruction* sub_0xFFFFFFF0 = new (GetAllocator()) HSub(
+      DataType::Type::kInt32, index, c_0xFFFFFFF0);
+  HInstruction* arr_set_3 = new (GetAllocator()) HArraySet(
+      array, add_0x10, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set_4 = new (GetAllocator()) HArraySet(
+      array, sub_0xFFFFFFF0, c0, DataType::Type::kInt32, 0);
 
   // `index+0x7FFFFFFF` and `index-0x80000001` array indices MAY alias.
-  HInstruction* add_0x7FFFFFFF = new (&allocator_) HAdd(Primitive::kPrimInt, index, c_0x7FFFFFFF);
-  HInstruction* sub_0x80000001 = new (&allocator_) HSub(Primitive::kPrimInt, index, c_0x80000001);
-  HInstruction* arr_set_5 = new (&allocator_) HArraySet(
-      array, add_0x7FFFFFFF, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set_6 = new (&allocator_) HArraySet(
-      array, sub_0x80000001, c0, Primitive::kPrimInt, 0);
+  HInstruction* add_0x7FFFFFFF = new (GetAllocator()) HAdd(
+      DataType::Type::kInt32, index, c_0x7FFFFFFF);
+  HInstruction* sub_0x80000001 = new (GetAllocator()) HSub(
+      DataType::Type::kInt32, index, c_0x80000001);
+  HInstruction* arr_set_5 = new (GetAllocator()) HArraySet(
+      array, add_0x7FFFFFFF, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set_6 = new (GetAllocator()) HArraySet(
+      array, sub_0x80000001, c0, DataType::Type::kInt32, 0);
 
   // `index+0` and `index-0` array indices MAY alias.
-  HInstruction* add_0 = new (&allocator_) HAdd(Primitive::kPrimInt, index, c0);
-  HInstruction* sub_0 = new (&allocator_) HSub(Primitive::kPrimInt, index, c0);
-  HInstruction* arr_set_7 = new (&allocator_) HArraySet(array, add_0, c0, Primitive::kPrimInt, 0);
-  HInstruction* arr_set_8 = new (&allocator_) HArraySet(array, sub_0, c0, Primitive::kPrimInt, 0);
+  HInstruction* add_0 = new (GetAllocator()) HAdd(DataType::Type::kInt32, index, c0);
+  HInstruction* sub_0 = new (GetAllocator()) HSub(DataType::Type::kInt32, index, c0);
+  HInstruction* arr_set_7 = new (GetAllocator()) HArraySet(
+      array, add_0, c0, DataType::Type::kInt32, 0);
+  HInstruction* arr_set_8 = new (GetAllocator()) HArraySet(
+      array, sub_0, c0, DataType::Type::kInt32, 0);
 
   entry->AddInstruction(array);
   entry->AddInstruction(index);
@@ -376,6 +387,70 @@ TEST_F(LoadStoreAnalysisTest, ArrayIndexCalculationOverflowTest) {
   loc1 = heap_location_collector.GetArrayAccessHeapLocation(array, add_0);
   loc2 = heap_location_collector.GetArrayAccessHeapLocation(array, sub_0x80000000);
   ASSERT_FALSE(heap_location_collector.MayAlias(loc1, loc2));
+}
+
+TEST_F(LoadStoreAnalysisTest, TestHuntOriginalRef) {
+  HBasicBlock* entry = new (GetAllocator()) HBasicBlock(graph_);
+  graph_->AddBlock(entry);
+  graph_->SetEntryBlock(entry);
+
+  // Different ways where orignal array reference are transformed & passed to ArrayGet.
+  // ParameterValue --> ArrayGet
+  // ParameterValue --> BoundType --> ArrayGet
+  // ParameterValue --> BoundType --> NullCheck --> ArrayGet
+  // ParameterValue --> BoundType --> NullCheck --> IntermediateAddress --> ArrayGet
+  HInstruction* c1 = graph_->GetIntConstant(1);
+  HInstruction* array = new (GetAllocator()) HParameterValue(graph_->GetDexFile(),
+                                                             dex::TypeIndex(0),
+                                                             0,
+                                                             DataType::Type::kReference);
+  HInstruction* array_get1 = new (GetAllocator()) HArrayGet(array,
+                                                            c1,
+                                                            DataType::Type::kInt32,
+                                                            0);
+
+  HInstruction* bound_type = new (GetAllocator()) HBoundType(array);
+  HInstruction* array_get2 = new (GetAllocator()) HArrayGet(bound_type,
+                                                            c1,
+                                                            DataType::Type::kInt32,
+                                                            0);
+
+  HInstruction* null_check = new (GetAllocator()) HNullCheck(bound_type, 0);
+  HInstruction* array_get3 = new (GetAllocator()) HArrayGet(null_check,
+                                                            c1,
+                                                            DataType::Type::kInt32,
+                                                            0);
+
+  HInstruction* inter_addr = new (GetAllocator()) HIntermediateAddress(null_check, c1, 0);
+  HInstruction* array_get4 = new (GetAllocator()) HArrayGet(inter_addr,
+                                                            c1,
+                                                            DataType::Type::kInt32,
+                                                            0);
+  entry->AddInstruction(array);
+  entry->AddInstruction(array_get1);
+  entry->AddInstruction(bound_type);
+  entry->AddInstruction(array_get2);
+  entry->AddInstruction(null_check);
+  entry->AddInstruction(array_get3);
+  entry->AddInstruction(inter_addr);
+  entry->AddInstruction(array_get4);
+
+  HeapLocationCollector heap_location_collector(graph_);
+  heap_location_collector.VisitBasicBlock(entry);
+
+  // Test that the HeapLocationCollector should be able to tell
+  // that there is only ONE array location, no matter how many
+  // times the original reference has been transformed by BoundType,
+  // NullCheck, IntermediateAddress, etc.
+  ASSERT_EQ(heap_location_collector.GetNumberOfHeapLocations(), 1U);
+  size_t loc1 = heap_location_collector.GetArrayAccessHeapLocation(array, c1);
+  size_t loc2 = heap_location_collector.GetArrayAccessHeapLocation(bound_type, c1);
+  size_t loc3 = heap_location_collector.GetArrayAccessHeapLocation(null_check, c1);
+  size_t loc4 = heap_location_collector.GetArrayAccessHeapLocation(inter_addr, c1);
+  ASSERT_TRUE(loc1 != HeapLocationCollector::kHeapLocationNotFound);
+  ASSERT_EQ(loc1, loc2);
+  ASSERT_EQ(loc1, loc3);
+  ASSERT_EQ(loc1, loc4);
 }
 
 }  // namespace art

@@ -20,6 +20,7 @@
 #include "object.h"
 
 #include "atomic.h"
+#include "heap_poisoning.h"
 #include "lock_word-inl.h"
 #include "object_reference-inl.h"
 #include "read_barrier.h"
@@ -186,7 +187,7 @@ inline bool Object::AtomicSetMarkBit(uint32_t expected_mark_bit, uint32_t mark_b
     expected_lw = lw;
     new_lw = lw;
     new_lw.SetMarkBitState(mark_bit);
-    // Since this is only set from the mutator, we can use the non release Cas.
+    // Since this is only set from the mutator, we can use the non-release CAS.
   } while (!CasLockWordWeakRelaxed(expected_lw, new_lw));
   return true;
 }
@@ -211,13 +212,12 @@ inline bool Object::CasFieldStrongRelaxedObjectWithoutWriteBarrier(
   if (kTransactionActive) {
     Runtime::Current()->RecordWriteFieldReference(this, field_offset, old_value, true);
   }
-  HeapReference<Object> old_ref(HeapReference<Object>::FromObjPtr(old_value));
-  HeapReference<Object> new_ref(HeapReference<Object>::FromObjPtr(new_value));
+  uint32_t old_ref(PtrCompression<kPoisonHeapReferences, Object>::Compress(old_value));
+  uint32_t new_ref(PtrCompression<kPoisonHeapReferences, Object>::Compress(new_value));
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   Atomic<uint32_t>* atomic_addr = reinterpret_cast<Atomic<uint32_t>*>(raw_addr);
 
-  bool success = atomic_addr->CompareExchangeStrongRelaxed(old_ref.reference_,
-                                                           new_ref.reference_);
+  bool success = atomic_addr->CompareExchangeStrongRelaxed(old_ref, new_ref);
   return success;
 }
 
@@ -241,13 +241,12 @@ inline bool Object::CasFieldStrongReleaseObjectWithoutWriteBarrier(
   if (kTransactionActive) {
     Runtime::Current()->RecordWriteFieldReference(this, field_offset, old_value, true);
   }
-  HeapReference<Object> old_ref(HeapReference<Object>::FromObjPtr(old_value));
-  HeapReference<Object> new_ref(HeapReference<Object>::FromObjPtr(new_value));
+  uint32_t old_ref(PtrCompression<kPoisonHeapReferences, Object>::Compress(old_value));
+  uint32_t new_ref(PtrCompression<kPoisonHeapReferences, Object>::Compress(new_value));
   uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
   Atomic<uint32_t>* atomic_addr = reinterpret_cast<Atomic<uint32_t>*>(raw_addr);
 
-  bool success = atomic_addr->CompareExchangeStrongRelease(old_ref.reference_,
-                                                           new_ref.reference_);
+  bool success = atomic_addr->CompareExchangeStrongRelease(old_ref, new_ref);
   return success;
 }
 

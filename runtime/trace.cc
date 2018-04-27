@@ -805,10 +805,16 @@ void Trace::MethodUnwind(Thread* thread,
                       thread_clock_diff, wall_clock_diff);
 }
 
-void Trace::ExceptionCaught(Thread* thread ATTRIBUTE_UNUSED,
+void Trace::ExceptionThrown(Thread* thread ATTRIBUTE_UNUSED,
                             Handle<mirror::Throwable> exception_object ATTRIBUTE_UNUSED)
     REQUIRES_SHARED(Locks::mutator_lock_) {
-  LOG(ERROR) << "Unexpected exception caught event in tracing";
+  LOG(ERROR) << "Unexpected exception thrown event in tracing";
+}
+
+void Trace::ExceptionHandled(Thread* thread ATTRIBUTE_UNUSED,
+                             Handle<mirror::Throwable> exception_object ATTRIBUTE_UNUSED)
+    REQUIRES_SHARED(Locks::mutator_lock_) {
+  LOG(ERROR) << "Unexpected exception thrown event in tracing";
 }
 
 void Trace::Branch(Thread* /*thread*/, ArtMethod* method,
@@ -824,6 +830,11 @@ void Trace::InvokeVirtualOrInterface(Thread*,
                                      ArtMethod*) {
   LOG(ERROR) << "Unexpected invoke event in tracing" << ArtMethod::PrettyMethod(method)
              << " " << dex_pc;
+}
+
+void Trace::WatchedFramePop(Thread* self ATTRIBUTE_UNUSED,
+                            const ShadowFrame& frame ATTRIBUTE_UNUSED) {
+  LOG(ERROR) << "Unexpected WatchedFramePop event in tracing";
 }
 
 void Trace::ReadClocks(Thread* thread, uint32_t* thread_clock_diff, uint32_t* wall_clock_diff) {

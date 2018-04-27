@@ -24,6 +24,8 @@
 #include "obj_ptr.h"
 #include "object_reference.h"
 #include "offsets.h"
+#include "read_barrier_config.h"
+#include "read_barrier_option.h"
 #include "verify_object.h"
 
 namespace art {
@@ -380,7 +382,12 @@ class MANAGED LOCKABLE Object {
 
   template<VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags, bool kIsVolatile = false>
   ALWAYS_INLINE uint8_t GetFieldBoolean(MemberOffset field_offset)
-      REQUIRES_SHARED(Locks::mutator_lock_);
+      REQUIRES_SHARED(Locks::mutator_lock_) {
+    if (kVerifyFlags & kVerifyThis) {
+      VerifyObject(this);
+    }
+    return GetField<uint8_t, kIsVolatile>(field_offset);
+  }
 
   template<VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags, bool kIsVolatile = false>
   ALWAYS_INLINE int8_t GetFieldByte(MemberOffset field_offset)

@@ -18,9 +18,10 @@
 #define ART_RUNTIME_BASE_CASTS_H_
 
 #include <assert.h>
-#include <limits>
 #include <stdint.h>
 #include <string.h>
+
+#include <limits>
 #include <type_traits>
 
 #include "base/logging.h"
@@ -71,6 +72,14 @@ inline To implicit_cast(From const &f) {
 template<typename To, typename From>     // use like this: down_cast<T*>(foo);
 inline To down_cast(From* f) {                   // so we only accept pointers
   static_assert(std::is_base_of<From, typename std::remove_pointer<To>::type>::value,
+                "down_cast unsafe as To is not a subtype of From");
+
+  return static_cast<To>(f);
+}
+
+template<typename To, typename From>     // use like this: down_cast<T&>(foo);
+inline To down_cast(From& f) {           // so we only accept references
+  static_assert(std::is_base_of<From, typename std::remove_reference<To>::type>::value,
                 "down_cast unsafe as To is not a subtype of From");
 
   return static_cast<To>(f);

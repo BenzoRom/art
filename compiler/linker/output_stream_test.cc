@@ -17,12 +17,13 @@
 #include "file_output_stream.h"
 #include "vector_output_stream.h"
 
-#include "base/unix_file/fd_file.h"
 #include "base/logging.h"
+#include "base/unix_file/fd_file.h"
 #include "buffered_output_stream.h"
 #include "common_runtime_test.h"
 
 namespace art {
+namespace linker {
 
 class OutputStreamTest : public CommonRuntimeTest {
  protected:
@@ -133,4 +134,5 @@ TEST_F(OutputStreamTest, BufferedFlush) {
   ASSERT_TRUE(checking_output_stream->flush_called);
 }
 
+}  // namespace linker
 }  // namespace art

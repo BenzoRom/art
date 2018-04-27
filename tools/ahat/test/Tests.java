@@ -24,14 +24,18 @@ public class Tests {
       args = new String[]{
         "com.android.ahat.DiffFieldsTest",
         "com.android.ahat.DiffTest",
+        "com.android.ahat.DominatorsTest",
+        "com.android.ahat.HtmlEscaperTest",
         "com.android.ahat.InstanceTest",
         "com.android.ahat.NativeAllocationTest",
         "com.android.ahat.ObjectHandlerTest",
         "com.android.ahat.OverviewHandlerTest",
         "com.android.ahat.PerformanceTest",
+        "com.android.ahat.ProguardMapTest",
         "com.android.ahat.RootedHandlerTest",
         "com.android.ahat.QueryTest",
         "com.android.ahat.SiteHandlerTest",
+        "com.android.ahat.SiteTest",
       };
     }
     JUnitCore.main(args);

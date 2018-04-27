@@ -22,6 +22,8 @@
 
 #include <string>
 
+#include <android-base/logging.h>
+
 #include "arch/instruction_set.h"
 #include "base/mutex.h"
 #include "globals.h"
@@ -31,6 +33,9 @@
 #include "scoped_thread_state_change-inl.h"
 
 namespace art {
+
+using LogSeverity = android::base::LogSeverity;
+using ScopedLogSeverity = android::base::ScopedLogSeverity;
 
 // OBJ pointer helpers to avoid needing .Decode everywhere.
 #define EXPECT_OBJ_PTR_EQ(a, b) EXPECT_EQ(MakeObjPtr(a).Ptr(), MakeObjPtr(b).Ptr());
@@ -44,6 +49,8 @@ class DexFile;
 class JavaVMExt;
 class Runtime;
 typedef std::vector<std::pair<std::string, const void*>> RuntimeOptions;
+class Thread;
+class VariableSizedHandleScope;
 
 uint8_t* DecodeBase64(const char* src, size_t* dst_size);
 
@@ -104,6 +111,14 @@ class CommonRuntimeTestImpl {
 
   // Retuerns the filename for a test dex (i.e. XandY or ManyMethods).
   std::string GetTestDexFileName(const char* name) const;
+
+  // A helper function to fill the heap.
+  static void FillHeap(Thread* self,
+                       ClassLinker* class_linker,
+                       VariableSizedHandleScope* handle_scope)
+      REQUIRES_SHARED(Locks::mutator_lock_);
+  // A helper to set up a small heap (4M) to make FillHeap faster.
+  static void SetUpRuntimeOptionsForFillHeap(RuntimeOptions *options);
 
  protected:
   // Allow subclases such as CommonCompilerTest to add extra options.
@@ -243,13 +258,13 @@ class CheckJniAbortCatcher {
   }
 
 #define TEST_DISABLED_FOR_MIPS() \
-  if (kRuntimeISA == kMips) { \
+  if (kRuntimeISA == InstructionSet::kMips) { \
     printf("WARNING: TEST DISABLED FOR MIPS\n"); \
     return; \
   }
 
 #define TEST_DISABLED_FOR_X86() \
-  if (kRuntimeISA == kX86) { \
+  if (kRuntimeISA == InstructionSet::kX86) { \
     printf("WARNING: TEST DISABLED FOR X86\n"); \
     return; \
   }
@@ -278,12 +293,23 @@ class CheckJniAbortCatcher {
     return; \
   }
 
+#define TEST_DISABLED_FOR_MEMORY_TOOL_VALGRIND() \
+  if (RUNNING_ON_MEMORY_TOOL > 0 && kMemoryToolIsValgrind) { \
+    printf("WARNING: TEST DISABLED FOR MEMORY TOOL VALGRIND\n"); \
+    return; \
+  }
+
 #define TEST_DISABLED_FOR_MEMORY_TOOL_ASAN() \
   if (RUNNING_ON_MEMORY_TOOL > 0 && !kMemoryToolIsValgrind) { \
     printf("WARNING: TEST DISABLED FOR MEMORY TOOL ASAN\n"); \
     return; \
   }
 
+#define TEST_DISABLED_FOR_HEAP_POISONING() \
+  if (kPoisonHeapReferences) { \
+    printf("WARNING: TEST DISABLED FOR HEAP POISONING\n"); \
+    return; \
+  }
 }  // namespace art
 
 #endif  // ART_RUNTIME_COMMON_RUNTIME_TEST_H_

@@ -16,21 +16,23 @@
 
 #include "profile_saver.h"
 
-#include <sys/resource.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "android-base/strings.h"
 
 #include "art_method-inl.h"
 #include "base/enums.h"
+#include "base/logging.h"  // For VLOG.
 #include "base/scoped_arena_containers.h"
 #include "base/stl_util.h"
 #include "base/systrace.h"
 #include "base/time_utils.h"
 #include "class_table-inl.h"
 #include "compiler_filter.h"
+#include "dex_file_loader.h"
 #include "dex_reference_collection.h"
 #include "gc/collector_type.h"
 #include "gc/gc_cause.h"
@@ -349,15 +351,15 @@ static void SampleClassesAndExecutedMethods(pthread_t profiler_pthread,
           // Mark startup methods as hot if they have more than hot_method_sample_threshold
           // samples. This means they will get compiled by the compiler driver.
           if (method.GetProfilingInfo(kRuntimePointerSize) != nullptr ||
-              (method.GetAccessFlags() & kAccPreviouslyWarm) != 0 ||
+              method.PreviouslyWarm() ||
               counter >= hot_method_sample_threshold) {
             hot_methods->AddReference(method.GetDexFile(), method.GetDexMethodIndex());
           } else if (counter != 0) {
             sampled_methods->AddReference(method.GetDexFile(), method.GetDexMethodIndex());
           }
         } else {
-          CHECK_EQ(method.GetCounter(), 0u) << method.PrettyMethod()
-              << " access_flags=" << method.GetAccessFlags();
+          // We do not record native methods. Once we AOT-compile the app, all native
+          // methods shall have their thunks compiled.
         }
       }
     }
@@ -414,7 +416,8 @@ void ProfileSaver::FetchAndCacheResolvedClassesAndMethods(bool startup) {
     const std::set<std::string>& locations = it.second;
     for (const auto& pair : hot_methods.GetMap()) {
       const DexFile* const dex_file = pair.first;
-      if (locations.find(dex_file->GetBaseLocation()) != locations.end()) {
+      const std::string base_location = DexFileLoader::GetBaseLocation(dex_file->GetLocation());
+      if (locations.find(base_location) != locations.end()) {
         const MethodReferenceCollection::IndexVector& indices = pair.second;
         uint8_t flags = Hotness::kFlagHot;
         flags |= startup ? Hotness::kFlagStartup : Hotness::kFlagPostStartup;
@@ -427,7 +430,8 @@ void ProfileSaver::FetchAndCacheResolvedClassesAndMethods(bool startup) {
     }
     for (const auto& pair : sampled_methods.GetMap()) {
       const DexFile* const dex_file = pair.first;
-      if (locations.find(dex_file->GetBaseLocation()) != locations.end()) {
+      const std::string base_location = DexFileLoader::GetBaseLocation(dex_file->GetLocation());
+      if (locations.find(base_location) != locations.end()) {
         const MethodReferenceCollection::IndexVector& indices = pair.second;
         cached_info->AddMethodsForDex(startup ? Hotness::kFlagStartup : Hotness::kFlagPostStartup,
                                       dex_file,
@@ -437,14 +441,15 @@ void ProfileSaver::FetchAndCacheResolvedClassesAndMethods(bool startup) {
     }
     for (const auto& pair : resolved_classes.GetMap()) {
       const DexFile* const dex_file = pair.first;
-      if (locations.find(dex_file->GetBaseLocation()) != locations.end()) {
+      const std::string base_location = DexFileLoader::GetBaseLocation(dex_file->GetLocation());
+      if (locations.find(base_location) != locations.end()) {
         const TypeReferenceCollection::IndexVector& classes = pair.second;
         VLOG(profiler) << "Added " << classes.size() << " classes for location "
-                       << dex_file->GetBaseLocation()
+                       << base_location
                        << " (" << dex_file->GetLocation() << ")";
         cached_info->AddClassesForDex(dex_file, classes.begin(), classes.end());
       } else {
-        VLOG(profiler) << "Location not found " << dex_file->GetBaseLocation()
+        VLOG(profiler) << "Location not found " << base_location
                        << " (" << dex_file->GetLocation() << ")";
       }
     }

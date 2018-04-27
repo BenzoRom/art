@@ -17,8 +17,8 @@
 #ifndef ART_RUNTIME_GC_ACCOUNTING_MOD_UNION_TABLE_H_
 #define ART_RUNTIME_GC_ACCOUNTING_MOD_UNION_TABLE_H_
 
-#include "bitmap.h"
 #include "base/allocator.h"
+#include "bitmap.h"
 #include "card_table.h"
 #include "globals.h"
 #include "mirror/object_reference.h"
@@ -37,7 +37,7 @@ class MarkObjectVisitor;
 
 namespace gc {
 namespace space {
-  class ContinuousSpace;
+class ContinuousSpace;
 }  // namespace space
 
 class Heap;

@@ -27,13 +27,13 @@
 #include "dex_file.h"
 #include "dex_file_types.h"
 #include "gc/heap.h"
+#include "handle_scope-inl.h"
+#include "jit/profile_compilation_info.h"
 #include "mirror/class-inl.h"
 #include "mirror/class_loader.h"
 #include "mirror/dex_cache-inl.h"
-#include "mirror/object_array-inl.h"
 #include "mirror/object-inl.h"
-#include "handle_scope-inl.h"
-#include "jit/profile_compilation_info.h"
+#include "mirror/object_array-inl.h"
 #include "scoped_thread_state_change-inl.h"
 
 namespace art {
@@ -369,8 +369,6 @@ TEST_F(CompilerDriverVerifyTest, VerifyCompilation) {
 
 // Test that a class of status kStatusRetryVerificationAtRuntime is indeed recorded that way in the
 // driver.
-// Test that checks that classes can be assumed as verified if unloading mode is enabled and
-// the class status is at least verified.
 TEST_F(CompilerDriverVerifyTest, RetryVerifcationStatusCheckVerified) {
   Thread* const self = Thread::Current();
   jobject class_loader;
@@ -401,12 +399,6 @@ TEST_F(CompilerDriverVerifyTest, RetryVerifcationStatusCheckVerified) {
     mirror::Class::Status status = {};
     ASSERT_TRUE(compiler_driver_->GetCompiledClass(ref, &status));
     EXPECT_EQ(status, expected_status);
-
-    // Check that we can assume verified if we are a status that is at least verified.
-    if (status >= mirror::Class::kStatusVerified) {
-      // Check that the class can be assumed as verified in the compiler driver.
-      EXPECT_TRUE(callbacks_->CanAssumeVerified(ref)) << status;
-    }
   }
 }
 

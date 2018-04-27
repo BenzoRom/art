@@ -29,12 +29,14 @@ namespace art {
 namespace mirror {
 class Class;
 class ClassLoader;
+class Object;
 }  // namespace mirror
 
 class ArtMethod;
 class ClassLoadCallback;
 class Thread;
 class MethodCallback;
+class Monitor;
 class ThreadLifecycleCallback;
 
 // Note: RuntimeCallbacks uses the mutator lock to synchronize the callback lists. A thread must
@@ -71,6 +73,37 @@ class RuntimePhaseCallback {
   virtual ~RuntimePhaseCallback() {}
 
   virtual void NextRuntimePhase(RuntimePhase phase) REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+};
+
+class MonitorCallback {
+ public:
+  // Called just before the thread goes to sleep to wait for the monitor to become unlocked.
+  virtual void MonitorContendedLocking(Monitor* mon) REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+  // Called just after the monitor has been successfully acquired when it was already locked.
+  virtual void MonitorContendedLocked(Monitor* mon) REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+  // Called on entry to the Object#wait method regardless of whether or not the call is valid.
+  virtual void ObjectWaitStart(Handle<mirror::Object> obj, int64_t millis_timeout)
+      REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+
+  // Called just after the monitor has woken up from going to sleep for a wait(). At this point the
+  // thread does not possess a lock on the monitor. This will only be called for threads wait calls
+  // where the thread did (or at least could have) gone to sleep.
+  virtual void MonitorWaitFinished(Monitor* m, bool timed_out)
+      REQUIRES_SHARED(Locks::mutator_lock_) = 0;
+
+  virtual ~MonitorCallback() {}
+};
+
+// A callback to let parts of the runtime note that they are currently relying on a particular
+// method remaining in it's current state. Users should not rely on always being called. If multiple
+// callbacks are added the runtime will short-circuit when the first one returns 'true'.
+class MethodInspectionCallback {
+ public:
+  virtual ~MethodInspectionCallback() {}
+
+  // Returns true if the method is being inspected currently and the runtime should not modify it in
+  // potentially dangerous ways (i.e. replace with compiled version, JIT it, etc).
+  virtual bool IsMethodBeingInspected(ArtMethod* method) REQUIRES_SHARED(Locks::mutator_lock_) = 0;
 };
 
 class RuntimeCallbacks {
@@ -120,6 +153,25 @@ class RuntimeCallbacks {
                             /*out*/void** new_implementation)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
+  void MonitorContendedLocking(Monitor* m) REQUIRES_SHARED(Locks::mutator_lock_);
+  void MonitorContendedLocked(Monitor* m) REQUIRES_SHARED(Locks::mutator_lock_);
+  void ObjectWaitStart(Handle<mirror::Object> m, int64_t timeout)
+      REQUIRES_SHARED(Locks::mutator_lock_);
+  void MonitorWaitFinished(Monitor* m, bool timed_out)
+      REQUIRES_SHARED(Locks::mutator_lock_);
+
+  void AddMonitorCallback(MonitorCallback* cb) REQUIRES_SHARED(Locks::mutator_lock_);
+  void RemoveMonitorCallback(MonitorCallback* cb) REQUIRES_SHARED(Locks::mutator_lock_);
+
+  // Returns true if some MethodInspectionCallback indicates the method is being inspected/depended
+  // on by some code.
+  bool IsMethodBeingInspected(ArtMethod* method) REQUIRES_SHARED(Locks::mutator_lock_);
+
+  void AddMethodInspectionCallback(MethodInspectionCallback* cb)
+      REQUIRES_SHARED(Locks::mutator_lock_);
+  void RemoveMethodInspectionCallback(MethodInspectionCallback* cb)
+      REQUIRES_SHARED(Locks::mutator_lock_);
+
  private:
   std::vector<ThreadLifecycleCallback*> thread_callbacks_
       GUARDED_BY(Locks::mutator_lock_);
@@ -130,6 +182,10 @@ class RuntimeCallbacks {
   std::vector<RuntimePhaseCallback*> phase_callbacks_
       GUARDED_BY(Locks::mutator_lock_);
   std::vector<MethodCallback*> method_callbacks_
+      GUARDED_BY(Locks::mutator_lock_);
+  std::vector<MonitorCallback*> monitor_callbacks_
+      GUARDED_BY(Locks::mutator_lock_);
+  std::vector<MethodInspectionCallback*> method_inspection_callbacks_
       GUARDED_BY(Locks::mutator_lock_);
 };
 

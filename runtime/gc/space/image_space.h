@@ -201,6 +201,21 @@ class ImageSpace : public MemMapSpace {
   friend class Space;
 
  private:
+  // Load boot image spaces from a primary image file for a specified instruction set.
+  //
+  // On successful return, the loaded spaces are added to boot_image_spaces (which must be
+  // empty on entry) and oat_file_end is updated with the (page-aligned) end of the last
+  // oat file.
+  //
+  // This encapsulates the multi-image loop for LoadBootImage().
+  static bool LoadBootImageLoop(const std::string& image_file_name,
+                                const InstructionSet image_instruction_set,
+                                std::vector<space::ImageSpace*>* boot_image_spaces,
+                                /* out */ uint8_t** oat_file_end,
+                                /* out */ std::string* error_msg,
+                                /* out */ std::string* failed_image_name)
+      REQUIRES_SHARED(Locks::mutator_lock_);
+
   // Create a boot image space from an image file for a specified instruction
   // set. Cannot be used for future allocation or collected.
   //

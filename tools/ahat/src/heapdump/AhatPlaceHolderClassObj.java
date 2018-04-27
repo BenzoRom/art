@@ -24,7 +24,7 @@ package com.android.ahat.heapdump;
  */
 public class AhatPlaceHolderClassObj extends AhatClassObj {
   AhatPlaceHolderClassObj(AhatClassObj baseline) {
-    super(-1);
+    super(-1, baseline.getClassName());
     setBaseline(baseline);
     baseline.setBaseline(this);
   }
@@ -67,5 +67,9 @@ public class AhatPlaceHolderClassObj extends AhatClassObj {
 
   @Override public AhatInstance getClassLoader() {
     return getBaseline().asClassObj().getClassLoader().getBaseline();
+  }
+
+  @Override public Field[] getInstanceFields() {
+    return getBaseline().asClassObj().getInstanceFields();
   }
 }

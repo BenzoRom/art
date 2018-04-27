@@ -17,8 +17,8 @@
 #include "dalvik_system_VMRuntime.h"
 
 #ifdef ART_TARGET_ANDROID
-#include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/time.h>
 extern "C" void android_set_application_target_sdk_version(uint32_t version);
 #endif
 #include <limits.h>
@@ -31,8 +31,8 @@ extern "C" void android_set_application_target_sdk_version(uint32_t version);
 
 #include "android-base/stringprintf.h"
 
-#include "art_method-inl.h"
 #include "arch/instruction_set.h"
+#include "art_method-inl.h"
 #include "base/enums.h"
 #include "class_linker-inl.h"
 #include "common_throws.h"
@@ -206,7 +206,7 @@ static jboolean VMRuntime_is64Bit(JNIEnv*, jobject) {
 }
 
 static jboolean VMRuntime_isCheckJniEnabled(JNIEnv* env, jobject) {
-  return down_cast<JNIEnvExt*>(env)->vm->IsCheckJniEnabled() ? JNI_TRUE : JNI_FALSE;
+  return down_cast<JNIEnvExt*>(env)->GetVm()->IsCheckJniEnabled() ? JNI_TRUE : JNI_FALSE;
 }
 
 static void VMRuntime_setTargetSdkVersionNative(JNIEnv*, jobject, jint target_sdk_version) {
@@ -358,8 +358,8 @@ static void PreloadDexCachesResolveField(ObjPtr<mirror::DexCache> dex_cache,
   }
   const DexFile* dex_file = dex_cache->GetDexFile();
   const DexFile::FieldId& field_id = dex_file->GetFieldId(field_idx);
-  ObjPtr<mirror::Class> klass =
-      ClassLinker::LookupResolvedType(field_id.class_idx_, dex_cache, nullptr);
+  ObjPtr<mirror::Class> klass = Runtime::Current()->GetClassLinker()->LookupResolvedType(
+      field_id.class_idx_, dex_cache, /* class_loader */ nullptr);
   if (klass == nullptr) {
     return;
   }
@@ -384,8 +384,8 @@ static void PreloadDexCachesResolveMethod(ObjPtr<mirror::DexCache> dex_cache, ui
   }
   const DexFile* dex_file = dex_cache->GetDexFile();
   const DexFile::MethodId& method_id = dex_file->GetMethodId(method_idx);
-  ObjPtr<mirror::Class> klass =
-      ClassLinker::LookupResolvedType(method_id.class_idx_, dex_cache, nullptr);
+  ObjPtr<mirror::Class> klass = Runtime::Current()->GetClassLinker()->LookupResolvedType(
+      method_id.class_idx_, dex_cache, /* class_loader */ nullptr);
   if (klass == nullptr) {
     return;
   }
@@ -607,7 +607,7 @@ static jboolean VMRuntime_isBootClassPathOnDisk(JNIEnv* env, jclass, jstring jav
     return JNI_FALSE;
   }
   InstructionSet isa = GetInstructionSetFromString(instruction_set.c_str());
-  if (isa == kNone) {
+  if (isa == InstructionSet::kNone) {
     ScopedLocalRef<jclass> iae(env, env->FindClass("java/lang/IllegalArgumentException"));
     std::string message(StringPrintf("Instruction set %s is invalid.", instruction_set.c_str()));
     env->ThrowNew(iae.get(), message.c_str());

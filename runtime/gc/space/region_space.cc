@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include "bump_pointer_space.h"
 #include "bump_pointer_space-inl.h"
+#include "bump_pointer_space.h"
 #include "gc/accounting/read_barrier_table.h"
-#include "mirror/object-inl.h"
 #include "mirror/class-inl.h"
+#include "mirror/object-inl.h"
 #include "thread_list.h"
 
 namespace art {
@@ -27,7 +27,7 @@ namespace space {
 
 // If a region has live objects whose size is less than this percent
 // value of the region size, evaculate the region.
-static constexpr uint kEvaculateLivePercentThreshold = 75U;
+static constexpr uint kEvacuateLivePercentThreshold = 75U;
 
 // If we protect the cleared regions.
 // Only protect for target builds to prevent flaky test failures (b/63131961).
@@ -84,14 +84,18 @@ RegionSpace* RegionSpace::Create(const std::string& name, MemMap* mem_map) {
 RegionSpace::RegionSpace(const std::string& name, MemMap* mem_map)
     : ContinuousMemMapAllocSpace(name, mem_map, mem_map->Begin(), mem_map->End(), mem_map->End(),
                                  kGcRetentionPolicyAlwaysCollect),
-      region_lock_("Region lock", kRegionSpaceRegionLock), time_(1U) {
-  size_t mem_map_size = mem_map->Size();
-  CHECK_ALIGNED(mem_map_size, kRegionSize);
+      region_lock_("Region lock", kRegionSpaceRegionLock),
+      time_(1U),
+      num_regions_(mem_map->Size() / kRegionSize),
+      num_non_free_regions_(0U),
+      num_evac_regions_(0U),
+      max_peak_num_non_free_regions_(0U),
+      non_free_region_index_limit_(0U),
+      current_region_(&full_region_),
+      evac_region_(nullptr) {
+  CHECK_ALIGNED(mem_map->Size(), kRegionSize);
   CHECK_ALIGNED(mem_map->Begin(), kRegionSize);
-  num_regions_ = mem_map_size / kRegionSize;
-  num_non_free_regions_ = 0U;
   DCHECK_GT(num_regions_, 0U);
-  non_free_region_index_limit_ = 0U;
   regions_.reset(new Region[num_regions_]);
   uint8_t* region_addr = mem_map->Begin();
   for (size_t i = 0; i < num_regions_; ++i, region_addr += kRegionSize) {
@@ -112,8 +116,6 @@ RegionSpace::RegionSpace(const std::string& name, MemMap* mem_map)
   }
   DCHECK(!full_region_.IsFree());
   DCHECK(full_region_.IsAllocated());
-  current_region_ = &full_region_;
-  evac_region_ = nullptr;
   size_t ignored;
   DCHECK(full_region_.Alloc(kAlignment, &ignored, nullptr, &ignored) == nullptr);
 }
@@ -163,7 +165,7 @@ inline bool RegionSpace::Region::ShouldBeEvacuated() {
   if (is_newly_allocated_) {
     result = true;
   } else {
-    bool is_live_percent_valid = live_bytes_ != static_cast<size_t>(-1);
+    bool is_live_percent_valid = (live_bytes_ != static_cast<size_t>(-1));
     if (is_live_percent_valid) {
       DCHECK(IsInToSpace());
       DCHECK(!IsLargeTail());
@@ -175,10 +177,10 @@ inline bool RegionSpace::Region::ShouldBeEvacuated() {
         // Side node: live_percent == 0 does not necessarily mean
         // there's no live objects due to rounding (there may be a
         // few).
-        result = live_bytes_ * 100U < kEvaculateLivePercentThreshold * bytes_allocated;
+        result = (live_bytes_ * 100U < kEvacuateLivePercentThreshold * bytes_allocated);
       } else {
         DCHECK(IsLarge());
-        result = live_bytes_ == 0U;
+        result = (live_bytes_ == 0U);
       }
     } else {
       result = false;
@@ -254,11 +256,12 @@ void RegionSpace::SetFromSpace(accounting::ReadBarrierTable* rb_table, bool forc
 static void ZeroAndProtectRegion(uint8_t* begin, uint8_t* end) {
   ZeroAndReleasePages(begin, end - begin);
   if (kProtectClearedRegions) {
-    mprotect(begin, end - begin, PROT_NONE);
+    CheckedCall(mprotect, __FUNCTION__, begin, end - begin, PROT_NONE);
   }
 }
 
-void RegionSpace::ClearFromSpace(uint64_t* cleared_bytes, uint64_t* cleared_objects) {
+void RegionSpace::ClearFromSpace(/* out */ uint64_t* cleared_bytes,
+                                 /* out */ uint64_t* cleared_objects) {
   DCHECK(cleared_bytes != nullptr);
   DCHECK(cleared_objects != nullptr);
   *cleared_bytes = 0;
@@ -267,6 +270,9 @@ void RegionSpace::ClearFromSpace(uint64_t* cleared_bytes, uint64_t* cleared_obje
   VerifyNonFreeRegionLimit();
   size_t new_non_free_region_index_limit = 0;
 
+  // Update max of peak non free region count before reclaiming evacuated regions.
+  max_peak_num_non_free_regions_ = std::max(max_peak_num_non_free_regions_,
+                                            num_non_free_regions_);
   // Combine zeroing and releasing pages to reduce how often madvise is called. This helps
   // reduce contention on the mmap semaphore. b/62194020
   // clear_region adds a region to the current block. If the region is not adjacent, the
@@ -350,6 +356,8 @@ void RegionSpace::ClearFromSpace(uint64_t* cleared_bytes, uint64_t* cleared_obje
   // Update non_free_region_index_limit_.
   SetNonFreeRegionLimit(new_non_free_region_index_limit);
   evac_region_ = nullptr;
+  num_non_free_regions_ += num_evac_regions_;
+  num_evac_regions_ = 0;
 }
 
 void RegionSpace::LogFragmentationAllocFailure(std::ostream& os,
@@ -408,31 +416,13 @@ void RegionSpace::Clear() {
 
 void RegionSpace::Dump(std::ostream& os) const {
   os << GetName() << " "
-      << reinterpret_cast<void*>(Begin()) << "-" << reinterpret_cast<void*>(Limit());
+     << reinterpret_cast<void*>(Begin()) << "-" << reinterpret_cast<void*>(Limit());
 }
 
-void RegionSpace::FreeLarge(mirror::Object* large_obj, size_t bytes_allocated) {
-  DCHECK(Contains(large_obj));
-  DCHECK_ALIGNED(large_obj, kRegionSize);
+void RegionSpace::DumpRegionForObject(std::ostream& os, mirror::Object* obj) {
+  CHECK(HasAddress(obj));
   MutexLock mu(Thread::Current(), region_lock_);
-  uint8_t* begin_addr = reinterpret_cast<uint8_t*>(large_obj);
-  uint8_t* end_addr = AlignUp(reinterpret_cast<uint8_t*>(large_obj) + bytes_allocated, kRegionSize);
-  CHECK_LT(begin_addr, end_addr);
-  for (uint8_t* addr = begin_addr; addr < end_addr; addr += kRegionSize) {
-    Region* reg = RefToRegionLocked(reinterpret_cast<mirror::Object*>(addr));
-    if (addr == begin_addr) {
-      DCHECK(reg->IsLarge());
-    } else {
-      DCHECK(reg->IsLargeTail());
-    }
-    reg->Clear(/*zero_and_release_pages*/true);
-    --num_non_free_regions_;
-  }
-  if (end_addr < Limit()) {
-    // If we aren't at the end of the space, check that the next region is not a large tail.
-    Region* following_reg = RefToRegionLocked(reinterpret_cast<mirror::Object*>(end_addr));
-    DCHECK(!following_reg->IsLargeTail());
-  }
+  RefToRegionUnlocked(obj)->Dump(os);
 }
 
 void RegionSpace::DumpRegions(std::ostream& os) {
@@ -526,13 +516,18 @@ void RegionSpace::AssertAllThreadLocalBuffersAreRevoked() {
 }
 
 void RegionSpace::Region::Dump(std::ostream& os) const {
-  os << "Region[" << idx_ << "]=" << reinterpret_cast<void*>(begin_) << "-"
-     << reinterpret_cast<void*>(Top())
+  os << "Region[" << idx_ << "]="
+     << reinterpret_cast<void*>(begin_)
+     << "-" << reinterpret_cast<void*>(Top())
      << "-" << reinterpret_cast<void*>(end_)
-     << " state=" << static_cast<uint>(state_) << " type=" << static_cast<uint>(type_)
+     << " state=" << state_
+     << " type=" << type_
      << " objects_allocated=" << objects_allocated_
-     << " alloc_time=" << alloc_time_ << " live_bytes=" << live_bytes_
-     << " is_newly_allocated=" << is_newly_allocated_ << " is_a_tlab=" << is_a_tlab_ << " thread=" << thread_ << "\n";
+     << " alloc_time=" << alloc_time_
+     << " live_bytes=" << live_bytes_
+     << " is_newly_allocated=" << std::boolalpha << is_newly_allocated_ << std::noboolalpha
+     << " is_a_tlab=" << std::boolalpha << is_a_tlab_ << std::noboolalpha
+     << " thread=" << thread_ << '\n';
 }
 
 size_t RegionSpace::AllocationSizeNonvirtual(mirror::Object* obj, size_t* usable_size) {
@@ -572,10 +567,12 @@ RegionSpace::Region* RegionSpace::AllocateRegion(bool for_evac) {
     Region* r = &regions_[i];
     if (r->IsFree()) {
       r->Unfree(this, time_);
-      ++num_non_free_regions_;
-      if (!for_evac) {
+      if (for_evac) {
+        ++num_evac_regions_;
         // Evac doesn't count as newly allocated.
+      } else {
         r->SetNewlyAllocated();
+        ++num_non_free_regions_;
       }
       return r;
     }
@@ -589,7 +586,7 @@ void RegionSpace::Region::MarkAsAllocated(RegionSpace* region_space, uint32_t al
   region_space->AdjustNonFreeRegionLimit(idx_);
   type_ = RegionType::kRegionTypeToSpace;
   if (kProtectClearedRegions) {
-    mprotect(Begin(), kRegionSize, PROT_READ | PROT_WRITE);
+    CheckedCall(mprotect, __FUNCTION__, Begin(), kRegionSize, PROT_READ | PROT_WRITE);
   }
 }
 

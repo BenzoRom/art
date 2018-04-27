@@ -28,10 +28,36 @@
 namespace art {
 
 class CompiledMethod;
+
+namespace debug {
+struct MethodDebugInfo;
+}  // namespace debug
+
+namespace linker {
+
 class LinkerPatch;
 class OutputStream;
 
-namespace linker {
+/**
+ * @class RelativePatcherThunkProvider
+ * @brief Interface for providing method offsets for relative call targets.
+ */
+class RelativePatcherThunkProvider {
+ public:
+  /**
+   * Get the code and debug name of a thunk needed by the given linker patch.
+   *
+   * @param patch The patch for which we need to retrieve the thunk code.
+   * @param code A variable to receive the code of the thunk. This code must not be empty.
+   * @param debug_name A variable to receive the debug name of the thunk.
+   */
+  virtual void GetThunkCode(const LinkerPatch& patch,
+                            /*out*/ ArrayRef<const uint8_t>* code,
+                            /*out*/ std::string* debug_name) = 0;
+
+ protected:
+  virtual ~RelativePatcherThunkProvider() { }
+};
 
 /**
  * @class RelativePatcherTargetProvider
@@ -65,8 +91,10 @@ class RelativePatcherTargetProvider {
 class RelativePatcher {
  public:
   static std::unique_ptr<RelativePatcher> Create(
-      InstructionSet instruction_set, const InstructionSetFeatures* features,
-      RelativePatcherTargetProvider* provider);
+      InstructionSet instruction_set,
+      const InstructionSetFeatures* features,
+      RelativePatcherThunkProvider* thunk_provider,
+      RelativePatcherTargetProvider* target_provider);
 
   virtual ~RelativePatcher() { }
 
@@ -113,6 +141,9 @@ class RelativePatcher {
   virtual void PatchBakerReadBarrierBranch(std::vector<uint8_t>* code,
                                            const LinkerPatch& patch,
                                            uint32_t patch_offset) = 0;
+
+  virtual std::vector<debug::MethodDebugInfo> GenerateThunkDebugInfo(
+      uint32_t executable_offset) = 0;
 
  protected:
   RelativePatcher()

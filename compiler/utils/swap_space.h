@@ -17,12 +17,12 @@
 #ifndef ART_COMPILER_UTILS_SWAP_SPACE_H_
 #define ART_COMPILER_UTILS_SWAP_SPACE_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <cstdlib>
 #include <list>
-#include <vector>
 #include <set>
-#include <stdint.h>
-#include <stddef.h>
+#include <vector>
 
 #include "base/logging.h"
 #include "base/macros.h"
@@ -124,7 +124,7 @@ class SwapAllocator<void> {
   explicit SwapAllocator(SwapSpace* swap_space) : swap_space_(swap_space) {}
 
   template <typename U>
-  SwapAllocator(const SwapAllocator<U>& other)  // NOLINT, implicit
+  SwapAllocator(const SwapAllocator<U>& other)
       : swap_space_(other.swap_space_) {}
 
   SwapAllocator(const SwapAllocator& other) = default;
@@ -160,7 +160,7 @@ class SwapAllocator {
   explicit SwapAllocator(SwapSpace* swap_space) : swap_space_(swap_space) {}
 
   template <typename U>
-  SwapAllocator(const SwapAllocator<U>& other)  // NOLINT, implicit
+  SwapAllocator(const SwapAllocator<U>& other)
       : swap_space_(other.swap_space_) {}
 
   SwapAllocator(const SwapAllocator& other) = default;

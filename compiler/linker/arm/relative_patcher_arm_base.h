@@ -34,9 +34,11 @@ class ArmBaseRelativePatcher : public RelativePatcher {
                         MethodReference method_ref) OVERRIDE;
   uint32_t ReserveSpaceEnd(uint32_t offset) OVERRIDE;
   uint32_t WriteThunks(OutputStream* out, uint32_t offset) OVERRIDE;
+  std::vector<debug::MethodDebugInfo> GenerateThunkDebugInfo(uint32_t executable_offset) OVERRIDE;
 
  protected:
-  ArmBaseRelativePatcher(RelativePatcherTargetProvider* provider,
+  ArmBaseRelativePatcher(RelativePatcherThunkProvider* thunk_provider,
+                         RelativePatcherTargetProvider* target_provider,
                          InstructionSet instruction_set);
   ~ArmBaseRelativePatcher();
 
@@ -93,7 +95,6 @@ class ArmBaseRelativePatcher : public RelativePatcher {
   uint32_t CalculateMethodCallDisplacement(uint32_t patch_offset,
                                            uint32_t target_offset);
 
-  virtual std::vector<uint8_t> CompileThunk(const ThunkKey& key) = 0;
   virtual uint32_t MaxPositiveDisplacement(const ThunkKey& key) = 0;
   virtual uint32_t MaxNegativeDisplacement(const ThunkKey& key) = 0;
 
@@ -106,8 +107,10 @@ class ArmBaseRelativePatcher : public RelativePatcher {
   void ResolveMethodCalls(uint32_t quick_code_offset, MethodReference method_ref);
 
   uint32_t CalculateMaxNextOffset(uint32_t patch_offset, const ThunkKey& key);
+  ThunkData ThunkDataForPatch(const LinkerPatch& patch, uint32_t max_next_offset);
 
-  RelativePatcherTargetProvider* const provider_;
+  RelativePatcherThunkProvider* const thunk_provider_;
+  RelativePatcherTargetProvider* const target_provider_;
   const InstructionSet instruction_set_;
 
   // The data for all thunks.

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "errno.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/file.h>
@@ -39,12 +39,13 @@
 #include "boot_image_profile.h"
 #include "bytecode_utils.h"
 #include "dex_file.h"
+#include "dex_file_loader.h"
+#include "dex_file_types.h"
 #include "jit/profile_compilation_info.h"
 #include "profile_assistant.h"
 #include "runtime.h"
 #include "type_reference.h"
 #include "utils.h"
-#include "type_reference.h"
 #include "zip_archive.h"
 
 namespace art {
@@ -117,9 +118,9 @@ NO_RETURN static void Usage(const char *fmt, ...) {
   UsageError("  --generate-test-profile=<filename>: generates a random profile file for testing.");
   UsageError("  --generate-test-profile-num-dex=<number>: number of dex files that should be");
   UsageError("      included in the generated profile. Defaults to 20.");
-  UsageError("  --generate-test-profile-method-ratio=<number>: the percentage from the maximum");
+  UsageError("  --generate-test-profile-method-percentage=<number>: the percentage from the maximum");
   UsageError("      number of methods that should be generated. Defaults to 5.");
-  UsageError("  --generate-test-profile-class-ratio=<number>: the percentage from the maximum");
+  UsageError("  --generate-test-profile-class-percentage=<number>: the percentage from the maximum");
   UsageError("      number of classes that should be generated. Defaults to 5.");
   UsageError("  --generate-test-profile-seed=<number>: seed for random number generator used when");
   UsageError("      generating random test profiles. Defaults to using NanoTime.");
@@ -152,15 +153,15 @@ NO_RETURN static void Usage(const char *fmt, ...) {
 
 // Note: make sure you update the Usage if you change these values.
 static constexpr uint16_t kDefaultTestProfileNumDex = 20;
-static constexpr uint16_t kDefaultTestProfileMethodRatio = 5;
-static constexpr uint16_t kDefaultTestProfileClassRatio = 5;
+static constexpr uint16_t kDefaultTestProfileMethodPercentage = 5;
+static constexpr uint16_t kDefaultTestProfileClassPercentage = 5;
 
 // Separators used when parsing human friendly representation of profiles.
-static const std::string kMethodSep = "->";
-static const std::string kMissingTypesMarker = "missing_types";
-static const std::string kInvalidClassDescriptor = "invalid_class";
-static const std::string kInvalidMethod = "invalid_method";
-static const std::string kClassAllMethods = "*";
+static const std::string kMethodSep = "->";  // NOLINT [runtime/string] [4]
+static const std::string kMissingTypesMarker = "missing_types";  // NOLINT [runtime/string] [4]
+static const std::string kInvalidClassDescriptor = "invalid_class";  // NOLINT [runtime/string] [4]
+static const std::string kInvalidMethod = "invalid_method";  // NOLINT [runtime/string] [4]
+static const std::string kClassAllMethods = "*";  // NOLINT [runtime/string] [4]
 static constexpr char kProfileParsingInlineChacheSep = '+';
 static constexpr char kProfileParsingTypeSep = ',';
 static constexpr char kProfileParsingFirstCharInSignature = '(';
@@ -179,8 +180,8 @@ class ProfMan FINAL {
       generate_boot_image_profile_(false),
       dump_output_to_fd_(kInvalidFd),
       test_profile_num_dex_(kDefaultTestProfileNumDex),
-      test_profile_method_ratio_(kDefaultTestProfileMethodRatio),
-      test_profile_class_ratio_(kDefaultTestProfileClassRatio),
+      test_profile_method_percerntage_(kDefaultTestProfileMethodPercentage),
+      test_profile_class_percentage_(kDefaultTestProfileClassPercentage),
       test_profile_seed_(NanoTime()),
       start_ns_(NanoTime()) {}
 
@@ -254,15 +255,15 @@ class ProfMan FINAL {
                         "--generate-test-profile-num-dex",
                         &test_profile_num_dex_,
                         Usage);
-      } else if (option.starts_with("--generate-test-profile-method-ratio")) {
+      } else if (option.starts_with("--generate-test-profile-method-percentage")) {
         ParseUintOption(option,
-                        "--generate-test-profile-method-ratio",
-                        &test_profile_method_ratio_,
+                        "--generate-test-profile-method-percentage",
+                        &test_profile_method_percerntage_,
                         Usage);
-      } else if (option.starts_with("--generate-test-profile-class-ratio")) {
+      } else if (option.starts_with("--generate-test-profile-class-percentage")) {
         ParseUintOption(option,
-                        "--generate-test-profile-class-ratio",
-                        &test_profile_class_ratio_,
+                        "--generate-test-profile-class-percentage",
+                        &test_profile_class_percentage_,
                         Usage);
       } else if (option.starts_with("--generate-test-profile-seed=")) {
         ParseUintOption(option, "--generate-test-profile-seed", &test_profile_seed_, Usage);
@@ -328,21 +329,23 @@ class ProfMan FINAL {
       std::string error_msg;
       std::vector<std::unique_ptr<const DexFile>> dex_files_for_location;
       if (use_apk_fd_list) {
-        if (DexFile::OpenZip(apks_fd_[i],
-                             dex_locations_[i],
-                             kVerifyChecksum,
-                             &error_msg,
-                             &dex_files_for_location)) {
+        if (DexFileLoader::OpenZip(apks_fd_[i],
+                                   dex_locations_[i],
+                                   /* verify */ true,
+                                   kVerifyChecksum,
+                                   &error_msg,
+                                   &dex_files_for_location)) {
         } else {
           LOG(WARNING) << "OpenZip failed for '" << dex_locations_[i] << "' " << error_msg;
           continue;
         }
       } else {
-        if (DexFile::Open(apk_files_[i].c_str(),
-                          dex_locations_[i],
-                          kVerifyChecksum,
-                          &error_msg,
-                          &dex_files_for_location)) {
+        if (DexFileLoader::Open(apk_files_[i].c_str(),
+                                dex_locations_[i],
+                                /* verify */ true,
+                                kVerifyChecksum,
+                                &error_msg,
+                                &dex_files_for_location)) {
         } else {
           LOG(WARNING) << "Open failed for '" << dex_locations_[i] << "' " << error_msg;
           continue;
@@ -635,8 +638,7 @@ class ProfMan FINAL {
         if (kInvalidTypeIndex >= dex_file->NumTypeIds()) {
           // The dex file does not contain all possible type ids which leaves us room
           // to add an "invalid" type id.
-          class_ref->dex_file = dex_file;
-          class_ref->type_index = dex::TypeIndex(kInvalidTypeIndex);
+          *class_ref = TypeReference(dex_file, dex::TypeIndex(kInvalidTypeIndex));
           return true;
         } else {
           // The dex file contains all possible type ids. We don't have any free type id
@@ -654,8 +656,7 @@ class ProfMan FINAL {
         // Class is only referenced in the current dex file but not defined in it.
         continue;
       }
-      class_ref->dex_file = dex_file;
-      class_ref->type_index = type_index;
+      *class_ref = TypeReference(dex_file, type_index);
       return true;
     }
     return false;
@@ -669,14 +670,14 @@ class ProfMan FINAL {
       constexpr uint16_t kInvalidMethodIndex = std::numeric_limits<uint16_t>::max() - 1;
       return kInvalidMethodIndex >= dex_file->NumMethodIds()
              ? kInvalidMethodIndex
-             : DexFile::kDexNoIndex;
+             : dex::kDexNoIndex;
     }
 
     std::vector<std::string> name_and_signature;
     Split(method_spec, kProfileParsingFirstCharInSignature, &name_and_signature);
     if (name_and_signature.size() != 2) {
       LOG(ERROR) << "Invalid method name and signature " << method_spec;
-      return DexFile::kDexNoIndex;
+      return dex::kDexNoIndex;
     }
 
     const std::string& name = name_and_signature[0];
@@ -685,24 +686,24 @@ class ProfMan FINAL {
     const DexFile::StringId* name_id = dex_file->FindStringId(name.c_str());
     if (name_id == nullptr) {
       LOG(WARNING) << "Could not find name: "  << name;
-      return DexFile::kDexNoIndex;
+      return dex::kDexNoIndex;
     }
     dex::TypeIndex return_type_idx;
     std::vector<dex::TypeIndex> param_type_idxs;
     if (!dex_file->CreateTypeList(signature, &return_type_idx, &param_type_idxs)) {
       LOG(WARNING) << "Could not create type list" << signature;
-      return DexFile::kDexNoIndex;
+      return dex::kDexNoIndex;
     }
     const DexFile::ProtoId* proto_id = dex_file->FindProtoId(return_type_idx, param_type_idxs);
     if (proto_id == nullptr) {
       LOG(WARNING) << "Could not find proto_id: " << name;
-      return DexFile::kDexNoIndex;
+      return dex::kDexNoIndex;
     }
     const DexFile::MethodId* method_id = dex_file->FindMethodId(
-        dex_file->GetTypeId(class_ref.type_index), *name_id, *proto_id);
+        dex_file->GetTypeId(class_ref.TypeIndex()), *name_id, *proto_id);
     if (method_id == nullptr) {
       LOG(WARNING) << "Could not find method_id: " << name;
-      return DexFile::kDexNoIndex;
+      return dex::kDexNoIndex;
     }
 
     return dex_file->GetIndexForMethodId(*method_id);
@@ -719,20 +720,20 @@ class ProfMan FINAL {
                        /*out*/uint32_t* dex_pc) {
     const DexFile* dex_file = class_ref.dex_file;
     uint32_t offset = dex_file->FindCodeItemOffset(
-        *dex_file->FindClassDef(class_ref.type_index),
+        *dex_file->FindClassDef(class_ref.TypeIndex()),
         method_index);
     const DexFile::CodeItem* code_item = dex_file->GetCodeItem(offset);
 
     bool found_invoke = false;
-    for (CodeItemIterator it(*code_item); !it.Done(); it.Advance()) {
-      if (it.CurrentInstruction().Opcode() == Instruction::INVOKE_VIRTUAL) {
+    for (const DexInstructionPcPair& inst : code_item->Instructions()) {
+      if (inst->Opcode() == Instruction::INVOKE_VIRTUAL) {
         if (found_invoke) {
           LOG(ERROR) << "Multiple invoke INVOKE_VIRTUAL found: "
                      << dex_file->PrettyMethod(method_index);
           return false;
         }
         found_invoke = true;
-        *dex_pc = it.CurrentDexPc();
+        *dex_pc = inst.DexPc();
       }
     }
     if (!found_invoke) {
@@ -785,7 +786,7 @@ class ProfMan FINAL {
       method_str = line.substr(method_sep_index + kMethodSep.size());
     }
 
-    TypeReference class_ref;
+    TypeReference class_ref(/* dex_file */ nullptr, dex::TypeIndex());
     if (!FindClass(dex_files, klass, &class_ref)) {
       LOG(WARNING) << "Could not find class: " << klass;
       return false;
@@ -797,19 +798,19 @@ class ProfMan FINAL {
       const DexFile* dex_file = class_ref.dex_file;
       const auto& dex_resolved_classes = resolved_class_set.emplace(
             dex_file->GetLocation(),
-            dex_file->GetBaseLocation(),
+            DexFileLoader::GetBaseLocation(dex_file->GetLocation()),
             dex_file->GetLocationChecksum(),
             dex_file->NumMethodIds());
-      dex_resolved_classes.first->AddClass(class_ref.type_index);
+      dex_resolved_classes.first->AddClass(class_ref.TypeIndex());
       std::vector<ProfileMethodInfo> methods;
       if (method_str == kClassAllMethods) {
         // Add all of the methods.
-        const DexFile::ClassDef* class_def = dex_file->FindClassDef(class_ref.type_index);
+        const DexFile::ClassDef* class_def = dex_file->FindClassDef(class_ref.TypeIndex());
         const uint8_t* class_data = dex_file->GetClassData(*class_def);
         if (class_data != nullptr) {
           ClassDataItemIterator it(*dex_file, class_data);
           it.SkipAllFields();
-          while (it.HasNextDirectMethod() || it.HasNextVirtualMethod()) {
+          while (it.HasNextMethod()) {
             if (it.GetMethodCodeItemOffset() != 0) {
               // Add all of the methods that have code to the profile.
               const uint32_t method_idx = it.GetMemberIndex();
@@ -849,7 +850,7 @@ class ProfMan FINAL {
     }
 
     const uint32_t method_index = FindMethodIndex(class_ref, method_spec);
-    if (method_index == DexFile::kDexNoIndex) {
+    if (method_index == dex::kDexNoIndex) {
       return false;
     }
 
@@ -859,7 +860,8 @@ class ProfMan FINAL {
       if (!HasSingleInvoke(class_ref, method_index, &dex_pc)) {
         return false;
       }
-      std::vector<TypeReference> classes(inline_cache_elems.size());
+      std::vector<TypeReference> classes(inline_cache_elems.size(),
+                                         TypeReference(/* dex_file */ nullptr, dex::TypeIndex()));
       size_t class_it = 0;
       for (const std::string& ic_class : inline_cache_elems) {
         if (!FindClass(dex_files, ic_class, &(classes[class_it++]))) {
@@ -1015,11 +1017,11 @@ class ProfMan FINAL {
 
   int GenerateTestProfile() {
     // Validate parameters for this command.
-    if (test_profile_method_ratio_ > 100) {
-      Usage("Invalid ratio for --generate-test-profile-method-ratio");
+    if (test_profile_method_percerntage_ > 100) {
+      Usage("Invalid percentage for --generate-test-profile-method-percentage");
     }
-    if (test_profile_class_ratio_ > 100) {
-      Usage("Invalid ratio for --generate-test-profile-class-ratio");
+    if (test_profile_class_percentage_ > 100) {
+      Usage("Invalid percentage for --generate-test-profile-class-percentage");
     }
     // If given APK files or DEX locations, check that they're ok.
     if (!apk_files_.empty() || !apks_fd_.empty() || !dex_locations_.empty()) {
@@ -1040,8 +1042,8 @@ class ProfMan FINAL {
     if (apk_files_.empty() && apks_fd_.empty() && dex_locations_.empty()) {
       result = ProfileCompilationInfo::GenerateTestProfile(profile_test_fd,
                                                            test_profile_num_dex_,
-                                                           test_profile_method_ratio_,
-                                                           test_profile_class_ratio_,
+                                                           test_profile_method_percerntage_,
+                                                           test_profile_class_percentage_,
                                                            test_profile_seed_);
     } else {
       // Initialize MemMap for ZipArchive::OpenFromFd.
@@ -1052,6 +1054,8 @@ class ProfMan FINAL {
       // Create a random profile file based on the set of dex files.
       result = ProfileCompilationInfo::GenerateTestProfile(profile_test_fd,
                                                            dex_files,
+                                                           test_profile_method_percerntage_,
+                                                           test_profile_class_percentage_,
                                                            test_profile_seed_);
     }
     close(profile_test_fd);  // ignore close result.
@@ -1102,8 +1106,8 @@ class ProfMan FINAL {
   std::string test_profile_;
   std::string create_profile_from_file_;
   uint16_t test_profile_num_dex_;
-  uint16_t test_profile_method_ratio_;
-  uint16_t test_profile_class_ratio_;
+  uint16_t test_profile_method_percerntage_;
+  uint16_t test_profile_class_percentage_;
   uint32_t test_profile_seed_;
   uint64_t start_ns_;
 };

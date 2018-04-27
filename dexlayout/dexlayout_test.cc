@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -24,6 +24,7 @@
 #include "base/unix_file/fd_file.h"
 #include "common_runtime_test.h"
 #include "dex_file-inl.h"
+#include "dex_file_loader.h"
 #include "exec_utils.h"
 #include "jit/profile_compilation_info.h"
 #include "utils.h"
@@ -292,7 +293,7 @@ class DexLayoutTest : public CommonRuntimeTest {
       if (!::art::Exec(dexlayout_exec_argv, error_msg)) {
         return false;
       }
-      size_t dex_file_last_slash = dex_file.rfind("/");
+      size_t dex_file_last_slash = dex_file.rfind('/');
       std::string dex_file_name = dex_file.substr(dex_file_last_slash + 1);
       std::vector<std::string> unzip_exec_argv =
           { "/usr/bin/unzip", dex_file, "classes.dex", "-d", tmp_dir};
@@ -316,17 +317,42 @@ class DexLayoutTest : public CommonRuntimeTest {
     return true;
   }
 
+  template <typename Mutator>
+  bool MutateDexFile(File* output_dex, const std::string& input_jar, const Mutator& mutator) {
+    std::vector<std::unique_ptr<const DexFile>> dex_files;
+    std::string error_msg;
+    CHECK(DexFileLoader::Open(input_jar.c_str(),
+                              input_jar.c_str(),
+                              /*verify*/ true,
+                              /*verify_checksum*/ true,
+                              &error_msg,
+                              &dex_files)) << error_msg;
+    EXPECT_EQ(dex_files.size(), 1u) << "Only one input dex is supported";
+    for (const std::unique_ptr<const DexFile>& dex : dex_files) {
+      CHECK(dex->EnableWrite()) << "Failed to enable write";
+      mutator(const_cast<DexFile*>(dex.get()));
+      if (!output_dex->WriteFully(dex->Begin(), dex->Size())) {
+        return false;
+      }
+    }
+    if (output_dex->Flush() != 0) {
+      PLOG(FATAL) << "Could not flush the output file.";
+    }
+    return true;
+  }
+
   // Create a profile with some subset of methods and classes.
   void CreateProfile(const std::string& input_dex,
                      const std::string& out_profile,
                      const std::string& dex_location) {
     std::vector<std::unique_ptr<const DexFile>> dex_files;
     std::string error_msg;
-    bool result = DexFile::Open(input_dex.c_str(),
-                                input_dex,
-                                false,
-                                &error_msg,
-                                &dex_files);
+    bool result = DexFileLoader::Open(input_dex.c_str(),
+                                      input_dex,
+                                      /*verify*/ true,
+                                      /*verify_checksum*/ false,
+                                      &error_msg,
+                                      &dex_files);
 
     ASSERT_TRUE(result) << error_msg;
     ASSERT_GE(dex_files.size(), 1u);
@@ -380,8 +406,8 @@ class DexLayoutTest : public CommonRuntimeTest {
   // Runs DexFileLayout test.
   bool DexFileLayoutExec(std::string* error_msg) {
     ScratchFile tmp_file;
-    std::string tmp_name = tmp_file.GetFilename();
-    size_t tmp_last_slash = tmp_name.rfind("/");
+    const std::string& tmp_name = tmp_file.GetFilename();
+    size_t tmp_last_slash = tmp_name.rfind('/');
     std::string tmp_dir = tmp_name.substr(0, tmp_last_slash + 1);
 
     // Write inputs and expected outputs.
@@ -415,8 +441,8 @@ class DexLayoutTest : public CommonRuntimeTest {
   // for behavior consistency.
   bool DexFileLayoutFixedPointExec(std::string* error_msg) {
     ScratchFile tmp_file;
-    std::string tmp_name = tmp_file.GetFilename();
-    size_t tmp_last_slash = tmp_name.rfind("/");
+    const std::string& tmp_name = tmp_file.GetFilename();
+    size_t tmp_last_slash = tmp_name.rfind('/');
     std::string tmp_dir = tmp_name.substr(0, tmp_last_slash + 1);
 
     // Unzip the test dex file to the classes.dex destination. It is required to unzip since
@@ -481,8 +507,8 @@ class DexLayoutTest : public CommonRuntimeTest {
   // Runs UnreferencedCatchHandlerTest & Unreferenced0SizeCatchHandlerTest.
   bool UnreferencedCatchHandlerExec(std::string* error_msg, const char* filename) {
     ScratchFile tmp_file;
-    std::string tmp_name = tmp_file.GetFilename();
-    size_t tmp_last_slash = tmp_name.rfind("/");
+    const std::string& tmp_name = tmp_file.GetFilename();
+    size_t tmp_last_slash = tmp_name.rfind('/');
     std::string tmp_dir = tmp_name.substr(0, tmp_last_slash + 1);
 
     // Write inputs and expected outputs.
@@ -516,8 +542,10 @@ class DexLayoutTest : public CommonRuntimeTest {
                      const char* dex_filename,
                      ScratchFile* profile_file,
                      std::vector<std::string>& dexlayout_exec_argv) {
-    WriteBase64ToFile(dex_filename, dex_file->GetFile());
-    EXPECT_EQ(dex_file->GetFile()->Flush(), 0);
+    if (dex_filename != nullptr) {
+      WriteBase64ToFile(dex_filename, dex_file->GetFile());
+      EXPECT_EQ(dex_file->GetFile()->Flush(), 0);
+    }
     if (profile_file != nullptr) {
       CreateProfile(dex_file->GetFilename(), profile_file->GetFilename(), dex_file->GetFilename());
     }
@@ -667,6 +695,60 @@ TEST_F(DexLayoutTest, DuplicateCodeItem) {
       { dexlayout, "-o", "/dev/null", temp_dex.GetFilename() };
   ASSERT_TRUE(DexLayoutExec(&temp_dex,
                             kDuplicateCodeItemInputDex,
+                            nullptr /* profile_file */,
+                            dexlayout_exec_argv));
+}
+
+// Test that instructions that go past the end of the code items don't cause crashes.
+TEST_F(DexLayoutTest, CodeItemOverrun) {
+  ScratchFile temp_dex;
+  MutateDexFile(temp_dex.GetFile(), GetTestDexFileName("ManyMethods"), [] (DexFile* dex) {
+    bool mutated_successfully = false;
+    // Change the dex instructions to make an opcode that spans past the end of the code item.
+    for (size_t i = 0; i < dex->NumClassDefs(); ++i) {
+      const DexFile::ClassDef& def = dex->GetClassDef(i);
+      const uint8_t* data = dex->GetClassData(def);
+      if (data == nullptr) {
+        continue;
+      }
+      ClassDataItemIterator it(*dex, data);
+      it.SkipAllFields();
+      while (it.HasNextMethod()) {
+        DexFile::CodeItem* item = const_cast<DexFile::CodeItem*>(it.GetMethodCodeItem());
+        if (item != nullptr) {
+          IterationRange<DexInstructionIterator> instructions = item->Instructions();
+          if (instructions.begin() != instructions.end()) {
+            DexInstructionIterator last_instruction = instructions.begin();
+            for (auto dex_it = instructions.begin(); dex_it != instructions.end(); ++dex_it) {
+              last_instruction = dex_it;
+            }
+            if (last_instruction->SizeInCodeUnits() == 1) {
+              // Set the opcode to something that will go past the end of the code item.
+              const_cast<Instruction&>(last_instruction.Inst()).SetOpcode(
+                  Instruction::CONST_STRING_JUMBO);
+              mutated_successfully = true;
+              // Test that the safe iterator doesn't go past the end.
+              SafeDexInstructionIterator it2(instructions.begin(), instructions.end());
+              while (!it2.IsErrorState()) {
+                ++it2;
+              }
+              EXPECT_TRUE(it2 == last_instruction);
+              EXPECT_TRUE(it2 < instructions.end());
+            }
+          }
+        }
+        it.Next();
+      }
+    }
+    CHECK(mutated_successfully)
+        << "Failed to find candidate code item with only one code unit in last instruction.";
+  });
+  std::string dexlayout = GetTestAndroidRoot() + "/bin/dexlayout";
+  EXPECT_TRUE(OS::FileExists(dexlayout.c_str())) << dexlayout << " should be a valid file path";
+  std::vector<std::string> dexlayout_exec_argv =
+      { dexlayout, "-i", "-o", "/dev/null", temp_dex.GetFilename() };
+  ASSERT_TRUE(DexLayoutExec(&temp_dex,
+                            /*dex_filename*/ nullptr,
                             nullptr /* profile_file */,
                             dexlayout_exec_argv));
 }

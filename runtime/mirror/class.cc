@@ -20,19 +20,21 @@
 
 #include "art_field-inl.h"
 #include "art_method-inl.h"
+#include "base/logging.h"  // For VLOG.
+#include "class-inl.h"
 #include "class_ext.h"
 #include "class_linker-inl.h"
 #include "class_loader.h"
-#include "class-inl.h"
 #include "dex_cache.h"
 #include "dex_file-inl.h"
 #include "dex_file_annotations.h"
 #include "gc/accounting/card_table-inl.h"
 #include "handle_scope-inl.h"
+#include "subtype_check.h"
 #include "method.h"
-#include "object_array-inl.h"
 #include "object-inl.h"
 #include "object-refvisitor-inl.h"
+#include "object_array-inl.h"
 #include "object_lock.h"
 #include "runtime.h"
 #include "thread.h"
@@ -41,11 +43,33 @@
 #include "well_known_classes.h"
 
 namespace art {
+
+// TODO: move to own CC file?
+constexpr size_t BitString::kBitSizeAtPosition[BitString::kCapacity];
+constexpr size_t BitString::kCapacity;
+
 namespace mirror {
 
 using android::base::StringPrintf;
 
 GcRoot<Class> Class::java_lang_Class_;
+
+constexpr Class::Status Class::kStatusRetired;
+constexpr Class::Status Class::kStatusErrorResolved;
+constexpr Class::Status Class::kStatusErrorUnresolved;
+constexpr Class::Status Class::kStatusNotReady;
+constexpr Class::Status Class::kStatusIdx;
+constexpr Class::Status Class::kStatusLoaded;
+constexpr Class::Status Class::kStatusResolving;
+constexpr Class::Status Class::kStatusResolved;
+constexpr Class::Status Class::kStatusVerifying;
+constexpr Class::Status Class::kStatusRetryVerificationAtRuntime;
+constexpr Class::Status Class::kStatusVerifyingAtRuntime;
+constexpr Class::Status Class::kStatusVerified;
+constexpr Class::Status Class::kStatusSuperclassValidated;
+constexpr Class::Status Class::kStatusInitializing;
+constexpr Class::Status Class::kStatusInitialized;
+constexpr Class::Status Class::kStatusMax;
 
 void Class::SetClassClass(ObjPtr<Class> java_lang_Class) {
   CHECK(java_lang_Class_.IsNull())
@@ -149,11 +173,9 @@ void Class::SetStatus(Handle<Class> h_this, Status new_status, Thread* self) {
     self->AssertPendingException();
   }
 
-  static_assert(sizeof(Status) == sizeof(uint32_t), "Size of status not equal to uint32");
-  if (Runtime::Current()->IsActiveTransaction()) {
-    h_this->SetField32Volatile<true>(StatusOffset(), new_status);
-  } else {
-    h_this->SetField32Volatile<false>(StatusOffset(), new_status);
+  {
+    ObjPtr<mirror::Class> h_this_ptr = h_this.Get();
+    SubtypeCheck<ObjPtr<mirror::Class>>::WriteStatus(h_this_ptr, new_status);
   }
 
   // Setting the object size alloc fast path needs to be after the status write so that if the
@@ -1013,7 +1035,7 @@ ObjPtr<Class> Class::GetDirectInterface(Thread* self, ObjPtr<Class> klass, uint3
     return interfaces->Get(idx);
   } else {
     dex::TypeIndex type_idx = klass->GetDirectInterfaceTypeIdx(idx);
-    ObjPtr<Class> interface = ClassLinker::LookupResolvedType(
+    ObjPtr<Class> interface = Runtime::Current()->GetClassLinker()->LookupResolvedType(
         type_idx, klass->GetDexCache(), klass->GetClassLoader());
     return interface;
   }
@@ -1025,9 +1047,7 @@ ObjPtr<Class> Class::ResolveDirectInterface(Thread* self, Handle<Class> klass, u
     DCHECK(!klass->IsArrayClass());
     DCHECK(!klass->IsProxyClass());
     dex::TypeIndex type_idx = klass->GetDirectInterfaceTypeIdx(idx);
-    interface = Runtime::Current()->GetClassLinker()->ResolveType(klass->GetDexFile(),
-                                                                  type_idx,
-                                                                  klass.Get());
+    interface = Runtime::Current()->GetClassLinker()->ResolveType(type_idx, klass.Get());
     CHECK(interface != nullptr || self->IsExceptionPending());
   }
   return interface;
@@ -1223,7 +1243,6 @@ ObjPtr<Method> Class::GetDeclaredMethodInternal(
   // still return a synthetic method to handle situations like
   // escalated visibility. We never return miranda methods that
   // were synthesized by the runtime.
-  constexpr uint32_t kSkipModifiers = kAccMiranda | kAccSynthetic;
   StackHandleScope<3> hs(self);
   auto h_method_name = hs.NewHandle(name);
   if (UNLIKELY(h_method_name == nullptr)) {
@@ -1243,11 +1262,10 @@ ObjPtr<Method> Class::GetDeclaredMethodInternal(
       }
       continue;
     }
-    auto modifiers = m.GetAccessFlags();
-    if ((modifiers & kSkipModifiers) == 0) {
-      return Method::CreateFromArtMethod<kPointerSize, kTransactionActive>(self, &m);
-    }
-    if ((modifiers & kAccMiranda) == 0) {
+    if (!m.IsMiranda()) {
+      if (!m.IsSynthetic()) {
+        return Method::CreateFromArtMethod<kPointerSize, kTransactionActive>(self, &m);
+      }
       result = &m;  // Remember as potential result if it's not a miranda method.
     }
   }
@@ -1270,11 +1288,11 @@ ObjPtr<Method> Class::GetDeclaredMethodInternal(
         }
         continue;
       }
-      if ((modifiers & kSkipModifiers) == 0) {
+      DCHECK(!m.IsMiranda());  // Direct methods cannot be miranda methods.
+      if ((modifiers & kAccSynthetic) == 0) {
         return Method::CreateFromArtMethod<kPointerSize, kTransactionActive>(self, &m);
       }
-      // Direct methods cannot be miranda methods, so this potential result must be synthetic.
-      result = &m;
+      result = &m;  // Remember as potential result.
     }
   }
   return result != nullptr
