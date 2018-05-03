@@ -19,7 +19,6 @@
 
 #include "arch/arm64/registers_arm64.h"
 #include "base/logging.h"
-#include "debug/dwarf/register.h"
 #include "utils/managed_register.h"
 
 namespace art {
