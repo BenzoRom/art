@@ -1950,6 +1950,9 @@ class HInstruction : public ArenaObject<kArenaAllocInstruction> {
 #undef DECLARE_KIND
 
   HInstruction(InstructionKind kind, SideEffects side_effects, uint32_t dex_pc)
+      : HInstruction(kind, DataType::Type::kVoid, side_effects, dex_pc) {}
+
+  HInstruction(InstructionKind kind, DataType::Type type, SideEffects side_effects, uint32_t dex_pc)
       : previous_(nullptr),
         next_(nullptr),
         block_(nullptr),
@@ -1964,6 +1967,7 @@ class HInstruction : public ArenaObject<kArenaAllocInstruction> {
         side_effects_(side_effects),
         reference_type_handle_(ReferenceTypeInfo::CreateInvalid().GetTypeHandle()) {
     SetPackedField<InstructionKindField>(kind);
+    SetPackedField<TypeField>(type);
     SetPackedFlag<kFlagReferenceTypeIsExact>(ReferenceTypeInfo::CreateInvalid().IsExact());
   }
 
@@ -2021,7 +2025,9 @@ class HInstruction : public ArenaObject<kArenaAllocInstruction> {
   virtual void Accept(HGraphVisitor* visitor) = 0;
   virtual const char* DebugName() const = 0;
 
-  virtual DataType::Type GetType() const { return DataType::Type::kVoid; }
+  DataType::Type GetType() const {
+    return TypeField::Decode(GetPackedFields());
+  }
 
   virtual bool NeedsEnvironment() const { return false; }
 
@@ -2322,12 +2328,17 @@ class HInstruction : public ArenaObject<kArenaAllocInstruction> {
   static constexpr size_t kFieldInstructionKind = kFlagReferenceTypeIsExact + 1;
   static constexpr size_t kFieldInstructionKindSize =
       MinimumBitsToStore(static_cast<size_t>(InstructionKind::kLastInstructionKind - 1));
-  static constexpr size_t kNumberOfGenericPackedBits =
+  static constexpr size_t kFieldType =
       kFieldInstructionKind + kFieldInstructionKindSize;
+  static constexpr size_t kFieldTypeSize =
+      MinimumBitsToStore(static_cast<size_t>(DataType::Type::kLast));
+  static constexpr size_t kNumberOfGenericPackedBits = kFieldType + kFieldTypeSize;
   static constexpr size_t kMaxNumberOfPackedBits = sizeof(uint32_t) * kBitsPerByte;
 
   static_assert(kNumberOfGenericPackedBits <= kMaxNumberOfPackedBits,
                 "Too many generic packed fields");
+
+  using TypeField = BitField<DataType::Type, kFieldType, kFieldTypeSize>;
 
   const HUserRecord<HInstruction*> InputRecordAt(size_t i) const {
     return GetInputRecords()[i];
@@ -2575,6 +2586,15 @@ class HVariableInputSizeInstruction : public HInstruction {
                                 ArenaAllocKind kind)
       : HInstruction(inst_kind, side_effects, dex_pc),
         inputs_(number_of_inputs, allocator->Adapter(kind)) {}
+  HVariableInputSizeInstruction(InstructionKind inst_kind,
+                                DataType::Type type,
+                                SideEffects side_effects,
+                                uint32_t dex_pc,
+                                ArenaAllocator* allocator,
+                                size_t number_of_inputs,
+                                ArenaAllocKind kind)
+      : HInstruction(inst_kind, type, side_effects, dex_pc),
+        inputs_(number_of_inputs, allocator->Adapter(kind)) {}
 
   DEFAULT_COPY_CONSTRUCTOR(VariableInputSizeInstruction);
 
@@ -2582,11 +2602,16 @@ class HVariableInputSizeInstruction : public HInstruction {
 };
 
 template<size_t N>
-class HTemplateInstruction: public HInstruction {
+class HExpression : public HInstruction {
  public:
-  HTemplateInstruction<N>(InstructionKind kind, SideEffects side_effects, uint32_t dex_pc)
+  HExpression<N>(InstructionKind kind, SideEffects side_effects, uint32_t dex_pc)
       : HInstruction(kind, side_effects, dex_pc), inputs_() {}
-  virtual ~HTemplateInstruction() {}
+  HExpression<N>(InstructionKind kind,
+                 DataType::Type type,
+                 SideEffects side_effects,
+                 uint32_t dex_pc)
+      : HInstruction(kind, type, side_effects, dex_pc), inputs_() {}
+  virtual ~HExpression() {}
 
   using HInstruction::GetInputRecords;  // Keep the const version visible.
   ArrayRef<HUserRecord<HInstruction*>> GetInputRecords() OVERRIDE FINAL {
@@ -2594,7 +2619,7 @@ class HTemplateInstruction: public HInstruction {
   }
 
  protected:
-  DEFAULT_COPY_CONSTRUCTOR(TemplateInstruction<N>);
+  DEFAULT_COPY_CONSTRUCTOR(Expression<N>);
 
  private:
   std::array<HUserRecord<HInstruction*>, N> inputs_;
@@ -2602,14 +2627,13 @@ class HTemplateInstruction: public HInstruction {
   friend class SsaBuilder;
 };
 
-// HTemplateInstruction specialization for N=0.
+// HExpression specialization for N=0.
 template<>
-class HTemplateInstruction<0>: public HInstruction {
+class HExpression<0>: public HInstruction {
  public:
-  explicit HTemplateInstruction<0>(InstructionKind kind, SideEffects side_effects, uint32_t dex_pc)
-      : HInstruction(kind, side_effects, dex_pc) {}
+  using HInstruction::HInstruction;
 
-  virtual ~HTemplateInstruction() {}
+  virtual ~HExpression() {}
 
   using HInstruction::GetInputRecords;  // Keep the const version visible.
   ArrayRef<HUserRecord<HInstruction*>> GetInputRecords() OVERRIDE FINAL {
@@ -2617,46 +2641,18 @@ class HTemplateInstruction<0>: public HInstruction {
   }
 
  protected:
-  DEFAULT_COPY_CONSTRUCTOR(TemplateInstruction<0>);
+  DEFAULT_COPY_CONSTRUCTOR(Expression<0>);
 
  private:
   friend class SsaBuilder;
 };
 
-template<intptr_t N>
-class HExpression : public HTemplateInstruction<N> {
- public:
-  using HInstruction::InstructionKind;
-  HExpression<N>(InstructionKind kind,
-                 DataType::Type type,
-                 SideEffects side_effects,
-                 uint32_t dex_pc)
-      : HTemplateInstruction<N>(kind, side_effects, dex_pc) {
-    this->template SetPackedField<TypeField>(type);
-  }
-  virtual ~HExpression() {}
-
-  DataType::Type GetType() const OVERRIDE {
-    return TypeField::Decode(this->GetPackedFields());
-  }
-
- protected:
-  static constexpr size_t kFieldType = HInstruction::kNumberOfGenericPackedBits;
-  static constexpr size_t kFieldTypeSize =
-      MinimumBitsToStore(static_cast<size_t>(DataType::Type::kLast));
-  static constexpr size_t kNumberOfExpressionPackedBits = kFieldType + kFieldTypeSize;
-  static_assert(kNumberOfExpressionPackedBits <= HInstruction::kMaxNumberOfPackedBits,
-                "Too many packed fields.");
-  using TypeField = BitField<DataType::Type, kFieldType, kFieldTypeSize>;
-  DEFAULT_COPY_CONSTRUCTOR(Expression<N>);
-};
-
 // Represents dex's RETURN_VOID opcode. A HReturnVoid is a control flow
 // instruction that branches to the exit block.
-class HReturnVoid FINAL : public HTemplateInstruction<0> {
+class HReturnVoid FINAL : public HExpression<0> {
  public:
   explicit HReturnVoid(uint32_t dex_pc = kNoDexPc)
-      : HTemplateInstruction(kReturnVoid, SideEffects::None(), dex_pc) {
+      : HExpression(kReturnVoid, SideEffects::None(), dex_pc) {
   }
 
   bool IsControlFlow() const OVERRIDE { return true; }
@@ -2669,10 +2665,10 @@ class HReturnVoid FINAL : public HTemplateInstruction<0> {
 
 // Represents dex's RETURN opcodes. A HReturn is a control flow
 // instruction that branches to the exit block.
-class HReturn FINAL : public HTemplateInstruction<1> {
+class HReturn FINAL : public HExpression<1> {
  public:
   explicit HReturn(HInstruction* value, uint32_t dex_pc = kNoDexPc)
-      : HTemplateInstruction(kReturn, SideEffects::None(), dex_pc) {
+      : HExpression(kReturn, SideEffects::None(), dex_pc) {
     SetRawInputAt(0, value);
   }
 
@@ -2693,13 +2689,13 @@ class HPhi FINAL : public HVariableInputSizeInstruction {
        uint32_t dex_pc = kNoDexPc)
       : HVariableInputSizeInstruction(
             kPhi,
+            ToPhiType(type),
             SideEffects::None(),
             dex_pc,
             allocator,
             number_of_inputs,
             kArenaAllocPhiInputs),
         reg_number_(reg_number) {
-    SetPackedField<TypeField>(ToPhiType(type));
     DCHECK_NE(GetType(), DataType::Type::kVoid);
     // Phis are constructed live and marked dead if conflicting or unused.
     // Individual steps of SsaBuilder should assume that if a phi has been
@@ -2717,7 +2713,6 @@ class HPhi FINAL : public HVariableInputSizeInstruction {
 
   bool IsCatchPhi() const { return GetBlock()->IsCatchBlock(); }
 
-  DataType::Type GetType() const OVERRIDE { return GetPackedField<TypeField>(); }
   void SetType(DataType::Type new_type) {
     // Make sure that only valid type changes occur. The following are allowed:
     //  (1) int  -> float/ref (primitive type propagation),
@@ -2776,14 +2771,10 @@ class HPhi FINAL : public HVariableInputSizeInstruction {
   DEFAULT_COPY_CONSTRUCTOR(Phi);
 
  private:
-  static constexpr size_t kFieldType = HInstruction::kNumberOfGenericPackedBits;
-  static constexpr size_t kFieldTypeSize =
-      MinimumBitsToStore(static_cast<size_t>(DataType::Type::kLast));
-  static constexpr size_t kFlagIsLive = kFieldType + kFieldTypeSize;
+  static constexpr size_t kFlagIsLive = HInstruction::kNumberOfGenericPackedBits;
   static constexpr size_t kFlagCanBeNull = kFlagIsLive + 1;
   static constexpr size_t kNumberOfPhiPackedBits = kFlagCanBeNull + 1;
   static_assert(kNumberOfPhiPackedBits <= kMaxNumberOfPackedBits, "Too many packed fields.");
-  using TypeField = BitField<DataType::Type, kFieldType, kFieldTypeSize>;
 
   const uint32_t reg_number_;
 };
@@ -2791,10 +2782,10 @@ class HPhi FINAL : public HVariableInputSizeInstruction {
 // The exit instruction is the only instruction of the exit block.
 // Instructions aborting the method (HThrow and HReturn) must branch to the
 // exit block.
-class HExit FINAL : public HTemplateInstruction<0> {
+class HExit FINAL : public HExpression<0> {
  public:
   explicit HExit(uint32_t dex_pc = kNoDexPc)
-      : HTemplateInstruction(kExit, SideEffects::None(), dex_pc) {
+      : HExpression(kExit, SideEffects::None(), dex_pc) {
   }
 
   bool IsControlFlow() const OVERRIDE { return true; }
@@ -2806,10 +2797,10 @@ class HExit FINAL : public HTemplateInstruction<0> {
 };
 
 // Jumps from one block to another.
-class HGoto FINAL : public HTemplateInstruction<0> {
+class HGoto FINAL : public HExpression<0> {
  public:
   explicit HGoto(uint32_t dex_pc = kNoDexPc)
-      : HTemplateInstruction(kGoto, SideEffects::None(), dex_pc) {
+      : HExpression(kGoto, SideEffects::None(), dex_pc) {
   }
 
   bool IsClonable() const OVERRIDE { return true; }
@@ -3076,10 +3067,10 @@ class HDoubleConstant FINAL : public HConstant {
 
 // Conditional branch. A block ending with an HIf instruction must have
 // two successors.
-class HIf FINAL : public HTemplateInstruction<1> {
+class HIf FINAL : public HExpression<1> {
  public:
   explicit HIf(HInstruction* input, uint32_t dex_pc = kNoDexPc)
-      : HTemplateInstruction(kIf, SideEffects::None(), dex_pc) {
+      : HExpression(kIf, SideEffects::None(), dex_pc) {
     SetRawInputAt(0, input);
   }
 
@@ -3106,7 +3097,7 @@ class HIf FINAL : public HTemplateInstruction<1> {
 // non-exceptional control flow.
 // Normal-flow successor is stored at index zero, exception handlers under
 // higher indices in no particular order.
-class HTryBoundary FINAL : public HTemplateInstruction<0> {
+class HTryBoundary FINAL : public HExpression<0> {
  public:
   enum class BoundaryKind {
     kEntry,
@@ -3115,7 +3106,7 @@ class HTryBoundary FINAL : public HTemplateInstruction<0> {
   };
 
   explicit HTryBoundary(BoundaryKind kind, uint32_t dex_pc = kNoDexPc)
-      : HTemplateInstruction(kTryBoundary, SideEffects::None(), dex_pc) {
+      : HExpression(kTryBoundary, SideEffects::None(), dex_pc) {
     SetPackedField<BoundaryKindField>(kind);
   }
 
@@ -3199,6 +3190,7 @@ class HDeoptimize FINAL : public HVariableInputSizeInstruction {
               uint32_t dex_pc)
       : HVariableInputSizeInstruction(
             kDeoptimize,
+            guard->GetType(),
             SideEffects::CanTriggerGC(),
             dex_pc,
             allocator,
@@ -3221,10 +3213,6 @@ class HDeoptimize FINAL : public HVariableInputSizeInstruction {
   bool CanThrow() const OVERRIDE { return true; }
 
   DeoptimizationKind GetDeoptimizationKind() const { return GetPackedField<DeoptimizeKindField>(); }
-
-  DataType::Type GetType() const OVERRIDE {
-    return GuardsAnInput() ? GuardedInput()->GetType() : DataType::Type::kVoid;
-  }
 
   bool GuardsAnInput() const {
     return InputCount() == 2;
@@ -3268,14 +3256,13 @@ class HShouldDeoptimizeFlag FINAL : public HVariableInputSizeInstruction {
   // with regard to other passes.
   HShouldDeoptimizeFlag(ArenaAllocator* allocator, uint32_t dex_pc)
       : HVariableInputSizeInstruction(kShouldDeoptimizeFlag,
+                                      DataType::Type::kInt32,
                                       SideEffects::None(),
                                       dex_pc,
                                       allocator,
                                       0,
                                       kArenaAllocCHA) {
   }
-
-  DataType::Type GetType() const OVERRIDE { return DataType::Type::kInt32; }
 
   // We do all CHA guard elimination/motion in a single pass, after which there is no
   // further guard elimination/motion since a guard might have been used for justification
@@ -3340,7 +3327,7 @@ class HClassTableGet FINAL : public HExpression<1> {
   DEFAULT_COPY_CONSTRUCTOR(ClassTableGet);
 
  private:
-  static constexpr size_t kFieldTableKind = kNumberOfExpressionPackedBits;
+  static constexpr size_t kFieldTableKind = kNumberOfGenericPackedBits;
   static constexpr size_t kFieldTableKindSize =
       MinimumBitsToStore(static_cast<size_t>(TableKind::kLast));
   static constexpr size_t kNumberOfClassTableGetPackedBits = kFieldTableKind + kFieldTableKindSize;
@@ -3355,13 +3342,13 @@ class HClassTableGet FINAL : public HExpression<1> {
 // PackedSwitch (jump table). A block ending with a PackedSwitch instruction will
 // have one successor for each entry in the switch table, and the final successor
 // will be the block containing the next Dex opcode.
-class HPackedSwitch FINAL : public HTemplateInstruction<1> {
+class HPackedSwitch FINAL : public HExpression<1> {
  public:
   HPackedSwitch(int32_t start_value,
                 uint32_t num_entries,
                 HInstruction* input,
                 uint32_t dex_pc = kNoDexPc)
-    : HTemplateInstruction(kPackedSwitch, SideEffects::None(), dex_pc),
+    : HExpression(kPackedSwitch, SideEffects::None(), dex_pc),
       start_value_(start_value),
       num_entries_(num_entries) {
     SetRawInputAt(0, input);
@@ -3591,7 +3578,7 @@ class HCondition : public HBinaryOperation {
 
  protected:
   // Needed if we merge a HCompare into a HCondition.
-  static constexpr size_t kFieldComparisonBias = kNumberOfExpressionPackedBits;
+  static constexpr size_t kFieldComparisonBias = kNumberOfGenericPackedBits;
   static constexpr size_t kFieldComparisonBiasSize =
       MinimumBitsToStore(static_cast<size_t>(ComparisonBias::kLast));
   static constexpr size_t kNumberOfConditionPackedBits =
@@ -4111,7 +4098,7 @@ class HCompare FINAL : public HBinaryOperation {
   DECLARE_INSTRUCTION(Compare);
 
  protected:
-  static constexpr size_t kFieldComparisonBias = kNumberOfExpressionPackedBits;
+  static constexpr size_t kFieldComparisonBias = kNumberOfGenericPackedBits;
   static constexpr size_t kFieldComparisonBiasSize =
       MinimumBitsToStore(static_cast<size_t>(ComparisonBias::kLast));
   static constexpr size_t kNumberOfComparePackedBits =
@@ -4190,7 +4177,7 @@ class HNewInstance FINAL : public HExpression<1> {
   DEFAULT_COPY_CONSTRUCTOR(NewInstance);
 
  private:
-  static constexpr size_t kFlagFinalizable = kNumberOfExpressionPackedBits;
+  static constexpr size_t kFlagFinalizable = kNumberOfGenericPackedBits;
   static constexpr size_t kNumberOfNewInstancePackedBits = kFlagFinalizable + 1;
   static_assert(kNumberOfNewInstancePackedBits <= kMaxNumberOfPackedBits,
                 "Too many packed fields.");
@@ -4230,8 +4217,6 @@ class HInvoke : public HVariableInputSizeInstruction {
   // instructions (e.g. HInvokeStaticOrDirect) can have non-argument
   // inputs at the end of their list of inputs.
   uint32_t GetNumberOfArguments() const { return number_of_arguments_; }
-
-  DataType::Type GetType() const OVERRIDE { return GetPackedField<ReturnTypeField>(); }
 
   uint32_t GetDexMethodIndex() const { return dex_method_index_; }
 
@@ -4285,16 +4270,11 @@ class HInvoke : public HVariableInputSizeInstruction {
   static constexpr size_t kFieldInvokeType = kNumberOfGenericPackedBits;
   static constexpr size_t kFieldInvokeTypeSize =
       MinimumBitsToStore(static_cast<size_t>(kMaxInvokeType));
-  static constexpr size_t kFieldReturnType =
-      kFieldInvokeType + kFieldInvokeTypeSize;
-  static constexpr size_t kFieldReturnTypeSize =
-      MinimumBitsToStore(static_cast<size_t>(DataType::Type::kLast));
-  static constexpr size_t kFlagCanThrow = kFieldReturnType + kFieldReturnTypeSize;
+  static constexpr size_t kFlagCanThrow = kFieldInvokeType + kFieldInvokeTypeSize;
   static constexpr size_t kFlagAlwaysThrows = kFlagCanThrow + 1;
   static constexpr size_t kNumberOfInvokePackedBits = kFlagAlwaysThrows + 1;
   static_assert(kNumberOfInvokePackedBits <= kMaxNumberOfPackedBits, "Too many packed fields.");
   using InvokeTypeField = BitField<InvokeType, kFieldInvokeType, kFieldInvokeTypeSize>;
-  using ReturnTypeField = BitField<DataType::Type, kFieldReturnType, kFieldReturnTypeSize>;
 
   HInvoke(InstructionKind kind,
           ArenaAllocator* allocator,
@@ -4307,6 +4287,7 @@ class HInvoke : public HVariableInputSizeInstruction {
           InvokeType invoke_type)
     : HVariableInputSizeInstruction(
           kind,
+          return_type,
           SideEffects::AllExceptGCDependency(),  // Assume write/read on all fields/arrays.
           dex_pc,
           allocator,
@@ -4317,7 +4298,6 @@ class HInvoke : public HVariableInputSizeInstruction {
       dex_method_index_(dex_method_index),
       intrinsic_(Intrinsics::kNone),
       intrinsic_optimizations_(0) {
-    SetPackedField<ReturnTypeField>(return_type);
     SetPackedField<InvokeTypeField>(invoke_type);
     SetPackedFlag<kFlagCanThrow>(true);
   }
@@ -4526,7 +4506,7 @@ class HInvokeStaticOrDirect FINAL : public HInvoke {
   }
 
   bool CanBeNull() const OVERRIDE {
-    return GetPackedField<ReturnTypeField>() == DataType::Type::kReference && !IsStringInit();
+    return GetType() == DataType::Type::kReference && !IsStringInit();
   }
 
   // Get the index of the special input, if any.
@@ -5121,8 +5101,6 @@ class HDivZeroCheck FINAL : public HExpression<1> {
     SetRawInputAt(0, value);
   }
 
-  DataType::Type GetType() const OVERRIDE { return InputAt(0)->GetType(); }
-
   bool CanBeMoved() const OVERRIDE { return true; }
 
   bool InstructionDataEquals(const HInstruction* other ATTRIBUTE_UNUSED) const OVERRIDE {
@@ -5475,7 +5453,7 @@ class HParameterValue FINAL : public HExpression<0> {
 
  private:
   // Whether or not the parameter value corresponds to 'this' argument.
-  static constexpr size_t kFlagIsThis = kNumberOfExpressionPackedBits;
+  static constexpr size_t kFlagIsThis = kNumberOfGenericPackedBits;
   static constexpr size_t kFlagCanBeNull = kFlagIsThis + 1;
   static constexpr size_t kNumberOfParameterValuePackedBits = kFlagCanBeNull + 1;
   static_assert(kNumberOfParameterValuePackedBits <= kMaxNumberOfPackedBits,
@@ -5717,7 +5695,7 @@ class HInstanceFieldGet FINAL : public HExpression<1> {
   const FieldInfo field_info_;
 };
 
-class HInstanceFieldSet FINAL : public HTemplateInstruction<2> {
+class HInstanceFieldSet FINAL : public HExpression<2> {
  public:
   HInstanceFieldSet(HInstruction* object,
                     HInstruction* value,
@@ -5729,9 +5707,9 @@ class HInstanceFieldSet FINAL : public HTemplateInstruction<2> {
                     uint16_t declaring_class_def_index,
                     const DexFile& dex_file,
                     uint32_t dex_pc)
-      : HTemplateInstruction(kInstanceFieldSet,
-                             SideEffects::FieldWriteOfType(field_type, is_volatile),
-                             dex_pc),
+      : HExpression(kInstanceFieldSet,
+                    SideEffects::FieldWriteOfType(field_type, is_volatile),
+                    dex_pc),
         field_info_(field,
                     field_offset,
                     field_type,
@@ -5857,13 +5835,13 @@ class HArrayGet FINAL : public HExpression<2> {
   // a particular HArrayGet is actually a String.charAt() by looking at the type
   // of the input but that requires holding the mutator lock, so we prefer to use
   // a flag, so that code generators don't need to do the locking.
-  static constexpr size_t kFlagIsStringCharAt = kNumberOfExpressionPackedBits;
+  static constexpr size_t kFlagIsStringCharAt = kNumberOfGenericPackedBits;
   static constexpr size_t kNumberOfArrayGetPackedBits = kFlagIsStringCharAt + 1;
   static_assert(kNumberOfArrayGetPackedBits <= HInstruction::kMaxNumberOfPackedBits,
                 "Too many packed fields.");
 };
 
-class HArraySet FINAL : public HTemplateInstruction<3> {
+class HArraySet FINAL : public HExpression<3> {
  public:
   HArraySet(HInstruction* array,
             HInstruction* index,
@@ -5885,7 +5863,7 @@ class HArraySet FINAL : public HTemplateInstruction<3> {
             DataType::Type expected_component_type,
             SideEffects side_effects,
             uint32_t dex_pc)
-      : HTemplateInstruction(kArraySet, side_effects, dex_pc) {
+      : HExpression(kArraySet, side_effects, dex_pc) {
     SetPackedField<ExpectedComponentTypeField>(expected_component_type);
     SetPackedFlag<kFlagNeedsTypeCheck>(value->GetType() == DataType::Type::kReference);
     SetPackedFlag<kFlagValueCanBeNull>(true);
@@ -6014,7 +5992,7 @@ class HArrayLength FINAL : public HExpression<1> {
   // determine whether a particular HArrayLength is actually a String.length() by
   // looking at the type of the input but that requires holding the mutator lock, so
   // we prefer to use a flag, so that code generators don't need to do the locking.
-  static constexpr size_t kFlagIsStringLength = kNumberOfExpressionPackedBits;
+  static constexpr size_t kFlagIsStringLength = kNumberOfGenericPackedBits;
   static constexpr size_t kNumberOfArrayLengthPackedBits = kFlagIsStringLength + 1;
   static_assert(kNumberOfArrayLengthPackedBits <= HInstruction::kMaxNumberOfPackedBits,
                 "Too many packed fields.");
@@ -6055,13 +6033,13 @@ class HBoundsCheck FINAL : public HExpression<2> {
   DEFAULT_COPY_CONSTRUCTOR(BoundsCheck);
 
  private:
-  static constexpr size_t kFlagIsStringCharAt = kNumberOfExpressionPackedBits;
+  static constexpr size_t kFlagIsStringCharAt = kNumberOfGenericPackedBits;
 };
 
-class HSuspendCheck FINAL : public HTemplateInstruction<0> {
+class HSuspendCheck FINAL : public HExpression<0> {
  public:
   explicit HSuspendCheck(uint32_t dex_pc = kNoDexPc)
-      : HTemplateInstruction(kSuspendCheck, SideEffects::CanTriggerGC(), dex_pc),
+      : HExpression(kSuspendCheck, SideEffects::CanTriggerGC(), dex_pc),
         slow_path_(nullptr) {
   }
 
@@ -6087,10 +6065,10 @@ class HSuspendCheck FINAL : public HTemplateInstruction<0> {
 
 // Pseudo-instruction which provides the native debugger with mapping information.
 // It ensures that we can generate line number and local variables at this point.
-class HNativeDebugInfo : public HTemplateInstruction<0> {
+class HNativeDebugInfo : public HExpression<0> {
  public:
   explicit HNativeDebugInfo(uint32_t dex_pc)
-      : HTemplateInstruction<0>(kNativeDebugInfo, SideEffects::None(), dex_pc) {
+      : HExpression<0>(kNativeDebugInfo, SideEffects::None(), dex_pc) {
   }
 
   bool NeedsEnvironment() const OVERRIDE {
@@ -6149,7 +6127,10 @@ class HLoadClass FINAL : public HInstruction {
              bool is_referrers_class,
              uint32_t dex_pc,
              bool needs_access_check)
-      : HInstruction(kLoadClass, SideEffectsForArchRuntimeCalls(), dex_pc),
+      : HInstruction(kLoadClass,
+                     DataType::Type::kReference,
+                     SideEffectsForArchRuntimeCalls(),
+                     dex_pc),
         special_input_(HUserRecord<HInstruction*>(current_method)),
         type_index_(type_index),
         dex_file_(dex_file),
@@ -6252,10 +6233,6 @@ class HLoadClass FINAL : public HInstruction {
   ArrayRef<HUserRecord<HInstruction*>> GetInputRecords() OVERRIDE FINAL {
     return ArrayRef<HUserRecord<HInstruction*>>(
         &special_input_, (special_input_.GetInstruction() != nullptr) ? 1u : 0u);
-  }
-
-  DataType::Type GetType() const OVERRIDE {
-    return DataType::Type::kReference;
   }
 
   Handle<mirror::Class> GetClass() const {
@@ -6369,7 +6346,10 @@ class HLoadString FINAL : public HInstruction {
               dex::StringIndex string_index,
               const DexFile& dex_file,
               uint32_t dex_pc)
-      : HInstruction(kLoadString, SideEffectsForArchRuntimeCalls(), dex_pc),
+      : HInstruction(kLoadString,
+                     DataType::Type::kReference,
+                     SideEffectsForArchRuntimeCalls(),
+                     dex_pc),
         special_input_(HUserRecord<HInstruction*>(current_method)),
         string_index_(string_index),
         dex_file_(dex_file) {
@@ -6436,10 +6416,6 @@ class HLoadString FINAL : public HInstruction {
   ArrayRef<HUserRecord<HInstruction*>> GetInputRecords() OVERRIDE FINAL {
     return ArrayRef<HUserRecord<HInstruction*>>(
         &special_input_, (special_input_.GetInstruction() != nullptr) ? 1u : 0u);
-  }
-
-  DataType::Type GetType() const OVERRIDE {
-    return DataType::Type::kReference;
   }
 
   DECLARE_INSTRUCTION(LoadString);
@@ -6597,7 +6573,7 @@ class HStaticFieldGet FINAL : public HExpression<1> {
   const FieldInfo field_info_;
 };
 
-class HStaticFieldSet FINAL : public HTemplateInstruction<2> {
+class HStaticFieldSet FINAL : public HExpression<2> {
  public:
   HStaticFieldSet(HInstruction* cls,
                   HInstruction* value,
@@ -6609,9 +6585,9 @@ class HStaticFieldSet FINAL : public HTemplateInstruction<2> {
                   uint16_t declaring_class_def_index,
                   const DexFile& dex_file,
                   uint32_t dex_pc)
-      : HTemplateInstruction(kStaticFieldSet,
-                             SideEffects::FieldWriteOfType(field_type, is_volatile),
-                             dex_pc),
+      : HExpression(kStaticFieldSet,
+                    SideEffects::FieldWriteOfType(field_type, is_volatile),
+                    dex_pc),
         field_info_(field,
                     field_offset,
                     field_type,
@@ -6678,16 +6654,16 @@ class HUnresolvedInstanceFieldGet FINAL : public HExpression<1> {
   const uint32_t field_index_;
 };
 
-class HUnresolvedInstanceFieldSet FINAL : public HTemplateInstruction<2> {
+class HUnresolvedInstanceFieldSet FINAL : public HExpression<2> {
  public:
   HUnresolvedInstanceFieldSet(HInstruction* obj,
                               HInstruction* value,
                               DataType::Type field_type,
                               uint32_t field_index,
                               uint32_t dex_pc)
-      : HTemplateInstruction(kUnresolvedInstanceFieldSet,
-                             SideEffects::AllExceptGCDependency(),
-                             dex_pc),
+      : HExpression(kUnresolvedInstanceFieldSet,
+                    SideEffects::AllExceptGCDependency(),
+                    dex_pc),
         field_index_(field_index) {
     SetPackedField<FieldTypeField>(field_type);
     DCHECK_EQ(DataType::Kind(field_type), DataType::Kind(value->GetType()));
@@ -6748,15 +6724,13 @@ class HUnresolvedStaticFieldGet FINAL : public HExpression<0> {
   const uint32_t field_index_;
 };
 
-class HUnresolvedStaticFieldSet FINAL : public HTemplateInstruction<1> {
+class HUnresolvedStaticFieldSet FINAL : public HExpression<1> {
  public:
   HUnresolvedStaticFieldSet(HInstruction* value,
                             DataType::Type field_type,
                             uint32_t field_index,
                             uint32_t dex_pc)
-      : HTemplateInstruction(kUnresolvedStaticFieldSet,
-                             SideEffects::AllExceptGCDependency(),
-                             dex_pc),
+      : HExpression(kUnresolvedStaticFieldSet, SideEffects::AllExceptGCDependency(), dex_pc),
         field_index_(field_index) {
     SetPackedField<FieldTypeField>(field_type);
     DCHECK_EQ(DataType::Kind(field_type), DataType::Kind(value->GetType()));
@@ -6805,10 +6779,10 @@ class HLoadException FINAL : public HExpression<0> {
 
 // Implicit part of move-exception which clears thread-local exception storage.
 // Must not be removed because the runtime expects the TLS to get cleared.
-class HClearException FINAL : public HTemplateInstruction<0> {
+class HClearException FINAL : public HExpression<0> {
  public:
   explicit HClearException(uint32_t dex_pc = kNoDexPc)
-      : HTemplateInstruction(kClearException, SideEffects::AllWrites(), dex_pc) {
+      : HExpression(kClearException, SideEffects::AllWrites(), dex_pc) {
   }
 
   DECLARE_INSTRUCTION(ClearException);
@@ -6817,10 +6791,10 @@ class HClearException FINAL : public HTemplateInstruction<0> {
   DEFAULT_COPY_CONSTRUCTOR(ClearException);
 };
 
-class HThrow FINAL : public HTemplateInstruction<1> {
+class HThrow FINAL : public HExpression<1> {
  public:
   HThrow(HInstruction* exception, uint32_t dex_pc)
-      : HTemplateInstruction(kThrow, SideEffects::CanTriggerGC(), dex_pc) {
+      : HExpression(kThrow, SideEffects::CanTriggerGC(), dex_pc) {
     SetRawInputAt(0, exception);
   }
 
@@ -6861,6 +6835,7 @@ std::ostream& operator<<(std::ostream& os, TypeCheckKind rhs);
 class HTypeCheckInstruction : public HVariableInputSizeInstruction {
  public:
   HTypeCheckInstruction(InstructionKind kind,
+                        DataType::Type type,
                         HInstruction* object,
                         HInstruction* target_class_or_null,
                         TypeCheckKind check_kind,
@@ -6872,6 +6847,7 @@ class HTypeCheckInstruction : public HVariableInputSizeInstruction {
                         SideEffects side_effects)
       : HVariableInputSizeInstruction(
           kind,
+          type,
           side_effects,
           dex_pc,
           allocator,
@@ -6974,6 +6950,7 @@ class HInstanceOf FINAL : public HTypeCheckInstruction {
               HIntConstant* bitstring_path_to_root,
               HIntConstant* bitstring_mask)
       : HTypeCheckInstruction(kInstanceOf,
+                              DataType::Type::kBool,
                               object,
                               target_class_or_null,
                               check_kind,
@@ -6983,8 +6960,6 @@ class HInstanceOf FINAL : public HTypeCheckInstruction {
                               bitstring_path_to_root,
                               bitstring_mask,
                               SideEffectsForArchRuntimeCalls(check_kind)) {}
-
-  DataType::Type GetType() const OVERRIDE { return DataType::Type::kBool; }
 
   bool NeedsEnvironment() const OVERRIDE {
     return CanCallRuntime(GetTypeCheckKind());
@@ -7038,7 +7013,7 @@ class HBoundType FINAL : public HExpression<1> {
  private:
   // Represents the top constraint that can_be_null_ cannot exceed (i.e. if this
   // is false then CanBeNull() cannot be true).
-  static constexpr size_t kFlagUpperCanBeNull = kNumberOfExpressionPackedBits;
+  static constexpr size_t kFlagUpperCanBeNull = kNumberOfGenericPackedBits;
   static constexpr size_t kFlagCanBeNull = kFlagUpperCanBeNull + 1;
   static constexpr size_t kNumberOfBoundTypePackedBits = kFlagCanBeNull + 1;
   static_assert(kNumberOfBoundTypePackedBits <= kMaxNumberOfPackedBits, "Too many packed fields.");
@@ -7063,6 +7038,7 @@ class HCheckCast FINAL : public HTypeCheckInstruction {
              HIntConstant* bitstring_path_to_root,
              HIntConstant* bitstring_mask)
       : HTypeCheckInstruction(kCheckCast,
+                              DataType::Type::kVoid,
                               object,
                               target_class_or_null,
                               check_kind,
@@ -7112,10 +7088,10 @@ enum MemBarrierKind {
 };
 std::ostream& operator<<(std::ostream& os, const MemBarrierKind& kind);
 
-class HMemoryBarrier FINAL : public HTemplateInstruction<0> {
+class HMemoryBarrier FINAL : public HExpression<0> {
  public:
   explicit HMemoryBarrier(MemBarrierKind barrier_kind, uint32_t dex_pc = kNoDexPc)
-      : HTemplateInstruction(
+      : HExpression(
             kMemoryBarrier,
             SideEffects::AllWritesAndReads(),  // Assume write/read on all fields/arrays.
             dex_pc) {
@@ -7295,7 +7271,7 @@ class HConstructorFence FINAL : public HVariableInputSizeInstruction {
   DEFAULT_COPY_CONSTRUCTOR(ConstructorFence);
 };
 
-class HMonitorOperation FINAL : public HTemplateInstruction<1> {
+class HMonitorOperation FINAL : public HExpression<1> {
  public:
   enum class OperationKind {
     kEnter,
@@ -7304,7 +7280,7 @@ class HMonitorOperation FINAL : public HTemplateInstruction<1> {
   };
 
   HMonitorOperation(HInstruction* object, OperationKind kind, uint32_t dex_pc)
-    : HTemplateInstruction(
+    : HExpression(
           kMonitorOperation,
           SideEffects::AllExceptGCDependency(),  // Assume write/read on all fields/arrays.
           dex_pc) {
@@ -7457,10 +7433,10 @@ std::ostream& operator<<(std::ostream& os, const MoveOperands& rhs);
 
 static constexpr size_t kDefaultNumberOfMoves = 4;
 
-class HParallelMove FINAL : public HTemplateInstruction<0> {
+class HParallelMove FINAL : public HExpression<0> {
  public:
   explicit HParallelMove(ArenaAllocator* allocator, uint32_t dex_pc = kNoDexPc)
-      : HTemplateInstruction(kParallelMove, SideEffects::None(), dex_pc),
+      : HExpression(kParallelMove, SideEffects::None(), dex_pc),
         moves_(allocator->Adapter(kArenaAllocMoveOperands)) {
     moves_.reserve(kDefaultNumberOfMoves);
   }
