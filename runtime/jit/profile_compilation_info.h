@@ -442,6 +442,9 @@ class ProfileCompilationInfo {
   // the method returns false. Otherwise it returns true.
   bool UpdateProfileKeys(const std::vector<std::unique_ptr<const DexFile>>& dex_files);
 
+  // Clears all the data from the profile.
+  void ClearData();
+
  private:
   enum ProfileLoadStatus {
     kProfileLoadWouldOverwiteData,
