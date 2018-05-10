@@ -32,6 +32,12 @@ class Main {
         private int field;
     }
 
+    private static void assertEquals(Object expected, Object actual) {
+        if (!expected.equals(actual)) {
+            throw new AssertionError("Assertion failure: " + expected + " != " + actual);
+        }
+    }
+
     @ConstantMethodType(
             returnType = String.class,
             parameterTypes = {int.class, Integer.class, System.class})
@@ -54,13 +60,7 @@ class Main {
         System.out.println(")");
         for (int i = 0; i < 12000; ++i) {
             MethodType actual = methodType0();
-            if (!actual.equals(expected)) {
-                System.out.print("Expected: ");
-                System.out.println(expected);
-                System.out.print("Actual: ");
-                System.out.println(actual);
-                unreachable();
-            }
+            assertEquals(expected, actual);
         }
     }
 
@@ -70,13 +70,7 @@ class Main {
         System.out.println(")");
         for (int i = 0; i < 12000; ++i) {
             MethodType actual = methodType1();
-            if (!actual.equals(expected)) {
-                System.out.print("Expected: ");
-                System.out.println(expected);
-                System.out.print("Actual: ");
-                System.out.println(actual);
-                unreachable();
-            }
+            assertEquals(expected, actual);
         }
     }
 
@@ -107,6 +101,16 @@ class Main {
 
     @ConstantMethodHandle(
             kind = ConstantMethodHandle.STATIC_GET,
+            owner = "Main",
+            fieldOrMethodName = "name",
+            descriptor = "Ljava/lang/String;")
+    private static MethodHandle getNameHandle() {
+        unreachable();
+        return null;
+    }
+
+    @ConstantMethodHandle(
+            kind = ConstantMethodHandle.STATIC_GET,
             owner = "java/lang/Math",
             fieldOrMethodName = "E",
             descriptor = "D")
@@ -125,6 +129,18 @@ class Main {
         return null;
     }
 
+    private static void repeatConstMethodHandle() throws Throwable {
+        System.out.println("repeatConstMethodHandle()");
+        String [] values = {"A", "B", "C"};
+        for (int i = 0; i < 12000; ++i) {
+            String value = values[i % values.length];
+            setNameHandle().invoke(value);
+            String actual = (String) getNameHandle().invokeExact();
+            assertEquals(value, actual);
+            assertEquals(value, name);
+        }
+    }
+
     public static void main(String[] args) throws Throwable {
         System.out.println(methodType0());
         repeatConstMethodType0(
@@ -136,6 +152,7 @@ class Main {
         System.out.print("name is ");
         System.out.println(name);
         System.out.println(getMathE().invoke());
+        repeatConstMethodHandle();
         try {
             putMathE().invokeExact(Math.PI);
             unreachable();
