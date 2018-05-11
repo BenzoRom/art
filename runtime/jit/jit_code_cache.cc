@@ -531,7 +531,7 @@ void JitCodeCache::SweepRootTables(IsMarkedVisitor* visitor) {
   }
 }
 
-void JitCodeCache::FreeCode(const void* code_ptr) {
+void JitCodeCache::FreeCodeAndData(const void* code_ptr) {
   uintptr_t allocation = FromCodeToAllocation(code_ptr);
   // Notify native debugger that we are about to remove the code.
   // It does nothing if we are not using native debugger.
@@ -557,7 +557,7 @@ void JitCodeCache::FreeAllMethodHeaders(
   MutexLock mu(Thread::Current(), lock_);
   ScopedCodeCacheWrite scc(code_map_.get());
   for (const OatQuickMethodHeader* method_header : method_headers) {
-    FreeCode(method_header->GetCode());
+    FreeCodeAndData(method_header->GetCode());
   }
 }
 
@@ -885,7 +885,7 @@ bool JitCodeCache::RemoveMethodLocked(ArtMethod* method, bool release_memory) {
       in_cache = true;
       if (it->second.GetMethods().empty()) {
         if (release_memory) {
-          FreeCode(it->second.GetCode());
+          FreeCodeAndData(it->second.GetCode());
         }
         jni_stubs_map_.erase(it);
       } else {
@@ -897,7 +897,7 @@ bool JitCodeCache::RemoveMethodLocked(ArtMethod* method, bool release_memory) {
       if (it->second == method) {
         in_cache = true;
         if (release_memory) {
-          FreeCode(it->first);
+          FreeCodeAndData(it->first);
         }
         it = method_code_map_.erase(it);
       } else {
