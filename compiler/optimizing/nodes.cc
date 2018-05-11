@@ -1952,6 +1952,11 @@ bool HBasicBlock::EndsWithControlFlowInstruction() const {
   return !GetInstructions().IsEmpty() && GetLastInstruction()->IsControlFlow();
 }
 
+bool HBasicBlock::EndsWithReturn() const {
+  return !GetInstructions().IsEmpty() &&
+      (GetLastInstruction()->IsReturn() || GetLastInstruction()->IsReturnVoid());
+}
+
 bool HBasicBlock::EndsWithIf() const {
   return !GetInstructions().IsEmpty() && GetLastInstruction()->IsIf();
 }
