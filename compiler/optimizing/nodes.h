@@ -6453,7 +6453,7 @@ class HLoadMethodHandle FINAL : public HInstruction {
 class HLoadMethodType FINAL : public HInstruction {
  public:
   HLoadMethodType(HCurrentMethod* current_method,
-                  uint16_t proto_idx,
+                  dex::ProtoIndex proto_index,
                   const DexFile& dex_file,
                   uint32_t dex_pc)
       : HInstruction(kLoadMethodType,
@@ -6461,7 +6461,7 @@ class HLoadMethodType FINAL : public HInstruction {
                      SideEffectsForArchRuntimeCalls(),
                      dex_pc),
         special_input_(HUserRecord<HInstruction*>(current_method)),
-        proto_idx_(proto_idx),
+        proto_index_(proto_index),
         dex_file_(dex_file) {
   }
 
@@ -6473,7 +6473,7 @@ class HLoadMethodType FINAL : public HInstruction {
 
   bool IsClonable() const OVERRIDE { return true; }
 
-  uint16_t GetProtoIndex() const { return proto_idx_; }
+  dex::ProtoIndex GetProtoIndex() const { return proto_index_; }
 
   const DexFile& GetDexFile() const { return dex_file_; }
 
@@ -6490,7 +6490,7 @@ class HLoadMethodType FINAL : public HInstruction {
   // The special input is the HCurrentMethod for kRuntimeCall.
   HUserRecord<HInstruction*> special_input_;
 
-  const uint16_t proto_idx_;
+  const dex::ProtoIndex proto_index_;
   const DexFile& dex_file_;
 };
 

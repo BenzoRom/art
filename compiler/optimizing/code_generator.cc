@@ -769,7 +769,7 @@ void CodeGenerator::CreateLoadMethodTypeRuntimeCallLocationSummary(
 
 void CodeGenerator::GenerateLoadMethodTypeRuntimeCall(HLoadMethodType* method_type) {
   LocationSummary* locations = method_type->GetLocations();
-  MoveConstant(locations->GetTemp(0), method_type->GetProtoIndex());
+  MoveConstant(locations->GetTemp(0), method_type->GetProtoIndex().index_);
   CheckEntrypointTypes<kQuickResolveMethodType, void*, uint32_t>();
   InvokeRuntime(kQuickResolveMethodType, method_type, method_type->GetDexPc());
 }
