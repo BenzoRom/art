@@ -30,6 +30,7 @@
 #include "dex/dex_file_types.h"
 #include "dex/invoke_type.h"
 #include "gc_root-inl.h"
+#include "intrinsics_enum.h"
 #include "jit/profiling_info.h"
 #include "mirror/class-inl.h"
 #include "mirror/dex_cache-inl.h"

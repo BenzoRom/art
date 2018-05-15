@@ -64,6 +64,7 @@
 #include "base/file_utils.h"
 #include "base/mem_map_arena_pool.h"
 #include "base/memory_tool.h"
+#include "base/mutex.h"
 #include "base/stl_util.h"
 #include "base/systrace.h"
 #include "base/unix_file/fd_file.h"

@@ -25,6 +25,7 @@
 #include "base/enums.h"
 #include "base/iteration_range.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "dex/code_item_accessors.h"
 #include "dex/dex_file.h"
 #include "dex/dex_instruction_iterator.h"

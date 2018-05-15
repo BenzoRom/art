@@ -18,6 +18,7 @@
 #define ART_RUNTIME_METHOD_INFO_H_
 
 #include "base/logging.h"
+#include "base/macros.h"
 #include "leb128.h"
 #include "bit_memory_region.h"
 

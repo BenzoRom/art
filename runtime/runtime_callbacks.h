@@ -19,6 +19,7 @@
 
 #include <vector>
 
+#include "base/array_ref.h"
 #include "base/macros.h"
 #include "base/mutex.h"
 #include "dex/dex_file.h"
