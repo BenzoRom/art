@@ -63,6 +63,7 @@ art_cc_defaults {
         "libart-gtest",
         "libdexfiled",
         "libprofiled",
+        "libartbased",
 
         "libbase",
         "libicuuc",
@@ -116,6 +117,7 @@ art_cc_defaults {
         "libartd-compiler",
         "libdexfiled",
         "libprofiled",
+        "libartbased",
     ],
     static_libs: [
         "libgtest",
@@ -154,6 +156,7 @@ art_cc_library {
         "libartd-compiler",
         "libdexfiled",
         "libprofiled",
+        "libartbased",
         "libbase",
         "libbacktrace",
     ],
@@ -185,6 +188,7 @@ art_cc_test_library {
         "libart",
         "libdexfile",
         "libprofile",
+        "libartbase",
     ],
 }
 
@@ -199,6 +203,7 @@ art_cc_test_library {
         "libartd",
         "libdexfiled",
         "libprofiled",
+        "libartbased",
     ],
 }
 
@@ -320,6 +325,7 @@ art_cc_test_library {
         "libart",
         "libdexfile",
         "libprofile",
+        "libartbase",
     ],
 }
 
@@ -333,6 +339,7 @@ art_cc_test_library {
         "libartd",
         "libdexfiled",
         "libprofiled",
+        "libartbased",
     ],
 }
 
@@ -465,6 +472,7 @@ art_cc_test_library {
         "libart",
         "libdexfile",
         "libprofile",
+        "libartbase",
     ],
 }
 
@@ -478,6 +486,7 @@ art_cc_test_library {
         "libartd",
         "libdexfiled",
         "libprofiled",
+        "libartbased",
     ],
 }
 
