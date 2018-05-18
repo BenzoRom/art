@@ -541,6 +541,7 @@ void CodeGenerator::GenerateInvokeStaticOrDirectRuntimeCall(
     case kVirtual:
     case kInterface:
     case kPolymorphic:
+    case kCustom:
       LOG(FATAL) << "Unexpected invoke type: " << invoke->GetInvokeType();
       UNREACHABLE();
   }
@@ -569,6 +570,7 @@ void CodeGenerator::GenerateInvokeUnresolvedRuntimeCall(HInvokeUnresolved* invok
       entrypoint = kQuickInvokeInterfaceTrampolineWithAccessCheck;
       break;
     case kPolymorphic:
+    case kCustom:
       LOG(FATAL) << "Unexpected invoke type: " << invoke->GetInvokeType();
       UNREACHABLE();
   }
@@ -580,6 +582,12 @@ void CodeGenerator::GenerateInvokePolymorphicCall(HInvokePolymorphic* invoke) {
   // method index) since it requires multiple info from the instruction (registers A, B, H). Not
   // using the reservation has no effect on the registers used in the runtime call.
   QuickEntrypointEnum entrypoint = kQuickInvokePolymorphic;
+  InvokeRuntime(entrypoint, invoke, invoke->GetDexPc(), nullptr);
+}
+
+void CodeGenerator::GenerateInvokeCustomCall(HInvokeCustom* invoke) {
+  MoveConstant(invoke->GetLocations()->GetTemp(0), invoke->GetCallSiteIndex());
+  QuickEntrypointEnum entrypoint = kQuickInvokeCustom;
   InvokeRuntime(entrypoint, invoke, invoke->GetDexPc(), nullptr);
 }
 
