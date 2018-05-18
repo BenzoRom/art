@@ -2421,3 +2421,14 @@ DEFINE_FUNCTION art_quick_invoke_polymorphic
     movq %rax, %xmm0                               // Result is in RAX. Copy to FP result register.
     RETURN_OR_DELIVER_PENDING_EXCEPTION
 END_FUNCTION art_quick_invoke_polymorphic
+
+DEFINE_FUNCTION art_quick_invoke_custom
+    SETUP_SAVE_REFS_AND_ARGS_FRAME                 // save callee saves
+                                                   // RDI := call_site_index
+    movq %gs:THREAD_SELF_OFFSET, %rsi              // RSI := Thread::Current()
+    movq %rsp, %rdx                                // RDX := SP
+    call SYMBOL(artInvokeCustom)                   // artInvokeCustom(Thread*, SP)
+    RESTORE_SAVE_REFS_AND_ARGS_FRAME
+    movq %rax, %xmm0                               // Result is in RAX. Copy to FP result register.
+    RETURN_OR_DELIVER_PENDING_EXCEPTION
+END_FUNCTION art_quick_invoke_custom

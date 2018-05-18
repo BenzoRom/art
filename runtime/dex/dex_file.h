@@ -738,6 +738,8 @@ class DexFile {
     return begin_ + call_site_id.data_off_;
   }
 
+  dex::ProtoIndex GetProtoIndexForCallSite(uint32_t call_site_idx) const;
+
   static const TryItem* GetTryItems(const DexInstructionIterator& code_item_end, uint32_t offset);
 
   // Get the base of the encoded data for the given DexCode.
