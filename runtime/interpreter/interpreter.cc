@@ -31,6 +31,7 @@
 #include "mterp/mterp.h"
 #include "nativehelper/scoped_local_ref.h"
 #include "scoped_thread_state_change-inl.h"
+#include "shadow_frame-inl.h"
 #include "stack.h"
 #include "thread-inl.h"
 #include "unstarted_runtime.h"
@@ -417,7 +418,7 @@ void EnterInterpreterFromInvoke(Thread* self,
   size_t cur_reg = num_regs - num_ins;
   if (!method->IsStatic()) {
     CHECK(receiver != nullptr);
-    shadow_frame->SetVRegReference(cur_reg, receiver.Ptr());
+    shadow_frame->SetVRegReference(cur_reg, receiver);
     ++cur_reg;
   }
   uint32_t shorty_len = 0;
@@ -428,7 +429,7 @@ void EnterInterpreterFromInvoke(Thread* self,
       case 'L': {
         ObjPtr<mirror::Object> o =
             reinterpret_cast<StackReference<mirror::Object>*>(&args[arg_pos])->AsMirrorPtr();
-        shadow_frame->SetVRegReference(cur_reg, o.Ptr());
+        shadow_frame->SetVRegReference(cur_reg, o);
         break;
       }
       case 'J': case 'D': {
