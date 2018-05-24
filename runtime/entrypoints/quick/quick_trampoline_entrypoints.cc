@@ -19,6 +19,7 @@
 #include "base/enums.h"
 #include "callee_save_frame.h"
 #include "common_throws.h"
+#include "class_root.h"
 #include "debug_print.h"
 #include "debugger.h"
 #include "dex/dex_file-inl.h"
@@ -2803,7 +2804,7 @@ extern "C" uint64_t artInvokePolymorphic(mirror::Object* raw_receiver, Thread* s
   Intrinsics intrinsic = static_cast<Intrinsics>(resolved_method->GetIntrinsic());
   JValue result;
   bool success = false;
-  if (resolved_method->GetDeclaringClass() == mirror::MethodHandle::StaticClass()) {
+  if (resolved_method->GetDeclaringClass() == GetClassRoot<mirror::MethodHandle>(linker)) {
     Handle<mirror::MethodHandle> method_handle(hs.NewHandle(
         ObjPtr<mirror::MethodHandle>::DownCast(MakeObjPtr(receiver_handle.Get()))));
     if (intrinsic == Intrinsics::kMethodHandleInvokeExact) {
@@ -2824,7 +2825,7 @@ extern "C" uint64_t artInvokePolymorphic(mirror::Object* raw_receiver, Thread* s
                                    &result);
     }
   } else {
-    DCHECK_EQ(mirror::VarHandle::StaticClass(), resolved_method->GetDeclaringClass());
+    DCHECK_EQ(GetClassRoot<mirror::VarHandle>(linker), resolved_method->GetDeclaringClass());
     Handle<mirror::VarHandle> var_handle(hs.NewHandle(
         ObjPtr<mirror::VarHandle>::DownCast(MakeObjPtr(receiver_handle.Get()))));
     mirror::VarHandle::AccessMode access_mode =
