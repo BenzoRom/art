@@ -2160,7 +2160,7 @@ class BuildGenericJniFrameVisitor FINAL : public QuickArgumentVisitor {
       sm_.AdvancePointer(self->GetJniEnv());
 
       if (is_static) {
-        sm_.AdvanceHandleScope((**sp)->GetDeclaringClass());
+        sm_.AdvanceHandleScope((**sp)->GetDeclaringClass().Ptr());
       }  // else "this" reference is already handled by QuickArgumentVisitor.
     }
   }

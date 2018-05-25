@@ -63,7 +63,7 @@
 #include "mirror/object-refvisitor-inl.h"
 #include "mirror/object_array-inl.h"
 #include "mirror/object_reference.h"
-#include "mirror/reference.h"
+#include "mirror/reference-inl.h"
 #include "nativehelper/scoped_local_ref.h"
 #include "reflection.h"
 #include "runtime.h"
@@ -713,7 +713,7 @@ jvmtiError ClassUtil::GetClassSignature(jvmtiEnv* env,
     if (!klass->IsProxyClass() && klass->GetDexCache() != nullptr) {
       art::StackHandleScope<1> hs(soa.Self());
       art::Handle<art::mirror::Class> h_klass = hs.NewHandle(klass);
-      art::mirror::ObjectArray<art::mirror::String>* str_array =
+      art::ObjPtr<art::mirror::ObjectArray<art::mirror::String>> str_array =
           art::annotations::GetSignatureAnnotationForClass(h_klass);
       if (str_array != nullptr) {
         std::ostringstream oss;

@@ -506,7 +506,7 @@ void ImageWriter::AddMethodPointerArray(mirror::PointerArray* arr) {
     for (size_t i = 0, len = arr->GetLength(); i < len; i++) {
       ArtMethod* method = arr->GetElementPtrSize<ArtMethod*>(i, target_ptr_size_);
       if (method != nullptr && !method->IsRuntimeMethod()) {
-        mirror::Class* klass = method->GetDeclaringClass();
+        ObjPtr<mirror::Class> klass = method->GetDeclaringClass();
         CHECK(klass == nullptr || KeepClass(klass))
             << Class::PrettyClass(klass) << " should be a kept class";
       }
@@ -648,7 +648,7 @@ bool ImageWriter::WillMethodBeDirty(ArtMethod* m) const {
   if (m->IsNative()) {
     return true;
   }
-  mirror::Class* declaring_class = m->GetDeclaringClass();
+  ObjPtr<mirror::Class> declaring_class = m->GetDeclaringClass();
   // Initialized is highly unlikely to dirty since there's no entry points to mutate.
   return declaring_class == nullptr || declaring_class->GetStatus() != ClassStatus::kInitialized;
 }
@@ -771,8 +771,11 @@ class ImageWriter::PruneObjectReferenceVisitor {
       return;
     }
 
+    ObjPtr<mirror::ObjectArray<mirror::Class>> class_roots =
+        Runtime::Current()->GetClassLinker()->GetClassRoots();
     ObjPtr<mirror::Class> klass = ref->IsClass() ? ref->AsClass() : ref->GetClass();
-    if (klass == mirror::Method::StaticClass() || klass == mirror::Constructor::StaticClass()) {
+    if (klass == GetClassRoot<mirror::Method>(class_roots) ||
+        klass == GetClassRoot<mirror::Constructor>(class_roots)) {
       // Prune all classes using reflection because the content they held will not be fixup.
       *result_ = true;
     }
@@ -2401,7 +2404,10 @@ void ImageWriter::FixupObject(Object* orig, Object* copy) {
   if (orig->IsClass()) {
     FixupClass(orig->AsClass<kVerifyNone>(), down_cast<mirror::Class*>(copy));
   } else {
-    if (klass == mirror::Method::StaticClass() || klass == mirror::Constructor::StaticClass()) {
+    ObjPtr<mirror::ObjectArray<mirror::Class>> class_roots =
+        Runtime::Current()->GetClassLinker()->GetClassRoots();
+    if (klass == GetClassRoot<mirror::Method>(class_roots) ||
+        klass == GetClassRoot<mirror::Constructor>(class_roots)) {
       // Need to go update the ArtMethod.
       auto* dest = down_cast<mirror::Executable*>(copy);
       auto* src = down_cast<mirror::Executable*>(orig);
@@ -2565,7 +2571,7 @@ const uint8_t* ImageWriter::GetQuickCode(ArtMethod* method,
       method->GetEntryPointFromQuickCompiledCodePtrSize(target_ptr_size_);
   const uint8_t* quick_code;
 
-  if (UNLIKELY(IsInBootImage(method->GetDeclaringClass()))) {
+  if (UNLIKELY(IsInBootImage(method->GetDeclaringClass().Ptr()))) {
     DCHECK(method->IsCopied());
     // If the code is not in the oat file corresponding to this image (e.g. default methods)
     quick_code = reinterpret_cast<const uint8_t*>(quick_oat_entry_point);

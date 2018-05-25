@@ -616,7 +616,7 @@ Thread* Thread::FromManagedThread(const ScopedObjectAccessAlreadyRunnable& soa,
 
 Thread* Thread::FromManagedThread(const ScopedObjectAccessAlreadyRunnable& soa,
                                   jobject java_thread) {
-  return FromManagedThread(soa, soa.Decode<mirror::Object>(java_thread).Ptr());
+  return FromManagedThread(soa, soa.Decode<mirror::Object>(java_thread));
 }
 
 static size_t FixStackSize(size_t stack_size) {
@@ -2592,7 +2592,7 @@ class FetchStackTraceVisitor : public StackVisitor {
     // save frame)
     ArtMethod* m = GetMethod();
     if (skipping_ && !m->IsRuntimeMethod() &&
-        !mirror::Throwable::GetJavaLangThrowable()->IsAssignableFrom(m->GetDeclaringClass())) {
+        !GetClassRoot<mirror::Throwable>()->IsAssignableFrom(m->GetDeclaringClass())) {
       skipping_ = false;
     }
     if (!skipping_) {
@@ -2859,7 +2859,7 @@ jobjectArray Thread::InternalStackTraceToStackTraceElementArray(
     depth = std::min(depth, traces_length);
   } else {
     // Create java_trace array and place in local reference table
-    mirror::ObjectArray<mirror::StackTraceElement>* java_traces =
+    ObjPtr<mirror::ObjectArray<mirror::StackTraceElement>> java_traces =
         class_linker->AllocStackTraceElementArray(soa.Self(), depth);
     if (java_traces == nullptr) {
       return nullptr;
@@ -2993,27 +2993,18 @@ jobjectArray Thread::CreateAnnotatedStackTrace(const ScopedObjectAccessAlreadyRu
   ClassLinker* class_linker = Runtime::Current()->GetClassLinker();
 
   StackHandleScope<6> hs(soa.Self());
-  mirror::Class* aste_array_class = class_linker->FindClass(
+  Handle<mirror::Class> h_aste_array_class = hs.NewHandle(class_linker->FindSystemClass(
       soa.Self(),
-      "[Ldalvik/system/AnnotatedStackTraceElement;",
-      ScopedNullHandle<mirror::ClassLoader>());
-  if (aste_array_class == nullptr) {
+      "[Ldalvik/system/AnnotatedStackTraceElement;"));
+  if (h_aste_array_class == nullptr) {
     return nullptr;
   }
-  Handle<mirror::Class> h_aste_array_class(hs.NewHandle<mirror::Class>(aste_array_class));
+  Handle<mirror::Class> h_aste_class = hs.NewHandle(h_aste_array_class->GetComponentType());
 
-  mirror::Class* o_array_class = class_linker->FindClass(soa.Self(),
-                                                         "[Ljava/lang/Object;",
-                                                         ScopedNullHandle<mirror::ClassLoader>());
-  if (o_array_class == nullptr) {
-    // This should not fail in a healthy runtime.
-    soa.Self()->AssertPendingException();
-    return nullptr;
-  }
-  Handle<mirror::Class> h_o_array_class(hs.NewHandle<mirror::Class>(o_array_class));
+  Handle<mirror::Class> h_o_array_class =
+      hs.NewHandle(GetClassRoot<mirror::ObjectArray<mirror::Object>>(class_linker));
+  DCHECK(h_o_array_class != nullptr);  // Class roots must be already initialized.
 
-  Handle<mirror::Class> h_aste_class(hs.NewHandle<mirror::Class>(
-      h_aste_array_class->GetComponentType()));
 
   // Make sure the AnnotatedStackTraceElement.class is initialized, b/76208924 .
   class_linker->EnsureInitialized(soa.Self(),
@@ -3037,7 +3028,7 @@ jobjectArray Thread::CreateAnnotatedStackTrace(const ScopedObjectAccessAlreadyRu
 
   size_t length = dumper.stack_trace_elements_.size();
   ObjPtr<mirror::ObjectArray<mirror::Object>> array =
-      mirror::ObjectArray<mirror::Object>::Alloc(soa.Self(), aste_array_class, length);
+      mirror::ObjectArray<mirror::Object>::Alloc(soa.Self(), h_aste_array_class.Get(), length);
   if (array == nullptr) {
     soa.Self()->AssertPendingOOMException();
     return nullptr;

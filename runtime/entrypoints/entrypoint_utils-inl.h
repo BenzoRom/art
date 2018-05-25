@@ -255,7 +255,7 @@ inline mirror::Class* CheckArrayAlloc(dex::TypeIndex type_idx,
     CHECK(klass->IsArrayClass()) << klass->PrettyClass();
   }
   if (kAccessCheck) {
-    mirror::Class* referrer = method->GetDeclaringClass();
+    ObjPtr<mirror::Class> referrer = method->GetDeclaringClass();
     if (UNLIKELY(!referrer->CanAccess(klass))) {
       ThrowIllegalAccessErrorClass(referrer, klass);
       *slow_path = true;
@@ -271,14 +271,14 @@ inline mirror::Class* CheckArrayAlloc(dex::TypeIndex type_idx,
 // check.
 template <bool kAccessCheck, bool kInstrumented>
 ALWAYS_INLINE
-inline mirror::Array* AllocArrayFromCode(dex::TypeIndex type_idx,
-                                         int32_t component_count,
-                                         ArtMethod* method,
-                                         Thread* self,
-                                         gc::AllocatorType allocator_type) {
+inline ObjPtr<mirror::Array> AllocArrayFromCode(dex::TypeIndex type_idx,
+                                                int32_t component_count,
+                                                ArtMethod* method,
+                                                Thread* self,
+                                                gc::AllocatorType allocator_type) {
   bool slow_path = false;
-  mirror::Class* klass = CheckArrayAlloc<kAccessCheck>(type_idx, component_count, method,
-                                                       &slow_path);
+  ObjPtr<mirror::Class> klass =
+      CheckArrayAlloc<kAccessCheck>(type_idx, component_count, method, &slow_path);
   if (UNLIKELY(slow_path)) {
     if (klass == nullptr) {
       return nullptr;
@@ -309,7 +309,7 @@ inline mirror::Array* AllocArrayFromCodeResolved(mirror::Class* klass,
   // No need to retry a slow-path allocation as the above code won't cause a GC or thread
   // suspension.
   return mirror::Array::Alloc<kInstrumented>(self, klass, component_count,
-                                             klass->GetComponentSizeShift(), allocator_type);
+                                             klass->GetComponentSizeShift(), allocator_type).Ptr();
 }
 
 template<FindFieldType type, bool access_check>
@@ -355,7 +355,7 @@ inline ArtField* FindFieldFromCode(uint32_t field_idx,
       ThrowIncompatibleClassChangeErrorField(resolved_field, is_static, referrer);
       return nullptr;
     }
-    mirror::Class* referring_class = referrer->GetDeclaringClass();
+    ObjPtr<mirror::Class> referring_class = referrer->GetDeclaringClass();
     if (UNLIKELY(!referring_class->CheckResolvedFieldAccess(fields_class,
                                                             resolved_field,
                                                             referrer->GetDexCache(),
@@ -697,7 +697,7 @@ inline ObjPtr<mirror::Class> ResolveVerifyAndClinit(dex::TypeIndex type_idx,
     return nullptr;  // Failure - Indicate to caller to deliver exception
   }
   // Perform access check if necessary.
-  mirror::Class* referring_class = referrer->GetDeclaringClass();
+  ObjPtr<mirror::Class> referring_class = referrer->GetDeclaringClass();
   if (verify_access && UNLIKELY(!referring_class->CanAccess(klass))) {
     ThrowIllegalAccessErrorClass(referring_class, klass);
     return nullptr;  // Failure - Indicate to caller to deliver exception

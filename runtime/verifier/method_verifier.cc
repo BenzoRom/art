@@ -144,7 +144,7 @@ static void SafelyMarkAllRegistersAsConflicts(MethodVerifier* verifier, Register
 }
 
 FailureKind MethodVerifier::VerifyClass(Thread* self,
-                                        mirror::Class* klass,
+                                        ObjPtr<mirror::Class> klass,
                                         CompilerCallbacks* callbacks,
                                         bool allow_soft_failures,
                                         HardFailLogMode log_level,
@@ -156,7 +156,7 @@ FailureKind MethodVerifier::VerifyClass(Thread* self,
   std::string failure_message;
   const DexFile& dex_file = klass->GetDexFile();
   const DexFile::ClassDef* class_def = klass->GetClassDef();
-  mirror::Class* super = klass->GetSuperClass();
+  ObjPtr<mirror::Class> super = klass->GetSuperClass();
   std::string temp;
   if (super == nullptr && strcmp("Ljava/lang/Object;", klass->GetDescriptor(&temp)) != 0) {
     early_failure = true;
@@ -2932,7 +2932,7 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
             : called_method->LookupResolvedReturnType();
         if (return_type_class != nullptr) {
           return_type = &FromClass(return_type_descriptor,
-                                   return_type_class.Ptr(),
+                                   return_type_class,
                                    return_type_class->CannotBeAssignedFromOtherTypes());
         } else {
           DCHECK(!can_load_classes_ || self_->IsExceptionPending());
@@ -3018,7 +3018,7 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
       bool is_range =  (inst->Opcode() == Instruction::INVOKE_INTERFACE_RANGE);
       ArtMethod* abs_method = VerifyInvocationArgs(inst, METHOD_INTERFACE, is_range);
       if (abs_method != nullptr) {
-        mirror::Class* called_interface = abs_method->GetDeclaringClass();
+        ObjPtr<mirror::Class> called_interface = abs_method->GetDeclaringClass();
         if (!called_interface->IsInterface() && !called_interface->IsObjectClass()) {
           Fail(VERIFY_ERROR_CLASS_CHANGE) << "expected interface class in invoke-interface '"
               << abs_method->PrettyMethod() << "'";
@@ -3349,7 +3349,7 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
     // Special instructions.
     case Instruction::RETURN_VOID_NO_BARRIER:
       if (IsConstructor() && !IsStatic()) {
-        auto& declaring_class = GetDeclaringClass();
+        const RegType& declaring_class = GetDeclaringClass();
         if (declaring_class.IsUnresolvedReference()) {
           // We must iterate over the fields, even if we cannot use mirror classes to do so. Do it
           // manually over the underlying dex file.
@@ -3361,7 +3361,7 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
           }
           break;
         }
-        auto* klass = declaring_class.GetClass();
+        ObjPtr<mirror::Class> klass = declaring_class.GetClass();
         for (uint32_t i = 0, num_fields = klass->NumInstanceFields(); i < num_fields; ++i) {
           if (klass->GetInstanceField(i)->IsFinal()) {
             Fail(VERIFY_ERROR_BAD_CLASS_HARD) << "return-void-no-barrier not expected for "
@@ -3524,7 +3524,7 @@ bool MethodVerifier::CodeFlowVerifyInstruction(uint32_t* start_guess) {
         ObjPtr<mirror::Class> klass =
             linker->ResolveType(handler_type_idx, dex_cache_, class_loader_);
         if (klass != nullptr) {
-          if (klass == mirror::Throwable::GetJavaLangThrowable()) {
+          if (klass == GetClassRoot<mirror::Throwable>()) {
             has_catch_all_handler = true;
           }
         } else {
@@ -3662,10 +3662,10 @@ const RegType& MethodVerifier::ResolveClass(dex::TypeIndex class_idx) {
       UninstantiableError(descriptor);
       precise = false;
     }
-    result = reg_types_.FindClass(klass.Ptr(), precise);
+    result = reg_types_.FindClass(klass, precise);
     if (result == nullptr) {
       const char* descriptor = dex_file_->StringByTypeIdx(class_idx);
-      result = reg_types_.InsertClass(descriptor, klass.Ptr(), precise);
+      result = reg_types_.InsertClass(descriptor, klass, precise);
     }
   } else {
     const char* descriptor = dex_file_->StringByTypeIdx(class_idx);
@@ -3680,7 +3680,7 @@ const RegType& MethodVerifier::ResolveClass(dex::TypeIndex class_idx) {
   }
 
   // Record result of class resolution attempt.
-  VerifierDeps::MaybeRecordClassResolution(*dex_file_, class_idx, klass.Ptr());
+  VerifierDeps::MaybeRecordClassResolution(*dex_file_, class_idx, klass);
 
   // If requested, check if access is allowed. Unresolved types are included in this check, as the
   // interpreter only tests whether access is allowed when a class is not pre-verified and runs in
@@ -3953,7 +3953,7 @@ ArtMethod* MethodVerifier::VerifyInvocationArgsFromIterator(
       // class. It would be wrong to use this for the type check (interface type checks are
       // postponed to runtime).
       if (res_method != nullptr && !res_method->IsMiranda()) {
-        mirror::Class* klass = res_method->GetDeclaringClass();
+        ObjPtr<mirror::Class> klass = res_method->GetDeclaringClass();
         std::string temp;
         res_method_class = &FromClass(klass->GetDescriptor(&temp), klass,
                                       klass->CannotBeAssignedFromOtherTypes());
@@ -4215,7 +4215,7 @@ ArtMethod* MethodVerifier::VerifyInvocationArgs(
 }
 
 bool MethodVerifier::CheckSignaturePolymorphicMethod(ArtMethod* method) {
-  mirror::Class* klass = method->GetDeclaringClass();
+  ObjPtr<mirror::Class> klass = method->GetDeclaringClass();
   const char* method_name = method->GetName();
 
   const char* expected_return_descriptor;
@@ -4640,9 +4640,7 @@ ArtField* MethodVerifier::GetInstanceField(const RegType& obj_type, int field_id
     std::string temp;
     ObjPtr<mirror::Class> klass = field->GetDeclaringClass();
     const RegType& field_klass =
-        FromClass(klass->GetDescriptor(&temp),
-                  klass.Ptr(),
-                  klass->CannotBeAssignedFromOtherTypes());
+        FromClass(klass->GetDescriptor(&temp), klass, klass->CannotBeAssignedFromOtherTypes());
     if (obj_type.IsUninitializedTypes()) {
       // Field accesses through uninitialized references are only allowable for constructors where
       // the field is declared in this class.
@@ -4743,7 +4741,7 @@ void MethodVerifier::VerifyISFieldAccess(const Instruction* inst, const RegType&
         can_load_classes_ ? field->ResolveType() : field->LookupResolvedType();
     if (field_type_class != nullptr) {
       field_type = &FromClass(field->GetTypeDescriptor(),
-                              field_type_class.Ptr(),
+                              field_type_class,
                               field_type_class->CannotBeAssignedFromOtherTypes());
     } else {
       DCHECK(!can_load_classes_ || self_->IsExceptionPending());
@@ -4931,7 +4929,7 @@ const RegType& MethodVerifier::GetMethodReturnType() {
           : method_being_verified_->LookupResolvedReturnType();
       if (return_type_class != nullptr) {
         return_type_ = &FromClass(method_being_verified_->GetReturnTypeDescriptor(),
-                                  return_type_class.Ptr(),
+                                  return_type_class,
                                   return_type_class->CannotBeAssignedFromOtherTypes());
       } else {
         DCHECK(!can_load_classes_ || self_->IsExceptionPending());
@@ -4955,7 +4953,7 @@ const RegType& MethodVerifier::GetDeclaringClass() {
     const char* descriptor
         = dex_file_->GetTypeDescriptor(dex_file_->GetTypeId(method_id.class_idx_));
     if (method_being_verified_ != nullptr) {
-      mirror::Class* klass = method_being_verified_->GetDeclaringClass();
+      ObjPtr<mirror::Class> klass = method_being_verified_->GetDeclaringClass();
       declaring_class_ = &FromClass(descriptor, klass, klass->CannotBeAssignedFromOtherTypes());
     } else {
       declaring_class_ = &reg_types_.FromDescriptor(GetClassLoader(), descriptor, false);
@@ -5057,7 +5055,7 @@ void MethodVerifier::VisitRoots(RootVisitor* visitor, const RootInfo& root_info)
 }
 
 const RegType& MethodVerifier::FromClass(const char* descriptor,
-                                         mirror::Class* klass,
+                                         ObjPtr<mirror::Class> klass,
                                          bool precise) {
   DCHECK(klass != nullptr);
   if (precise && !klass->IsInstantiable() && !klass->IsPrimitive()) {

@@ -41,6 +41,7 @@
 #include "base/unix_file/fd_file.h"
 #include "class_linker-inl.h"
 #include "class_linker.h"
+#include "class_root.h"
 #include "compiled_method.h"
 #include "debug/debug_info.h"
 #include "debug/elf_debug_writer.h"
@@ -3327,7 +3328,7 @@ class IMTDumper {
       PrepareClass(runtime, klass, prepared);
     }
 
-    mirror::Class* object_class = mirror::Class::GetJavaLangClass()->GetSuperClass();
+    ObjPtr<mirror::Class> object_class = GetClassRoot<mirror::Object>();
     DCHECK(object_class->IsObjectClass());
 
     bool result = klass->GetImt(pointer_size) == object_class->GetImt(pointer_size);
@@ -3361,8 +3362,8 @@ class IMTDumper {
                                        Handle<mirror::ClassLoader> h_loader,
                                        const std::string& class_name,
                                        const PointerSize pointer_size,
-                                       mirror::Class** klass_out,
-                                       std::unordered_set<std::string>* prepared)
+                                       /*out*/ ObjPtr<mirror::Class>* klass_out,
+                                       /*inout*/ std::unordered_set<std::string>* prepared)
       REQUIRES_SHARED(Locks::mutator_lock_) {
     if (class_name.empty()) {
       return nullptr;
@@ -3375,7 +3376,8 @@ class IMTDumper {
       descriptor = DotToDescriptor(class_name.c_str());
     }
 
-    mirror::Class* klass = runtime->GetClassLinker()->FindClass(self, descriptor.c_str(), h_loader);
+    ObjPtr<mirror::Class> klass =
+        runtime->GetClassLinker()->FindClass(self, descriptor.c_str(), h_loader);
 
     if (klass == nullptr) {
       self->ClearException();
@@ -3395,7 +3397,7 @@ class IMTDumper {
   static ImTable* PrepareAndGetImTable(Runtime* runtime,
                                        Handle<mirror::Class> h_klass,
                                        const PointerSize pointer_size,
-                                       std::unordered_set<std::string>* prepared)
+                                       /*inout*/ std::unordered_set<std::string>* prepared)
       REQUIRES_SHARED(Locks::mutator_lock_) {
     PrepareClass(runtime, h_klass, prepared);
     return h_klass->GetImt(pointer_size);
@@ -3407,7 +3409,7 @@ class IMTDumper {
                               std::unordered_set<std::string>* prepared)
       REQUIRES_SHARED(Locks::mutator_lock_) {
     const PointerSize pointer_size = runtime->GetClassLinker()->GetImagePointerSize();
-    mirror::Class* klass;
+    ObjPtr<mirror::Class> klass;
     ImTable* imt = PrepareAndGetImTable(runtime,
                                         Thread::Current(),
                                         h_loader,
@@ -3463,10 +3465,10 @@ class IMTDumper {
                                const std::string& class_name,
                                const std::string& method,
                                Handle<mirror::ClassLoader> h_loader,
-                               std::unordered_set<std::string>* prepared)
+                               /*inout*/ std::unordered_set<std::string>* prepared)
       REQUIRES_SHARED(Locks::mutator_lock_) {
     const PointerSize pointer_size = runtime->GetClassLinker()->GetImagePointerSize();
-    mirror::Class* klass;
+    ObjPtr<mirror::Class> klass;
     ImTable* imt = PrepareAndGetImTable(runtime,
                                         Thread::Current(),
                                         h_loader,
@@ -3569,7 +3571,7 @@ class IMTDumper {
   // and note in the given set that the work was done.
   static void PrepareClass(Runtime* runtime,
                            Handle<mirror::Class> h_klass,
-                           std::unordered_set<std::string>* done)
+                           /*inout*/ std::unordered_set<std::string>* done)
       REQUIRES_SHARED(Locks::mutator_lock_) {
     if (!h_klass->ShouldHaveImt()) {
       return;

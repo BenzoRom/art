@@ -91,7 +91,7 @@ class UnstartedRuntimeTest : public CommonRuntimeTest {
       REQUIRES_SHARED(Locks::mutator_lock_) {
     Runtime* runtime = Runtime::Current();
     ObjPtr<mirror::Class> array_type =
-        runtime->GetClassLinker()->FindArrayClass(self, &component_type);
+        runtime->GetClassLinker()->FindArrayClass(self, component_type);
     CHECK(array_type != nullptr);
     ObjPtr<mirror::ObjectArray<mirror::Object>> result =
         mirror::ObjectArray<mirror::Object>::Alloc(self, array_type, 3);
@@ -196,7 +196,7 @@ class UnstartedRuntimeTest : public CommonRuntimeTest {
   // Prepare for aborts. Aborts assume that the exception class is already resolved, as the
   // loading code doesn't work under transactions.
   void PrepareForAborts() REQUIRES_SHARED(Locks::mutator_lock_) {
-    mirror::Object* result = Runtime::Current()->GetClassLinker()->FindClass(
+    ObjPtr<mirror::Object> result = Runtime::Current()->GetClassLinker()->FindClass(
         Thread::Current(),
         Transaction::kAbortExceptionSignature,
         ScopedNullHandle<mirror::ClassLoader>());
@@ -388,7 +388,7 @@ TEST_F(UnstartedRuntimeTest, StringCharAt) {
 TEST_F(UnstartedRuntimeTest, StringInit) {
   Thread* self = Thread::Current();
   ScopedObjectAccess soa(self);
-  ObjPtr<mirror::Class> klass = mirror::String::GetJavaLangString();
+  ObjPtr<mirror::Class> klass = GetClassRoot<mirror::String>();
   ArtMethod* method =
       klass->FindConstructor("(Ljava/lang/String;)V",
                              Runtime::Current()->GetClassLinker()->GetImagePointerSize());
@@ -448,8 +448,7 @@ TEST_F(UnstartedRuntimeTest, SystemArrayCopyObjectArrayTestExceptions) {
   // Note: all tests are not GC safe. Assume there's no GC running here with the few objects we
   //       allocate.
   StackHandleScope<3> hs_misc(self);
-  Handle<mirror::Class> object_class(
-      hs_misc.NewHandle(mirror::Class::GetJavaLangClass()->GetSuperClass()));
+  Handle<mirror::Class> object_class(hs_misc.NewHandle(GetClassRoot<mirror::Object>()));
 
   StackHandleScope<3> hs_data(self);
   hs_data.NewHandle(mirror::String::AllocFromModifiedUtf8(self, "1"));
@@ -481,8 +480,7 @@ TEST_F(UnstartedRuntimeTest, SystemArrayCopyObjectArrayTest) {
   ShadowFrame* tmp = ShadowFrame::CreateDeoptimizedFrame(10, nullptr, nullptr, 0);
 
   StackHandleScope<1> hs_object(self);
-  Handle<mirror::Class> object_class(
-      hs_object.NewHandle(mirror::Class::GetJavaLangClass()->GetSuperClass()));
+  Handle<mirror::Class> object_class(hs_object.NewHandle(GetClassRoot<mirror::Object>()));
 
   // Simple test:
   // [1,2,3]{1 @ 2} into [4,5,6] = [4,2,6]
@@ -537,7 +535,7 @@ TEST_F(UnstartedRuntimeTest, SystemArrayCopyObjectArrayTest) {
                  tmp,
                  false,
                  object_class.Get(),
-                 mirror::String::GetJavaLangString(),
+                 GetClassRoot<mirror::String>(),
                  hs_src,
                  1,
                  hs_dst,
@@ -551,7 +549,7 @@ TEST_F(UnstartedRuntimeTest, SystemArrayCopyObjectArrayTest) {
   {
     StackHandleScope<3> hs_src(self);
     hs_src.NewHandle(mirror::String::AllocFromModifiedUtf8(self, "1"));
-    hs_src.NewHandle(mirror::String::GetJavaLangString());
+    hs_src.NewHandle(GetClassRoot<mirror::String>());
     hs_src.NewHandle(mirror::String::AllocFromModifiedUtf8(self, "3"));
 
     StackHandleScope<3> hs_dst(self);
@@ -568,7 +566,7 @@ TEST_F(UnstartedRuntimeTest, SystemArrayCopyObjectArrayTest) {
                  tmp,
                  true,
                  object_class.Get(),
-                 mirror::String::GetJavaLangString(),
+                 GetClassRoot<mirror::String>(),
                  hs_src,
                  0,
                  hs_dst,
@@ -902,7 +900,7 @@ TEST_F(UnstartedRuntimeTest, IsAnonymousClass) {
   JValue result;
   ShadowFrame* shadow_frame = ShadowFrame::CreateDeoptimizedFrame(10, nullptr, nullptr, 0);
 
-  ObjPtr<mirror::Class> class_klass = mirror::Class::GetJavaLangClass();
+  ObjPtr<mirror::Class> class_klass = GetClassRoot<mirror::Class>();
   shadow_frame->SetVRegReference(0, class_klass);
   UnstartedClassIsAnonymousClass(self, shadow_frame, &result, 0);
   EXPECT_EQ(result.GetZ(), 0);
@@ -996,7 +994,7 @@ TEST_F(UnstartedRuntimeTest, ThreadLocalGet) {
 
   {
     // Just use a method in Class.
-    ObjPtr<mirror::Class> class_class = mirror::Class::GetJavaLangClass();
+    ObjPtr<mirror::Class> class_class = GetClassRoot<mirror::Class>();
     ArtMethod* caller_method =
         &*class_class->GetDeclaredMethods(class_linker->GetImagePointerSize()).begin();
     ShadowFrame* caller_frame = ShadowFrame::CreateDeoptimizedFrame(10, nullptr, caller_method, 0);
@@ -1111,7 +1109,7 @@ class UnstartedClassForNameTest : public UnstartedRuntimeTest {
     {
       ClassLinker* class_linker = Runtime::Current()->GetClassLinker();
       StackHandleScope<1> hs(self);
-      Handle<mirror::Class> h_class = hs.NewHandle(mirror::Class::GetJavaLangClass());
+      Handle<mirror::Class> h_class = hs.NewHandle(GetClassRoot<mirror::Class>());
       CHECK(class_linker->EnsureInitialized(self, h_class, true, true));
     }
 
@@ -1348,7 +1346,7 @@ TEST_F(UnstartedRuntimeTest, ConstructorNewInstance0) {
   ClassLinker* class_linker = Runtime::Current()->GetClassLinker();
 
   // Get Throwable.
-  Handle<mirror::Class> throw_class = hs.NewHandle(mirror::Throwable::GetJavaLangThrowable());
+  Handle<mirror::Class> throw_class = hs.NewHandle(GetClassRoot<mirror::Throwable>());
   ASSERT_TRUE(class_linker->EnsureInitialized(self, throw_class, true, true));
 
   // Get an input object.
@@ -1387,8 +1385,8 @@ TEST_F(UnstartedRuntimeTest, ConstructorNewInstance0) {
 
   // Should be a new object.
   ASSERT_NE(result.GetL(), input.Get());
-  // Should be a String.
-  ASSERT_EQ(mirror::Throwable::GetJavaLangThrowable(), result.GetL()->GetClass());
+  // Should be of type Throwable.
+  ASSERT_OBJ_PTR_EQ(GetClassRoot<mirror::Throwable>(), result.GetL()->GetClass());
   // Should have the right string.
   ObjPtr<mirror::String> result_msg =
       reinterpret_cast<mirror::Throwable*>(result.GetL())->GetDetailMessage();

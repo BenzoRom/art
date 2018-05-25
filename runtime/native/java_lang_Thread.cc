@@ -119,7 +119,7 @@ static jboolean Thread_holdsLock(JNIEnv* env, jclass, jobject java_object) {
     return JNI_FALSE;
   }
   Thread* thread = soa.Self();
-  return thread->HoldsLock(object.Ptr());
+  return thread->HoldsLock(object);
 }
 
 static void Thread_interrupt0(JNIEnv* env, jobject java_thread) {

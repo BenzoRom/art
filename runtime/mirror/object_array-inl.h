@@ -38,14 +38,15 @@ namespace art {
 namespace mirror {
 
 template<class T>
-inline ObjectArray<T>* ObjectArray<T>::Alloc(Thread* self,
-                                             ObjPtr<Class> object_array_class,
-                                             int32_t length, gc::AllocatorType allocator_type) {
-  Array* array = Array::Alloc<true>(self,
-                                    object_array_class.Ptr(),
-                                    length,
-                                    ComponentSizeShiftWidth(kHeapReferenceSize),
-                                    allocator_type);
+inline ObjPtr<ObjectArray<T>> ObjectArray<T>::Alloc(Thread* self,
+                                                    ObjPtr<Class> object_array_class,
+                                                    int32_t length,
+                                                    gc::AllocatorType allocator_type) {
+  ObjPtr<Array> array = Array::Alloc<true>(self,
+                                           object_array_class,
+                                           length,
+                                           ComponentSizeShiftWidth(kHeapReferenceSize),
+                                           allocator_type);
   if (UNLIKELY(array == nullptr)) {
     return nullptr;
   }
@@ -55,9 +56,9 @@ inline ObjectArray<T>* ObjectArray<T>::Alloc(Thread* self,
 }
 
 template<class T>
-inline ObjectArray<T>* ObjectArray<T>::Alloc(Thread* self,
-                                             ObjPtr<Class> object_array_class,
-                                             int32_t length) {
+inline ObjPtr<ObjectArray<T>> ObjectArray<T>::Alloc(Thread* self,
+                                                    ObjPtr<Class> object_array_class,
+                                                    int32_t length) {
   return Alloc(self,
                object_array_class,
                length,
@@ -347,7 +348,7 @@ inline void ObjectArray<T>::AssignableCheckingMemcpy(int32_t dst_pos,
 }
 
 template<class T>
-inline ObjectArray<T>* ObjectArray<T>::CopyOf(Thread* self, int32_t new_length) {
+inline ObjPtr<ObjectArray<T>> ObjectArray<T>::CopyOf(Thread* self, int32_t new_length) {
   DCHECK_GE(new_length, 0);
   // We may get copied by a compacting GC.
   StackHandleScope<1> hs(self);
@@ -355,7 +356,7 @@ inline ObjectArray<T>* ObjectArray<T>::CopyOf(Thread* self, int32_t new_length) 
   gc::Heap* heap = Runtime::Current()->GetHeap();
   gc::AllocatorType allocator_type = heap->IsMovableObject(this) ? heap->GetCurrentAllocator() :
       heap->GetCurrentNonMovingAllocator();
-  ObjectArray<T>* new_array = Alloc(self, GetClass(), new_length, allocator_type);
+  ObjPtr<ObjectArray<T>> new_array = Alloc(self, GetClass(), new_length, allocator_type);
   if (LIKELY(new_array != nullptr)) {
     new_array->AssignableMemcpy(0, h_this.Get(), 0, std::min(h_this->GetLength(), new_length));
   }

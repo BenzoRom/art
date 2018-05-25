@@ -19,7 +19,6 @@
 
 #include "handle.h"
 #include "interpreter/shadow_frame.h"
-#include "gc_root.h"
 #include "jvalue.h"
 #include "object.h"
 
@@ -27,6 +26,7 @@ namespace art {
 
 template<class T> class Handle;
 class InstructionOperands;
+template<class T> class ObjPtr;
 
 enum class Intrinsics;
 
@@ -121,7 +121,7 @@ class MANAGED VarHandle : public Object {
   // AccessMode. No check is made for whether the AccessMode is a
   // supported operation so the MethodType can be used when raising a
   // WrongMethodTypeException exception.
-  MethodType* GetMethodTypeForAccessMode(Thread* self, AccessMode accessMode)
+  ObjPtr<MethodType> GetMethodTypeForAccessMode(Thread* self, AccessMode accessMode)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   // Returns a string representing the descriptor of the MethodType associated with
@@ -136,7 +136,7 @@ class MANAGED VarHandle : public Object {
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   // Gets the variable type that is operated on by this VarHandle instance.
-  Class* GetVarType() REQUIRES_SHARED(Locks::mutator_lock_);
+  ObjPtr<Class> GetVarType() REQUIRES_SHARED(Locks::mutator_lock_);
 
   // Gets the return type descriptor for a named accessor method,
   // nullptr if accessor_method is not supported.
@@ -150,13 +150,13 @@ class MANAGED VarHandle : public Object {
   static bool GetAccessModeByMethodName(const char* method_name, AccessMode* access_mode);
 
  private:
-  Class* GetCoordinateType0() REQUIRES_SHARED(Locks::mutator_lock_);
-  Class* GetCoordinateType1() REQUIRES_SHARED(Locks::mutator_lock_);
+  ObjPtr<Class> GetCoordinateType0() REQUIRES_SHARED(Locks::mutator_lock_);
+  ObjPtr<Class> GetCoordinateType1() REQUIRES_SHARED(Locks::mutator_lock_);
   int32_t GetAccessModesBitMask() REQUIRES_SHARED(Locks::mutator_lock_);
 
-  static MethodType* GetMethodTypeForAccessMode(Thread* self,
-                                                ObjPtr<VarHandle> var_handle,
-                                                AccessMode access_mode)
+  static ObjPtr<MethodType> GetMethodTypeForAccessMode(Thread* self,
+                                                       ObjPtr<VarHandle> var_handle,
+                                                       AccessMode access_mode)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   static MemberOffset VarTypeOffset() {
@@ -196,11 +196,6 @@ class MANAGED FieldVarHandle : public VarHandle {
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   ArtField* GetField() REQUIRES_SHARED(Locks::mutator_lock_);
-
-  static mirror::Class* StaticClass() REQUIRES_SHARED(Locks::mutator_lock_);
-  static void SetClass(Class* klass) REQUIRES_SHARED(Locks::mutator_lock_);
-  static void ResetClass() REQUIRES_SHARED(Locks::mutator_lock_);
-  static void VisitRoots(RootVisitor* visitor) REQUIRES_SHARED(Locks::mutator_lock_);
 
  private:
   static MemberOffset ArtFieldOffset() {

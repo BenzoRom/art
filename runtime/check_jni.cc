@@ -31,12 +31,15 @@
 #include "base/time_utils.h"
 #include "class_linker-inl.h"
 #include "class_linker.h"
+#include "class_root.h"
 #include "dex/descriptors_names.h"
 #include "dex/dex_file-inl.h"
 #include "gc/space/space.h"
 #include "jni/java_vm_ext.h"
 #include "jni/jni_internal.h"
 #include "mirror/class-inl.h"
+#include "mirror/field.h"
+#include "mirror/method.h"
 #include "mirror/object-inl.h"
 #include "mirror/object_array-inl.h"
 #include "mirror/string-inl.h"
@@ -636,9 +639,11 @@ class ScopedCheck {
       AbortF("expected non-null method");
       return false;
     }
-    mirror::Class* c = method->GetClass();
-    if (soa.Decode<mirror::Class>(WellKnownClasses::java_lang_reflect_Method) != c &&
-        soa.Decode<mirror::Class>(WellKnownClasses::java_lang_reflect_Constructor) != c) {
+    ObjPtr<mirror::ObjectArray<mirror::Class>> class_roots =
+        Runtime::Current()->GetClassLinker()->GetClassRoots();
+    ObjPtr<mirror::Class> c = method->GetClass();
+    if (c != GetClassRoot<mirror::Method>(class_roots) &&
+        c != GetClassRoot<mirror::Constructor>(class_roots)) {
       AbortF("expected java.lang.reflect.Method or "
           "java.lang.reflect.Constructor but got object of type %s: %p",
           method->PrettyTypeOf().c_str(), jmethod);
@@ -667,8 +672,8 @@ class ScopedCheck {
       AbortF("expected non-null java.lang.reflect.Field");
       return false;
     }
-    mirror::Class* c = field->GetClass();
-    if (soa.Decode<mirror::Class>(WellKnownClasses::java_lang_reflect_Field) != c) {
+    ObjPtr<mirror::Class> c = field->GetClass();
+    if (GetClassRoot<mirror::Field>() != c) {
       AbortF("expected java.lang.reflect.Field but got object of type %s: %p",
              field->PrettyTypeOf().c_str(), jfield);
       return false;
@@ -1281,7 +1286,7 @@ class ScopedCheck {
     }
     ArtMethod* m = jni::DecodeArtMethod(mid);
     // TODO: Better check here.
-    if (!Runtime::Current()->GetHeap()->IsValidObjectAddress(m->GetDeclaringClass())) {
+    if (!Runtime::Current()->GetHeap()->IsValidObjectAddress(m->GetDeclaringClass().Ptr())) {
       Runtime::Current()->GetHeap()->DumpSpaces(LOG_STREAM(ERROR));
       AbortF("invalid jmethodID: %p", mid);
       return nullptr;
