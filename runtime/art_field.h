@@ -214,6 +214,7 @@ class ArtField FINAL {
 
   size_t FieldSize() REQUIRES_SHARED(Locks::mutator_lock_);
 
+  template <ReadBarrierOption kReadBarrierOption = kWithReadBarrier>
   ObjPtr<mirror::DexCache> GetDexCache() REQUIRES_SHARED(Locks::mutator_lock_);
 
   const DexFile* GetDexFile() REQUIRES_SHARED(Locks::mutator_lock_);
@@ -235,6 +236,8 @@ class ArtField FINAL {
       REQUIRES_SHARED(Locks::mutator_lock_);
 
  private:
+  bool IsProxyField() REQUIRES_SHARED(Locks::mutator_lock_);
+
   ObjPtr<mirror::Class> ProxyFindSystemClass(const char* descriptor)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
