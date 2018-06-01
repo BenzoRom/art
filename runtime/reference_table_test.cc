@@ -288,7 +288,7 @@ TEST_F(ReferenceTableTest, SummaryOrder) {
   }
 
   {
-    // Differently sized byte arrays. Should be sorted by identical (non-unique cound).
+    // Differently sized byte arrays. Should be sorted by identical (non-unique count).
     mirror::Object* b1_1 = mirror::ByteArray::Alloc(soa.Self(), 1);
     rt.Add(b1_1);
     rt.Add(mirror::ByteArray::Alloc(soa.Self(), 2));
