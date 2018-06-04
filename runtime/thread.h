@@ -1123,12 +1123,17 @@ class Thread {
 
   // Remove the suspend trigger for this thread by making the suspend_trigger_ TLS value
   // equal to a valid pointer.
-  void RemoveSuspendTrigger();
+  // TODO: does this need to atomic?  I don't think so.
+  void RemoveSuspendTrigger() {
+    tlsPtr_.suspend_trigger = reinterpret_cast<uintptr_t*>(&tlsPtr_.suspend_trigger);
+  }
 
   // Trigger a suspend check by making the suspend_trigger_ TLS value an invalid pointer.
   // The next time a suspend check is done, it will load from the value at this address
   // and trigger a SIGSEGV.
-  void TriggerSuspend();
+  void TriggerSuspend() {
+    tlsPtr_.suspend_trigger = nullptr;
+  }
 
 
   // Push an object onto the allocation stack.
@@ -1244,10 +1249,7 @@ class Thread {
                                        jobject thread_group)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
-  static void DestroyThreadObject(Thread* thread);
-
  private:
-  static Thread* CreateThreadObject(bool daemon);
   explicit Thread(bool daemon);
   ~Thread() REQUIRES(!Locks::mutator_lock_, !Locks::thread_suspend_count_lock_);
   void Destroy();

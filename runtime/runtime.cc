@@ -1273,12 +1273,10 @@ bool Runtime::Init(RuntimeArgumentMap&& runtime_options_in) {
 
   // Change the implicit checks flags based on runtime architecture.
   switch (kRuntimeISA) {
-    case InstructionSet::kArm64:
-      implicit_suspend_checks_ = true;
-      FALLTHROUGH_INTENDED;
     case InstructionSet::kArm:
     case InstructionSet::kThumb2:
     case InstructionSet::kX86:
+    case InstructionSet::kArm64:
     case InstructionSet::kX86_64:
     case InstructionSet::kMips:
     case InstructionSet::kMips64:
