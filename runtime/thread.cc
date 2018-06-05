@@ -3162,7 +3162,8 @@ void Thread::ThrowNewWrappedException(const char* exception_class_descriptor,
 
   // If we couldn't allocate the exception, throw the pre-allocated out of memory exception.
   if (exception == nullptr) {
-    SetException(Runtime::Current()->GetPreAllocatedOutOfMemoryError());
+    Dump(LOG_STREAM(WARNING));  // The pre-allocated OOME has no stack, so help out and log one.
+    SetException(Runtime::Current()->GetPreAllocatedOutOfMemoryErrorWhenThrowingException());
     return;
   }
 
@@ -3242,7 +3243,7 @@ void Thread::ThrowOutOfMemoryError(const char* msg) {
     tls32_.throwing_OutOfMemoryError = false;
   } else {
     Dump(LOG_STREAM(WARNING));  // The pre-allocated OOME has no stack, so help out and log one.
-    SetException(Runtime::Current()->GetPreAllocatedOutOfMemoryError());
+    SetException(Runtime::Current()->GetPreAllocatedOutOfMemoryErrorWhenThrowingOOME());
   }
 }
 
