@@ -79,7 +79,7 @@ void StackMapStream::AddDexRegisterEntry(DexRegisterLocation::Kind kind, int32_t
     // companion hash map of locations to indices).  Use its index if it
     // is already in the location catalog.  If not, insert it (in the
     // location catalog and the hash map) and use the newly created index.
-    auto it = location_catalog_entries_indices_.Find(location);
+    auto it = location_catalog_entries_indices_.find(location);
     if (it != location_catalog_entries_indices_.end()) {
       // Retrieve the index from the hash map.
       dex_register_locations_.push_back(it->second);
@@ -88,7 +88,7 @@ void StackMapStream::AddDexRegisterEntry(DexRegisterLocation::Kind kind, int32_t
       size_t index = location_catalog_entries_.size();
       location_catalog_entries_.push_back(location);
       dex_register_locations_.push_back(index);
-      location_catalog_entries_indices_.Insert(std::make_pair(location, index));
+      location_catalog_entries_indices_.insert(std::make_pair(location, index));
     }
     DexRegisterMapEntry* const entry = in_inline_frame_
         ? &current_inline_info_.dex_register_entry

@@ -4387,7 +4387,7 @@ const uint8_t* OatWriter::LookupBootImageInternTableSlot(const DexFile& dex_file
                                  ComputeUtf16HashFromModifiedUtf8(utf8_data, utf16_length));
   const InternTable* intern_table = Runtime::Current()->GetClassLinker()->intern_table_;
   for (const InternTable::Table::UnorderedSet& table : intern_table->strong_interns_.tables_) {
-    auto it = table.Find(string);
+    auto it = table.find(string);
     if (it != table.end()) {
       return reinterpret_cast<const uint8_t*>(std::addressof(*it));
     }
@@ -4403,7 +4403,7 @@ const uint8_t* OatWriter::LookupBootImageClassTableSlot(const DexFile& dex_file,
   ClassTable::DescriptorHashPair pair(descriptor, ComputeModifiedUtf8Hash(descriptor));
   ClassTable* table = Runtime::Current()->GetClassLinker()->boot_class_table_.get();
   for (const ClassTable::ClassSet& class_set : table->classes_) {
-    auto it = class_set.Find(pair);
+    auto it = class_set.find(pair);
     if (it != class_set.end()) {
       return reinterpret_cast<const uint8_t*>(std::addressof(*it));
     }
