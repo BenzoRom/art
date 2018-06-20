@@ -27,6 +27,7 @@
 
 #include "art_method-inl.h"
 #include "base/file_utils.h"
+#include "base/hash_set.h"
 #include "base/unix_file/fd_file.h"
 #include "class_linker-inl.h"
 #include "common_compiler_test.h"
@@ -93,8 +94,8 @@ class ImageTest : public CommonCompilerTest {
     options->push_back(std::make_pair("compilercallbacks", callbacks_.get()));
   }
 
-  std::unordered_set<std::string>* GetImageClasses() OVERRIDE {
-    return new std::unordered_set<std::string>(image_classes_);
+  std::unique_ptr<HashSet<std::string>> GetImageClasses() OVERRIDE {
+    return std::make_unique<HashSet<std::string>>(image_classes_);
   }
 
   ArtMethod* FindCopiedMethod(ArtMethod* origin, mirror::Class* klass)
@@ -110,7 +111,7 @@ class ImageTest : public CommonCompilerTest {
   }
 
  private:
-  std::unordered_set<std::string> image_classes_;
+  HashSet<std::string> image_classes_;
 };
 
 inline CompilationHelper::~CompilationHelper() {
@@ -422,7 +423,7 @@ inline void ImageTest::TestWriteRead(ImageHeader::StorageMode storage_mode) {
   }
 
   ASSERT_TRUE(compiler_driver_->GetImageClasses() != nullptr);
-  std::unordered_set<std::string> image_classes(*compiler_driver_->GetImageClasses());
+  HashSet<std::string> image_classes(*compiler_driver_->GetImageClasses());
 
   // Need to delete the compiler since it has worker threads which are attached to runtime.
   compiler_driver_.reset();
@@ -491,7 +492,7 @@ inline void ImageTest::TestWriteRead(ImageHeader::StorageMode storage_mode) {
       const char* descriptor = dex->GetClassDescriptor(class_def);
       mirror::Class* klass = class_linker_->FindSystemClass(soa.Self(), descriptor);
       EXPECT_TRUE(klass != nullptr) << descriptor;
-      if (image_classes.find(descriptor) == image_classes.end()) {
+      if (image_classes.find(StringPiece(descriptor)) == image_classes.end()) {
         EXPECT_TRUE(reinterpret_cast<uint8_t*>(klass) >= image_end ||
                     reinterpret_cast<uint8_t*>(klass) < image_begin) << descriptor;
       } else {

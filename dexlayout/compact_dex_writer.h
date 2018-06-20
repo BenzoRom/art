@@ -21,6 +21,7 @@
 
 #include <unordered_map>
 
+#include "base/data_hash.h"
 #include "dex_writer.h"
 #include "utils.h"
 

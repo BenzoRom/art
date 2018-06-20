@@ -23,6 +23,7 @@
 #include "atomic.h"
 #include "base/arena_containers.h"
 #include "base/arena_object.h"
+#include "base/hash_set.h"
 #include "bit_memory_region.h"
 #include "dex_cache_resolved_classes.h"
 #include "dex/dex_file.h"
@@ -72,7 +73,7 @@ class ProfileCompilationInfo {
   static const uint8_t kProfileMagic[];
   static const uint8_t kProfileVersion[];
 
-  static const char* kDexMetadataProfileEntry;
+  static const char kDexMetadataProfileEntry[];
 
   // Data structures for encoding the offline representation of inline caches.
   // This is exposed as public in order to make it available to dex2oat compilations
@@ -423,7 +424,7 @@ class ProfileCompilationInfo {
   ArenaAllocator* GetAllocator() { return &allocator_; }
 
   // Return all of the class descriptors in the profile for a set of dex files.
-  std::unordered_set<std::string> GetClassDescriptors(const std::vector<const DexFile*>& dex_files);
+  HashSet<std::string> GetClassDescriptors(const std::vector<const DexFile*>& dex_files);
 
   // Checks if the profile is empty.
   bool IsEmpty() const;
