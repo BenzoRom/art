@@ -552,6 +552,62 @@ public class Main {
     return (int)s;
   }
 
+  //
+  //  Check that IntermediateAddress can be shared across BoundsCheck, DivZeroCheck and NullCheck -
+  //  instruction which have fatal slow paths.
+  //
+  /// CHECK-START-{ARM,ARM64}: void Main.checkGVNForFatalChecks(int, int, char[], int[]) GVN$after_arch (before)
+  /// CHECK-DAG: <<Offset:i\d+>>   IntConstant 12
+  /// CHECK-DAG: <<Array1:l\d+>>   ParameterValue
+  /// CHECK-DAG: <<Array2:l\d+>>   ParameterValue
+  /// CHECK-DAG: <<NullCh1:l\d+>>  NullCheck [<<Array1>>]
+  /// CHECK-DAG:                   ArrayLength
+  /// CHECK-DAG:                   BoundsCheck
+  /// CHECK-DAG:                   IntermediateAddress [<<NullCh1>>,<<Offset>>]
+  /// CHECK-DAG:                   ArraySet
+  //
+  /// CHECK-DAG:                   DivZeroCheck
+  /// CHECK-DAG:                   Div
+  /// CHECK-DAG: <<NullCh2:l\d+>>  NullCheck [<<Array2>>]
+  /// CHECK-DAG:                   ArrayLength
+  /// CHECK-DAG:                   BoundsCheck
+  /// CHECK-DAG:                   ArraySet
+  //
+  /// CHECK-DAG:                   BoundsCheck
+  /// CHECK-DAG:                   IntermediateAddress [<<NullCh1>>,<<Offset>>]
+  /// CHECK-DAG:                   ArraySet
+  //
+  /// CHECK-NOT:                   NullCheck
+  /// CHECK-NOT:                   IntermediateAddress
+
+  /// CHECK-START-{ARM,ARM64}: void Main.checkGVNForFatalChecks(int, int, char[], int[]) GVN$after_arch (after)
+  /// CHECK-DAG: <<Offset:i\d+>>   IntConstant 12
+  /// CHECK-DAG: <<Array1:l\d+>>   ParameterValue
+  /// CHECK-DAG: <<Array2:l\d+>>   ParameterValue
+  /// CHECK-DAG: <<NullCh1:l\d+>>  NullCheck [<<Array1>>]
+  /// CHECK-DAG:                   ArrayLength
+  /// CHECK-DAG:                   BoundsCheck
+  /// CHECK-DAG:                   IntermediateAddress [<<NullCh1>>,<<Offset>>]
+  /// CHECK-DAG:                   ArraySet
+  //
+  /// CHECK-DAG:                   DivZeroCheck
+  /// CHECK-DAG:                   Div
+  /// CHECK-DAG: <<NullCh2:l\d+>>  NullCheck [<<Array2>>]
+  /// CHECK-DAG:                   ArrayLength
+  /// CHECK-DAG:                   BoundsCheck
+  /// CHECK-DAG:                   ArraySet
+  //
+  /// CHECK-DAG:                   BoundsCheck
+  /// CHECK-DAG:                   ArraySet
+  //
+  /// CHECK-NOT:                   NullCheck
+  /// CHECK-NOT:                   IntermediateAddress
+  public final static void checkGVNForFatalChecks(int begin, int end, char[] buf1, int[] buf2) {
+    buf1[begin] = 'a';
+    buf2[0] = begin / end;
+    buf1[end] = 'n';
+  }
+
   public static void main(String[] args) {
     int[] array = {123, 456, 789};
 
