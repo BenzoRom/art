@@ -2610,7 +2610,7 @@ mirror::Class* ClassLinker::FindClass(Thread* self,
       old = result_ptr;  // For the comparison below, after releasing the lock.
       if (descriptor_equals) {
         class_table->InsertWithHash(result_ptr.Ptr(), hash);
-        Runtime::Current()->GetHeap()->WriteBarrierEveryFieldOf(class_loader.Get());
+        WriteBarrier::ForEveryFieldWrite(class_loader.Get());
       }  // else throw below, after releasing the lock.
     }
   }
@@ -3239,7 +3239,7 @@ void ClassLinker::LoadClassMembers(Thread* self,
     DCHECK(!it.HasNext());
   }
   // Ensure that the card is marked so that remembered sets pick up native roots.
-  Runtime::Current()->GetHeap()->WriteBarrierEveryFieldOf(klass.Get());
+  WriteBarrier::ForEveryFieldWrite(klass.Get());
   self->AllowThreadSuspension();
 }
 
@@ -3404,7 +3404,7 @@ void ClassLinker::RegisterDexFileLocked(const DexFile& dex_file,
   if (class_loader != nullptr) {
     // Since we added a strong root to the class table, do the write barrier as required for
     // remembered sets and generational GCs.
-    Runtime::Current()->GetHeap()->WriteBarrierEveryFieldOf(class_loader);
+    WriteBarrier::ForEveryFieldWrite(class_loader);
   }
   dex_caches_.push_back(data);
 }
@@ -3464,7 +3464,7 @@ void ClassLinker::RegisterExistingDexCache(ObjPtr<mirror::DexCache> dex_cache,
   if (h_class_loader.Get() != nullptr) {
     // Since we added a strong root to the class table, do the write barrier as required for
     // remembered sets and generational GCs.
-    Runtime::Current()->GetHeap()->WriteBarrierEveryFieldOf(h_class_loader.Get());
+    WriteBarrier::ForEveryFieldWrite(h_class_loader.Get());
   }
 }
 
@@ -3535,7 +3535,7 @@ ObjPtr<mirror::DexCache> ClassLinker::RegisterDexFile(const DexFile& dex_file,
   if (h_class_loader.Get() != nullptr) {
     // Since we added a strong root to the class table, do the write barrier as required for
     // remembered sets and generational GCs.
-    Runtime::Current()->GetHeap()->WriteBarrierEveryFieldOf(h_class_loader.Get());
+    WriteBarrier::ForEveryFieldWrite(h_class_loader.Get());
   }
   return h_dex_cache.Get();
 }
@@ -3836,7 +3836,7 @@ mirror::Class* ClassLinker::InsertClass(const char* descriptor, ObjPtr<mirror::C
     class_table->InsertWithHash(klass, hash);
     if (class_loader != nullptr) {
       // This is necessary because we need to have the card dirtied for remembered sets.
-      Runtime::Current()->GetHeap()->WriteBarrierEveryFieldOf(class_loader);
+      WriteBarrier::ForEveryFieldWrite(class_loader);
     }
     if (log_new_roots_) {
       new_class_roots_.push_back(GcRoot<mirror::Class>(klass));
@@ -3866,7 +3866,7 @@ void ClassLinker::UpdateClassMethods(ObjPtr<mirror::Class> klass,
                                 klass->NumDirectMethods(),
                                 klass->NumDeclaredVirtualMethods());
   // Need to mark the card so that the remembered sets and mod union tables get updated.
-  Runtime::Current()->GetHeap()->WriteBarrierEveryFieldOf(klass);
+  WriteBarrier::ForEveryFieldWrite(klass);
 }
 
 mirror::Class* ClassLinker::LookupClass(Thread* self,
@@ -5265,7 +5265,7 @@ void ClassLinker::FixupTemporaryDeclaringClass(ObjPtr<mirror::Class> temp_class,
 
   // Make sure the remembered set and mod-union tables know that we updated some of the native
   // roots.
-  Runtime::Current()->GetHeap()->WriteBarrierEveryFieldOf(new_class);
+  WriteBarrier::ForEveryFieldWrite(new_class);
 }
 
 void ClassLinker::RegisterClassLoader(ObjPtr<mirror::ClassLoader> class_loader) {
@@ -5423,7 +5423,7 @@ bool ClassLinker::LinkClass(Thread* self,
       if (class_loader != nullptr) {
         // We updated the class in the class table, perform the write barrier so that the GC knows
         // about the change.
-        Runtime::Current()->GetHeap()->WriteBarrierEveryFieldOf(class_loader);
+        WriteBarrier::ForEveryFieldWrite(class_loader);
       }
       CHECK_EQ(existing, klass.Get());
       if (log_new_roots_) {
@@ -8819,7 +8819,7 @@ void ClassLinker::InsertDexFileInToClassLoader(ObjPtr<mirror::Object> dex_file,
   if (table->InsertStrongRoot(dex_file) && class_loader != nullptr) {
     // It was not already inserted, perform the write barrier to let the GC know the class loader's
     // class table was modified.
-    Runtime::Current()->GetHeap()->WriteBarrierEveryFieldOf(class_loader);
+    WriteBarrier::ForEveryFieldWrite(class_loader);
   }
 }
 

@@ -32,6 +32,7 @@
 #include "object-inl.h"
 #include "runtime.h"
 #include "thread.h"
+#include "write_barrier-inl.h"
 
 namespace art {
 namespace mirror {
@@ -196,7 +197,7 @@ inline void ObjectArray<T>::AssignableMemmove(int32_t dst_pos,
       }
     }
   }
-  Runtime::Current()->GetHeap()->WriteBarrierArray(this, dst_pos, count);
+  WriteBarrier::ForArrayWrite(this, dst_pos, count);
   if (kIsDebugBuild) {
     for (int i = 0; i < count; ++i) {
       // The get will perform the VerifyObject.
@@ -245,7 +246,7 @@ inline void ObjectArray<T>::AssignableMemcpy(int32_t dst_pos,
       SetWithoutChecksAndWriteBarrier<false>(dst_pos + i, obj);
     }
   }
-  Runtime::Current()->GetHeap()->WriteBarrierArray(this, dst_pos, count);
+  WriteBarrier::ForArrayWrite(this, dst_pos, count);
   if (kIsDebugBuild) {
     for (int i = 0; i < count; ++i) {
       // The get will perform the VerifyObject.
@@ -327,7 +328,7 @@ inline void ObjectArray<T>::AssignableCheckingMemcpy(int32_t dst_pos,
       }
     }
   }
-  Runtime::Current()->GetHeap()->WriteBarrierArray(this, dst_pos, count);
+  WriteBarrier::ForArrayWrite(this, dst_pos, count);
   if (UNLIKELY(i != count)) {
     std::string actualSrcType(mirror::Object::PrettyTypeOf(o));
     std::string dstType(PrettyTypeOf());

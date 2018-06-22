@@ -168,10 +168,11 @@ inline bool Object::AtomicSetReadBarrierState(uint32_t expected_rb_state, uint32
     expected_lw.SetReadBarrierState(expected_rb_state);
     new_lw = lw;
     new_lw.SetReadBarrierState(rb_state);
-    // ConcurrentCopying::ProcessMarkStackRef uses this with kCasRelease == true.
-    // If kCasRelease == true, use a CAS release so that when GC updates all the fields of
-    // an object and then changes the object from gray to black, the field updates (stores) will be
-    // visible (won't be reordered after this CAS.)
+    // ConcurrentCopying::ProcessMarkStackRef uses this with
+    // `kMemoryOrder` == `std::memory_order_release`.
+    // If `kMemoryOrder` == `std::memory_order_release`, use a CAS release so that when GC updates
+    // all the fields of an object and then changes the object from gray to black (non-gray), the
+    // field updates (stores) will be visible (won't be reordered after this CAS.)
   } while (!CasLockWord(expected_lw, new_lw, CASMode::kWeak, kMemoryOrder));
   return true;
 }
@@ -191,64 +192,6 @@ inline bool Object::AtomicSetMarkBit(uint32_t expected_mark_bit, uint32_t mark_b
     // Since this is only set from the mutator, we can use the non-release CAS.
   } while (!CasLockWord(expected_lw, new_lw, CASMode::kWeak, std::memory_order_relaxed));
   return true;
-}
-
-template<bool kTransactionActive, bool kCheckTransaction, VerifyObjectFlags kVerifyFlags>
-inline bool Object::CasFieldStrongRelaxedObjectWithoutWriteBarrier(
-    MemberOffset field_offset,
-    ObjPtr<Object> old_value,
-    ObjPtr<Object> new_value) {
-  if (kCheckTransaction) {
-    DCHECK_EQ(kTransactionActive, Runtime::Current()->IsActiveTransaction());
-  }
-  if (kVerifyFlags & kVerifyThis) {
-    VerifyObject(this);
-  }
-  if (kVerifyFlags & kVerifyWrites) {
-    VerifyObject(new_value);
-  }
-  if (kVerifyFlags & kVerifyReads) {
-    VerifyObject(old_value);
-  }
-  if (kTransactionActive) {
-    Runtime::Current()->RecordWriteFieldReference(this, field_offset, old_value, true);
-  }
-  uint32_t old_ref(PtrCompression<kPoisonHeapReferences, Object>::Compress(old_value));
-  uint32_t new_ref(PtrCompression<kPoisonHeapReferences, Object>::Compress(new_value));
-  uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
-  Atomic<uint32_t>* atomic_addr = reinterpret_cast<Atomic<uint32_t>*>(raw_addr);
-
-  bool success = atomic_addr->CompareAndSetStrongRelaxed(old_ref, new_ref);
-  return success;
-}
-
-template<bool kTransactionActive, bool kCheckTransaction, VerifyObjectFlags kVerifyFlags>
-inline bool Object::CasFieldStrongReleaseObjectWithoutWriteBarrier(
-    MemberOffset field_offset,
-    ObjPtr<Object> old_value,
-    ObjPtr<Object> new_value) {
-  if (kCheckTransaction) {
-    DCHECK_EQ(kTransactionActive, Runtime::Current()->IsActiveTransaction());
-  }
-  if (kVerifyFlags & kVerifyThis) {
-    VerifyObject(this);
-  }
-  if (kVerifyFlags & kVerifyWrites) {
-    VerifyObject(new_value);
-  }
-  if (kVerifyFlags & kVerifyReads) {
-    VerifyObject(old_value);
-  }
-  if (kTransactionActive) {
-    Runtime::Current()->RecordWriteFieldReference(this, field_offset, old_value, true);
-  }
-  uint32_t old_ref(PtrCompression<kPoisonHeapReferences, Object>::Compress(old_value));
-  uint32_t new_ref(PtrCompression<kPoisonHeapReferences, Object>::Compress(new_value));
-  uint8_t* raw_addr = reinterpret_cast<uint8_t*>(this) + field_offset.Int32Value();
-  Atomic<uint32_t>* atomic_addr = reinterpret_cast<Atomic<uint32_t>*>(raw_addr);
-
-  bool success = atomic_addr->CompareAndSetStrongRelease(old_ref, new_ref);
-  return success;
 }
 
 }  // namespace mirror

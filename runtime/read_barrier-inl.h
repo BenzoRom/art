@@ -64,8 +64,11 @@ inline MirrorType* ReadBarrier::Barrier(
         // If kAlwaysUpdateField is true, update the field atomically. This may fail if mutator
         // updates before us, but it's OK.
         if (kAlwaysUpdateField && ref != old_ref) {
-          obj->CasFieldStrongReleaseObjectWithoutWriteBarrier<false, false>(
-              offset, old_ref, ref);
+          obj->CasFieldObjectWithoutWriteBarrier<false, false>(offset,
+                                                               old_ref,
+                                                               ref,
+                                                               CASMode::kStrong,
+                                                               std::memory_order_release);
         }
       }
       AssertToSpaceInvariant(obj, offset, ref);
@@ -82,8 +85,11 @@ inline MirrorType* ReadBarrier::Barrier(
         ref = reinterpret_cast<MirrorType*>(Mark(old_ref));
         // Update the field atomically. This may fail if mutator updates before us, but it's ok.
         if (ref != old_ref) {
-          obj->CasFieldStrongReleaseObjectWithoutWriteBarrier<false, false>(
-              offset, old_ref, ref);
+          obj->CasFieldObjectWithoutWriteBarrier<false, false>(offset,
+                                                               old_ref,
+                                                               ref,
+                                                               CASMode::kStrong,
+                                                               std::memory_order_release);
         }
       }
       AssertToSpaceInvariant(obj, offset, ref);
@@ -249,13 +255,13 @@ inline mirror::Object* ReadBarrier::Mark(mirror::Object* obj) {
 }
 
 inline bool ReadBarrier::IsGray(mirror::Object* obj, uintptr_t* fake_address_dependency) {
-  return obj->GetReadBarrierState(fake_address_dependency) == gray_state_;
+  return obj->GetReadBarrierState(fake_address_dependency) == kGrayState;
 }
 
 inline bool ReadBarrier::IsGray(mirror::Object* obj) {
   // Use a load-acquire to load the read barrier bit to avoid reordering with the subsequent load.
   // GetReadBarrierStateAcquire() has load-acquire semantics.
-  return obj->GetReadBarrierStateAcquire() == gray_state_;
+  return obj->GetReadBarrierStateAcquire() == kGrayState;
 }
 
 }  // namespace art

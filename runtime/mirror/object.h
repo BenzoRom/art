@@ -120,7 +120,7 @@ class MANAGED LOCKABLE Object {
   ALWAYS_INLINE bool AtomicSetMarkBit(uint32_t expected_mark_bit, uint32_t mark_bit)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
-  // Assert that the read barrier state is in the default (white) state.
+  // Assert that the read barrier state is in the default (white, i.e. non-gray) state.
   ALWAYS_INLINE void AssertReadBarrierState() const REQUIRES_SHARED(Locks::mutator_lock_);
 
   // The verifier treats all interfaces as java.lang.Object and relies on runtime checks in
@@ -319,30 +319,20 @@ class MANAGED LOCKABLE Object {
   template<bool kTransactionActive,
            bool kCheckTransaction = true,
            VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags>
-  bool CasFieldWeakSequentiallyConsistentObject(MemberOffset field_offset,
-                                                ObjPtr<Object> old_value,
-                                                ObjPtr<Object> new_value)
+  ALWAYS_INLINE bool CasFieldObject(MemberOffset field_offset,
+                                    ObjPtr<Object> old_value,
+                                    ObjPtr<Object> new_value,
+                                    CASMode mode,
+                                    std::memory_order memory_order)
       REQUIRES_SHARED(Locks::mutator_lock_);
   template<bool kTransactionActive,
            bool kCheckTransaction = true,
            VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags>
-  bool CasFieldWeakSequentiallyConsistentObjectWithoutWriteBarrier(MemberOffset field_offset,
-                                                                   ObjPtr<Object> old_value,
-                                                                   ObjPtr<Object> new_value)
-      REQUIRES_SHARED(Locks::mutator_lock_);
-  template<bool kTransactionActive,
-           bool kCheckTransaction = true,
-           VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags>
-  bool CasFieldStrongSequentiallyConsistentObject(MemberOffset field_offset,
-                                                  ObjPtr<Object> old_value,
-                                                  ObjPtr<Object> new_value)
-      REQUIRES_SHARED(Locks::mutator_lock_);
-  template<bool kTransactionActive,
-           bool kCheckTransaction = true,
-           VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags>
-  bool CasFieldStrongSequentiallyConsistentObjectWithoutWriteBarrier(MemberOffset field_offset,
-                                                                     ObjPtr<Object> old_value,
-                                                                     ObjPtr<Object> new_value)
+  ALWAYS_INLINE bool CasFieldObjectWithoutWriteBarrier(MemberOffset field_offset,
+                                                       ObjPtr<Object> old_value,
+                                                       ObjPtr<Object> new_value,
+                                                       CASMode mode,
+                                                       std::memory_order memory_order)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   template<bool kTransactionActive,
@@ -357,36 +347,6 @@ class MANAGED LOCKABLE Object {
            bool kCheckTransaction = true,
            VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags>
   ObjPtr<Object> ExchangeFieldObject(MemberOffset field_offset, ObjPtr<Object> new_value)
-      REQUIRES_SHARED(Locks::mutator_lock_);
-
-  template<bool kTransactionActive,
-           bool kCheckTransaction = true,
-           VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags>
-  bool CasFieldWeakRelaxedObjectWithoutWriteBarrier(MemberOffset field_offset,
-                                                    ObjPtr<Object> old_value,
-                                                    ObjPtr<Object> new_value)
-      REQUIRES_SHARED(Locks::mutator_lock_);
-  template<bool kTransactionActive,
-           bool kCheckTransaction = true,
-           VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags>
-  bool CasFieldWeakReleaseObjectWithoutWriteBarrier(MemberOffset field_offset,
-                                                    ObjPtr<Object> old_value,
-                                                    ObjPtr<Object> new_value)
-      REQUIRES_SHARED(Locks::mutator_lock_);
-
-  template<bool kTransactionActive,
-           bool kCheckTransaction = true,
-           VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags>
-  bool CasFieldStrongRelaxedObjectWithoutWriteBarrier(MemberOffset field_offset,
-                                                      ObjPtr<Object> old_value,
-                                                      ObjPtr<Object> new_value)
-      REQUIRES_SHARED(Locks::mutator_lock_);
-  template<bool kTransactionActive,
-           bool kCheckTransaction = true,
-           VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags>
-  bool CasFieldStrongReleaseObjectWithoutWriteBarrier(MemberOffset field_offset,
-                                                      ObjPtr<Object> old_value,
-                                                      ObjPtr<Object> new_value)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
   template<VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags>
