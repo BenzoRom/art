@@ -97,44 +97,35 @@ class CompilerDriver {
   CompilerDriver(const CompilerOptions* compiler_options,
                  VerificationResults* verification_results,
                  Compiler::Kind compiler_kind,
-                 InstructionSet instruction_set,
-                 const InstructionSetFeatures* instruction_set_features,
-                 std::unique_ptr<HashSet<std::string>>&& image_classes,
+                 HashSet<std::string>* image_classes,
                  size_t thread_count,
                  int swap_fd,
                  const ProfileCompilationInfo* profile_compilation_info);
 
   ~CompilerDriver();
 
-  // Set dex files associated with the oat file being compiled.
-  void SetDexFilesForOatFile(const std::vector<const DexFile*>& dex_files);
-
   // Set dex files classpath.
   void SetClasspathDexFiles(const std::vector<const DexFile*>& dex_files);
-
-  // Get dex files associated with the the oat file being compiled.
-  ArrayRef<const DexFile* const> GetDexFilesForOatFile() const {
-    return ArrayRef<const DexFile* const>(dex_files_for_oat_file_);
-  }
 
   void CompileAll(jobject class_loader,
                   const std::vector<const DexFile*>& dex_files,
                   TimingLogger* timings)
       REQUIRES(!Locks::mutator_lock_);
 
-  // Compile a single Method.
-  void CompileOne(Thread* self, ArtMethod* method, TimingLogger* timings)
-      REQUIRES_SHARED(Locks::mutator_lock_);
+  // Compile a single Method. (For testing only.)
+  void CompileOne(Thread* self,
+                  jobject class_loader,
+                  const DexFile& dex_file,
+                  uint16_t class_def_idx,
+                  uint32_t method_idx,
+                  uint32_t access_flags,
+                  InvokeType invoke_type,
+                  const DexFile::CodeItem* code_item,
+                  Handle<mirror::DexCache> dex_cache,
+                  Handle<mirror::ClassLoader> h_class_loader)
+      REQUIRES(!Locks::mutator_lock_);
 
   VerificationResults* GetVerificationResults() const;
-
-  InstructionSet GetInstructionSet() const {
-    return instruction_set_;
-  }
-
-  const InstructionSetFeatures* GetInstructionSetFeatures() const {
-    return instruction_set_features_;
-  }
 
   const CompilerOptions& GetCompilerOptions() const {
     return *compiler_options_;
@@ -142,10 +133,6 @@ class CompilerDriver {
 
   Compiler* GetCompiler() const {
     return compiler_.get();
-  }
-
-  const HashSet<std::string>* GetImageClasses() const {
-    return image_classes_.get();
   }
 
   // Generate the trampolines that are invoked by unresolved direct methods.
@@ -308,9 +295,6 @@ class CompilerDriver {
     return compiled_method_storage_.DedupeEnabled();
   }
 
-  // Checks if class specified by type_idx is one of the image_classes_
-  bool IsImageClass(const char* descriptor) const;
-
   // Checks whether the provided class should be compiled, i.e., is in classes_to_compile_.
   bool IsClassToCompile(const char* descriptor) const;
 
@@ -351,13 +335,6 @@ class CompilerDriver {
   // Can we assume that the klass is loaded?
   bool CanAssumeClassIsLoaded(mirror::Class* klass)
       REQUIRES_SHARED(Locks::mutator_lock_);
-
-  bool MayInline(const DexFile* inlined_from, const DexFile* inlined_into) const {
-    if (!kIsTargetBuild) {
-      return MayInlineInternal(inlined_from, inlined_into);
-    }
-    return true;
-  }
 
   const ProfileCompilationInfo* GetProfileCompilationInfo() const {
     return profile_compilation_info_;
@@ -452,8 +429,6 @@ class CompilerDriver {
                const std::vector<const DexFile*>& dex_files,
                TimingLogger* timings);
 
-  bool MayInlineInternal(const DexFile* inlined_from, const DexFile* inlined_into) const;
-
   void InitializeThreadPools();
   void FreeThreadPools();
   void CheckThreadPools();
@@ -465,9 +440,6 @@ class CompilerDriver {
 
   std::unique_ptr<Compiler> compiler_;
   Compiler::Kind compiler_kind_;
-
-  const InstructionSet instruction_set_;
-  const InstructionSetFeatures* const instruction_set_features_;
 
   // All class references that require constructor barriers. If the class reference is not in the
   // set then the result has not yet been computed.
@@ -491,9 +463,11 @@ class CompilerDriver {
   // in the .oat_patches ELF section if requested in the compiler options.
   Atomic<size_t> non_relative_linker_patch_count_;
 
-  // If image_ is true, specifies the classes that will be included in the image.
-  // Note if image_classes_ is null, all classes are included in the image.
-  std::unique_ptr<HashSet<std::string>> image_classes_;
+  // Image classes to be updated by PreCompile().
+  // TODO: Remove this member which is a non-const pointer to the CompilerOptions' data.
+  //       Pass this explicitly to the PreCompile() which should be called directly from
+  //       Dex2Oat rather than implicitly by CompileAll().
+  HashSet<std::string>* image_classes_;
 
   // Specifies the classes that will be compiled. Note that if classes_to_compile_ is null,
   // all classes are eligible for compilation (duplication filters etc. will still apply).
@@ -505,8 +479,8 @@ class CompilerDriver {
   bool had_hard_verifier_failure_;
 
   // A thread pool that can (potentially) run tasks in parallel.
-  std::unique_ptr<ThreadPool> parallel_thread_pool_;
   size_t parallel_thread_count_;
+  std::unique_ptr<ThreadPool> parallel_thread_pool_;
 
   // A thread pool that guarantees running single-threaded on the main thread.
   std::unique_ptr<ThreadPool> single_thread_pool_;
@@ -521,9 +495,6 @@ class CompilerDriver {
 
   bool support_boot_image_fixup_;
 
-  // List of dex files associates with the oat file.
-  std::vector<const DexFile*> dex_files_for_oat_file_;
-
   CompiledMethodStorage compiled_method_storage_;
 
   // Info for profile guided compilation.
@@ -534,6 +505,7 @@ class CompilerDriver {
   // Compiler for dex to dex (quickening).
   optimizer::DexToDexCompiler dex_to_dex_compiler_;
 
+  friend class CommonCompilerTest;
   friend class CompileClassVisitor;
   friend class DexToDexDecompilerTest;
   friend class verifier::VerifierDepsTest;

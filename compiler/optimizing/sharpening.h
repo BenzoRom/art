@@ -44,7 +44,6 @@ class HSharpening {
   // Used by the builder.
   static TypeCheckKind ComputeTypeCheckKind(ObjPtr<mirror::Class> klass,
                                             CodeGenerator* codegen,
-                                            CompilerDriver* compiler_driver,
                                             bool needs_access_check)
       REQUIRES_SHARED(Locks::mutator_lock_);
 

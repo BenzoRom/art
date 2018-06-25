@@ -316,7 +316,6 @@ class JumpTableRIPFixup;
 class CodeGeneratorX86 : public CodeGenerator {
  public:
   CodeGeneratorX86(HGraph* graph,
-                   const X86InstructionSetFeatures& isa_features,
                    const CompilerOptions& compiler_options,
                    OptimizingCompilerStats* stats = nullptr);
   virtual ~CodeGeneratorX86() {}
@@ -389,6 +388,8 @@ class CodeGeneratorX86 : public CodeGenerator {
   InstructionSet GetInstructionSet() const OVERRIDE {
     return InstructionSet::kX86;
   }
+
+  const X86InstructionSetFeatures& GetInstructionSetFeatures() const;
 
   // Helper method to move a 32bits value between two locations.
   void Move32(Location destination, Location source);
@@ -466,10 +467,6 @@ class CodeGeneratorX86 : public CodeGenerator {
   bool ShouldSplitLongMoves() const OVERRIDE { return true; }
 
   Label* GetFrameEntryLabel() { return &frame_entry_label_; }
-
-  const X86InstructionSetFeatures& GetInstructionSetFeatures() const {
-    return isa_features_;
-  }
 
   void AddMethodAddressOffset(HX86ComputeBaseMethodAddress* method_base, int32_t offset) {
     method_address_offset_.Put(method_base->GetId(), offset);
@@ -633,7 +630,6 @@ class CodeGeneratorX86 : public CodeGenerator {
   InstructionCodeGeneratorX86 instruction_visitor_;
   ParallelMoveResolverX86 move_resolver_;
   X86Assembler assembler_;
-  const X86InstructionSetFeatures& isa_features_;
 
   // PC-relative method patch info for kBootImageLinkTimePcRelative.
   ArenaDeque<X86PcRelativePatchInfo> boot_image_method_patches_;

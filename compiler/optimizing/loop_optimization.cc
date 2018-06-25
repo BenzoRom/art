@@ -23,7 +23,7 @@
 #include "arch/mips64/instruction_set_features_mips64.h"
 #include "arch/x86/instruction_set_features_x86.h"
 #include "arch/x86_64/instruction_set_features_x86_64.h"
-#include "driver/compiler_driver.h"
+#include "driver/compiler_options.h"
 #include "linear_order.h"
 #include "mirror/array-inl.h"
 #include "mirror/string.h"
@@ -436,12 +436,12 @@ static void PeelByCount(HLoopInformation* loop_info, int count) {
 //
 
 HLoopOptimization::HLoopOptimization(HGraph* graph,
-                                     CompilerDriver* compiler_driver,
+                                     const CompilerOptions* compiler_options,
                                      HInductionVarAnalysis* induction_analysis,
                                      OptimizingCompilerStats* stats,
                                      const char* name)
     : HOptimization(graph, name, stats),
-      compiler_driver_(compiler_driver),
+      compiler_options_(compiler_options),
       induction_range_(induction_analysis),
       loop_allocator_(nullptr),
       global_allocator_(graph_->GetAllocator()),
@@ -463,8 +463,8 @@ HLoopOptimization::HLoopOptimization(HGraph* graph,
       vector_header_(nullptr),
       vector_body_(nullptr),
       vector_index_(nullptr),
-      arch_loop_helper_(ArchNoOptsLoopHelper::Create(compiler_driver_ != nullptr
-                                                          ? compiler_driver_->GetInstructionSet()
+      arch_loop_helper_(ArchNoOptsLoopHelper::Create(compiler_options_ != nullptr
+                                                          ? compiler_options_->GetInstructionSet()
                                                           : InstructionSet::kNone,
                                                       global_allocator_)) {
 }
@@ -862,7 +862,7 @@ bool HLoopOptimization::TryFullUnrolling(LoopAnalysisInfo* analysis_info, bool g
 bool HLoopOptimization::TryPeelingAndUnrolling(LoopNode* node) {
   // Don't run peeling/unrolling if compiler_options_ is nullptr (i.e., running under tests)
   // as InstructionSet is needed.
-  if (compiler_driver_ == nullptr) {
+  if (compiler_options_ == nullptr) {
     return false;
   }
 
@@ -1511,7 +1511,7 @@ bool HLoopOptimization::VectorizeUse(LoopNode* node,
 }
 
 uint32_t HLoopOptimization::GetVectorSizeInBytes() {
-  switch (compiler_driver_->GetInstructionSet()) {
+  switch (compiler_options_->GetInstructionSet()) {
     case InstructionSet::kArm:
     case InstructionSet::kThumb2:
       return 8;  // 64-bit SIMD
@@ -1521,8 +1521,8 @@ uint32_t HLoopOptimization::GetVectorSizeInBytes() {
 }
 
 bool HLoopOptimization::TrySetVectorType(DataType::Type type, uint64_t* restrictions) {
-  const InstructionSetFeatures* features = compiler_driver_->GetInstructionSetFeatures();
-  switch (compiler_driver_->GetInstructionSet()) {
+  const InstructionSetFeatures* features = compiler_options_->GetInstructionSetFeatures();
+  switch (compiler_options_->GetInstructionSet()) {
     case InstructionSet::kArm:
     case InstructionSet::kThumb2:
       // Allow vectorization for all ARM devices, because Android assumes that

@@ -53,7 +53,8 @@ static bool AOTCanEmbedMethod(ArtMethod* method, const CompilerOptions& options)
 }
 
 static bool BootImageAOTCanEmbedMethod(ArtMethod* method, CompilerDriver* compiler_driver) {
-  DCHECK(compiler_driver->GetCompilerOptions().IsBootImage());
+  const CompilerOptions& compiler_options = compiler_driver->GetCompilerOptions();
+  DCHECK(compiler_options.IsBootImage());
   if (!compiler_driver->GetSupportBootImageFixup()) {
     return false;
   }
@@ -61,7 +62,7 @@ static bool BootImageAOTCanEmbedMethod(ArtMethod* method, CompilerDriver* compil
   ObjPtr<mirror::Class> klass = method->GetDeclaringClass();
   DCHECK(klass != nullptr);
   const DexFile& dex_file = klass->GetDexFile();
-  return compiler_driver->IsImageClass(dex_file.StringByTypeIdx(klass->GetDexTypeIndex()));
+  return compiler_options.IsImageClass(dex_file.StringByTypeIdx(klass->GetDexTypeIndex()));
 }
 
 HInvokeStaticOrDirect::DispatchInfo HSharpening::SharpenInvokeStaticOrDirect(
@@ -149,26 +150,27 @@ HLoadClass::LoadKind HSharpening::ComputeLoadClassKind(
     bool is_in_boot_image = false;
     HLoadClass::LoadKind desired_load_kind = HLoadClass::LoadKind::kInvalid;
     Runtime* runtime = Runtime::Current();
-    if (codegen->GetCompilerOptions().IsBootImage()) {
+    const CompilerOptions& compiler_options = codegen->GetCompilerOptions();
+    if (compiler_options.IsBootImage()) {
       // Compiling boot image. Check if the class is a boot image class.
       DCHECK(!runtime->UseJitCompilation());
       if (!compiler_driver->GetSupportBootImageFixup()) {
         // compiler_driver_test. Do not sharpen.
         desired_load_kind = HLoadClass::LoadKind::kRuntimeCall;
       } else if ((klass != nullptr) &&
-                 compiler_driver->IsImageClass(dex_file.StringByTypeIdx(type_index))) {
+                 compiler_options.IsImageClass(dex_file.StringByTypeIdx(type_index))) {
         is_in_boot_image = true;
         desired_load_kind = HLoadClass::LoadKind::kBootImageLinkTimePcRelative;
       } else {
         // Not a boot image class.
-        DCHECK(ContainsElement(compiler_driver->GetDexFilesForOatFile(), &dex_file));
+        DCHECK(ContainsElement(compiler_options.GetDexFilesForOatFile(), &dex_file));
         desired_load_kind = HLoadClass::LoadKind::kBssEntry;
       }
     } else {
       is_in_boot_image = (klass != nullptr) &&
           runtime->GetHeap()->ObjectIsInBootImageSpace(klass.Get());
       if (runtime->UseJitCompilation()) {
-        DCHECK(!codegen->GetCompilerOptions().GetCompilePic());
+        DCHECK(!compiler_options.GetCompilePic());
         if (is_in_boot_image) {
           // TODO: Use direct pointers for all non-moving spaces, not just boot image. Bug: 29530787
           desired_load_kind = HLoadClass::LoadKind::kBootImageAddress;
@@ -213,9 +215,7 @@ HLoadClass::LoadKind HSharpening::ComputeLoadClassKind(
   return load_kind;
 }
 
-static inline bool CanUseTypeCheckBitstring(ObjPtr<mirror::Class> klass,
-                                            CodeGenerator* codegen,
-                                            CompilerDriver* compiler_driver)
+static inline bool CanUseTypeCheckBitstring(ObjPtr<mirror::Class> klass, CodeGenerator* codegen)
     REQUIRES_SHARED(Locks::mutator_lock_) {
   DCHECK(!klass->IsProxyClass());
   DCHECK(!klass->IsArrayClass());
@@ -224,7 +224,7 @@ static inline bool CanUseTypeCheckBitstring(ObjPtr<mirror::Class> klass,
     // If we're JITting, try to assign a type check bitstring (fall through).
   } else if (codegen->GetCompilerOptions().IsBootImage()) {
     const char* descriptor = klass->GetDexFile().StringByTypeIdx(klass->GetDexTypeIndex());
-    if (!compiler_driver->IsImageClass(descriptor)) {
+    if (!codegen->GetCompilerOptions().IsImageClass(descriptor)) {
       return false;
     }
     // If the target is a boot image class, try to assign a type check bitstring (fall through).
@@ -253,7 +253,6 @@ static inline bool CanUseTypeCheckBitstring(ObjPtr<mirror::Class> klass,
 
 TypeCheckKind HSharpening::ComputeTypeCheckKind(ObjPtr<mirror::Class> klass,
                                                 CodeGenerator* codegen,
-                                                CompilerDriver* compiler_driver,
                                                 bool needs_access_check) {
   if (klass == nullptr) {
     return TypeCheckKind::kUnresolvedCheck;
@@ -271,7 +270,7 @@ TypeCheckKind HSharpening::ComputeTypeCheckKind(ObjPtr<mirror::Class> klass,
     return TypeCheckKind::kExactCheck;
   } else if (kBitstringSubtypeCheckEnabled &&
              !needs_access_check &&
-             CanUseTypeCheckBitstring(klass, codegen, compiler_driver)) {
+             CanUseTypeCheckBitstring(klass, codegen)) {
     // TODO: We should not need the `!needs_access_check` check but getting rid of that
     // requires rewriting some optimizations in instruction simplifier.
     return TypeCheckKind::kBitstringCheck;
@@ -304,14 +303,15 @@ void HSharpening::ProcessLoadString(
         : hs.NewHandle(class_linker->FindDexCache(soa.Self(), dex_file));
     ObjPtr<mirror::String> string = nullptr;
 
-    if (codegen->GetCompilerOptions().IsBootImage()) {
+    const CompilerOptions& compiler_options = codegen->GetCompilerOptions();
+    if (compiler_options.IsBootImage()) {
       // Compiling boot image. Resolve the string and allocate it if needed, to ensure
       // the string will be added to the boot image.
       DCHECK(!runtime->UseJitCompilation());
       string = class_linker->ResolveString(string_index, dex_cache);
       CHECK(string != nullptr);
       if (compiler_driver->GetSupportBootImageFixup()) {
-        DCHECK(ContainsElement(compiler_driver->GetDexFilesForOatFile(), &dex_file));
+        DCHECK(ContainsElement(compiler_options.GetDexFilesForOatFile(), &dex_file));
         desired_load_kind = HLoadString::LoadKind::kBootImageLinkTimePcRelative;
       } else {
         // compiler_driver_test. Do not sharpen.
