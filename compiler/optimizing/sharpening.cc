@@ -21,7 +21,6 @@
 #include "base/enums.h"
 #include "class_linker.h"
 #include "code_generator.h"
-#include "driver/compiler_driver.h"
 #include "driver/compiler_options.h"
 #include "driver/dex_compilation_unit.h"
 #include "gc/heap.h"
@@ -52,12 +51,8 @@ static bool AOTCanEmbedMethod(ArtMethod* method, const CompilerOptions& options)
   return IsInBootImage(method) && !options.GetCompilePic();
 }
 
-static bool BootImageAOTCanEmbedMethod(ArtMethod* method, CompilerDriver* compiler_driver) {
-  const CompilerOptions& compiler_options = compiler_driver->GetCompilerOptions();
+static bool BootImageAOTCanEmbedMethod(ArtMethod* method, const CompilerOptions& compiler_options) {
   DCHECK(compiler_options.IsBootImage());
-  if (!compiler_driver->GetSupportBootImageFixup()) {
-    return false;
-  }
   ScopedObjectAccess soa(Thread::Current());
   ObjPtr<mirror::Class> klass = method->GetDeclaringClass();
   DCHECK(klass != nullptr);
@@ -66,7 +61,7 @@ static bool BootImageAOTCanEmbedMethod(ArtMethod* method, CompilerDriver* compil
 }
 
 HInvokeStaticOrDirect::DispatchInfo HSharpening::SharpenInvokeStaticOrDirect(
-    ArtMethod* callee, CodeGenerator* codegen, CompilerDriver* compiler_driver) {
+    ArtMethod* callee, CodeGenerator* codegen) {
   if (kIsDebugBuild) {
     ScopedObjectAccess soa(Thread::Current());  // Required for GetDeclaringClass below.
     DCHECK(callee != nullptr);
@@ -90,20 +85,28 @@ HInvokeStaticOrDirect::DispatchInfo HSharpening::SharpenInvokeStaticOrDirect(
 
   // We don't optimize for debuggable as it would prevent us from obsoleting the method in some
   // situations.
+  const CompilerOptions& compiler_options = codegen->GetCompilerOptions();
   if (callee == codegen->GetGraph()->GetArtMethod() && !codegen->GetGraph()->IsDebuggable()) {
     // Recursive call.
     method_load_kind = HInvokeStaticOrDirect::MethodLoadKind::kRecursive;
     code_ptr_location = HInvokeStaticOrDirect::CodePtrLocation::kCallSelf;
+  } else if (compiler_options.IsBootImage()) {
+    if (!compiler_options.GetCompilePic()) {
+      // Test configuration, do not sharpen.
+      method_load_kind = HInvokeStaticOrDirect::MethodLoadKind::kRuntimeCall;
+    } else if (BootImageAOTCanEmbedMethod(callee, compiler_options)) {
+      method_load_kind = HInvokeStaticOrDirect::MethodLoadKind::kBootImageLinkTimePcRelative;
+    } else {
+      // Use PC-relative access to the .bss methods array.
+      method_load_kind = HInvokeStaticOrDirect::MethodLoadKind::kBssEntry;
+    }
+    code_ptr_location = HInvokeStaticOrDirect::CodePtrLocation::kCallArtMethod;
   } else if (Runtime::Current()->UseJitCompilation() ||
-      AOTCanEmbedMethod(callee, codegen->GetCompilerOptions())) {
+             AOTCanEmbedMethod(callee, compiler_options)) {
     // JIT or on-device AOT compilation referencing a boot image method.
     // Use the method address directly.
     method_load_kind = HInvokeStaticOrDirect::MethodLoadKind::kDirectAddress;
     method_load_data = reinterpret_cast<uintptr_t>(callee);
-    code_ptr_location = HInvokeStaticOrDirect::CodePtrLocation::kCallArtMethod;
-  } else if (codegen->GetCompilerOptions().IsBootImage() &&
-             BootImageAOTCanEmbedMethod(callee, compiler_driver)) {
-    method_load_kind = HInvokeStaticOrDirect::MethodLoadKind::kBootImageLinkTimePcRelative;
     code_ptr_location = HInvokeStaticOrDirect::CodePtrLocation::kCallArtMethod;
   } else if (IsInBootImage(callee)) {
     // Use PC-relative access to the .data.bimg.rel.ro methods array.
@@ -130,7 +133,6 @@ HInvokeStaticOrDirect::DispatchInfo HSharpening::SharpenInvokeStaticOrDirect(
 HLoadClass::LoadKind HSharpening::ComputeLoadClassKind(
     HLoadClass* load_class,
     CodeGenerator* codegen,
-    CompilerDriver* compiler_driver,
     const DexCompilationUnit& dex_compilation_unit) {
   Handle<mirror::Class> klass = load_class->GetClass();
   DCHECK(load_class->GetLoadKind() == HLoadClass::LoadKind::kRuntimeCall ||
@@ -158,8 +160,8 @@ HLoadClass::LoadKind HSharpening::ComputeLoadClassKind(
     if (compiler_options.IsBootImage()) {
       // Compiling boot image. Check if the class is a boot image class.
       DCHECK(!runtime->UseJitCompilation());
-      if (!compiler_driver->GetSupportBootImageFixup()) {
-        // compiler_driver_test. Do not sharpen.
+      if (!compiler_options.GetCompilePic()) {
+        // Test configuration, do not sharpen.
         desired_load_kind = HLoadClass::LoadKind::kRuntimeCall;
       } else if ((klass != nullptr) &&
                  compiler_options.IsImageClass(dex_file.StringByTypeIdx(type_index))) {
@@ -241,7 +243,7 @@ static inline bool CanUseTypeCheckBitstring(ObjPtr<mirror::Class> klass, CodeGen
 
   // Try to assign a type check bitstring.
   MutexLock subtype_check_lock(Thread::Current(), *Locks::subtype_check_lock_);
-  if ((false) &&  // FIXME: Inliner does not respect compiler_driver->IsClassToCompile()
+  if ((false) &&  // FIXME: Inliner does not respect CompilerDriver::IsClassToCompile()
                   // and we're hitting an unassigned bitstring in dex2oat_image_test. b/26687569
       kIsDebugBuild &&
       codegen->GetCompilerOptions().IsBootImage() &&
@@ -288,7 +290,6 @@ TypeCheckKind HSharpening::ComputeTypeCheckKind(ObjPtr<mirror::Class> klass,
 void HSharpening::ProcessLoadString(
     HLoadString* load_string,
     CodeGenerator* codegen,
-    CompilerDriver* compiler_driver,
     const DexCompilationUnit& dex_compilation_unit,
     VariableSizedHandleScope* handles) {
   DCHECK_EQ(load_string->GetLoadKind(), HLoadString::LoadKind::kRuntimeCall);
@@ -314,11 +315,11 @@ void HSharpening::ProcessLoadString(
       DCHECK(!runtime->UseJitCompilation());
       string = class_linker->ResolveString(string_index, dex_cache);
       CHECK(string != nullptr);
-      if (compiler_driver->GetSupportBootImageFixup()) {
+      if (compiler_options.GetCompilePic()) {
         DCHECK(ContainsElement(compiler_options.GetDexFilesForOatFile(), &dex_file));
         desired_load_kind = HLoadString::LoadKind::kBootImageLinkTimePcRelative;
       } else {
-        // compiler_driver_test. Do not sharpen.
+        // Test configuration, do not sharpen.
         desired_load_kind = HLoadString::LoadKind::kRuntimeCall;
       }
     } else if (runtime->UseJitCompilation()) {

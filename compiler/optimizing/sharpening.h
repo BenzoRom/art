@@ -23,7 +23,6 @@
 namespace art {
 
 class CodeGenerator;
-class CompilerDriver;
 class DexCompilationUnit;
 
 // Utility methods that try to improve the way we dispatch methods, and access
@@ -32,12 +31,11 @@ class HSharpening {
  public:
   // Used by the builder and InstructionSimplifier.
   static HInvokeStaticOrDirect::DispatchInfo SharpenInvokeStaticOrDirect(
-      ArtMethod* callee, CodeGenerator* codegen, CompilerDriver* compiler_driver);
+      ArtMethod* callee, CodeGenerator* codegen);
 
   // Used by the builder and the inliner.
   static HLoadClass::LoadKind ComputeLoadClassKind(HLoadClass* load_class,
                                                    CodeGenerator* codegen,
-                                                   CompilerDriver* compiler_driver,
                                                    const DexCompilationUnit& dex_compilation_unit)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
@@ -50,7 +48,6 @@ class HSharpening {
   // Used by the builder.
   static void ProcessLoadString(HLoadString* load_string,
                                 CodeGenerator* codegen,
-                                CompilerDriver* compiler_driver,
                                 const DexCompilationUnit& dex_compilation_unit,
                                 VariableSizedHandleScope* handles);
 };

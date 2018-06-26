@@ -262,7 +262,7 @@ ArenaVector<HOptimization*> ConstructOptimizations(
         opt = new (allocator) HSelectGenerator(graph, handles, stats, pass_name);
         break;
       case OptimizationPass::kInstructionSimplifier:
-        opt = new (allocator) InstructionSimplifier(graph, codegen, driver, stats, pass_name);
+        opt = new (allocator) InstructionSimplifier(graph, codegen, stats, pass_name);
         break;
       case OptimizationPass::kCHAGuardOptimization:
         opt = new (allocator) CHAGuardOptimization(graph, pass_name);

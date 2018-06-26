@@ -577,6 +577,7 @@ class CodeGeneratorARMVIXL : public CodeGenerator {
     vixl::aarch32::Label add_pc_label;
   };
 
+  PcRelativePatchInfo* NewBootImageIntrinsicPatch(uint32_t intrinsic_data);
   PcRelativePatchInfo* NewBootImageRelRoPatch(uint32_t boot_image_offset);
   PcRelativePatchInfo* NewBootImageMethodPatch(MethodReference target_method);
   PcRelativePatchInfo* NewMethodBssEntryPatch(MethodReference target_method);
@@ -599,7 +600,8 @@ class CodeGeneratorARMVIXL : public CodeGenerator {
                                                 dex::TypeIndex type_index,
                                                 Handle<mirror::Class> handle);
 
-  void LoadBootImageAddress(vixl::aarch32::Register reg, uint32_t boot_image_offset);
+  void LoadBootImageAddress(vixl::aarch32::Register reg, uint32_t boot_image_reference);
+  void AllocateInstanceForIntrinsic(HInvokeStaticOrDirect* invoke, uint32_t boot_image_offset);
 
   void EmitLinkerPatches(ArenaVector<linker::LinkerPatch>* linker_patches) OVERRIDE;
   bool NeedsThunkCode(const linker::LinkerPatch& patch) const OVERRIDE;
@@ -881,6 +883,8 @@ class CodeGeneratorARMVIXL : public CodeGenerator {
   ArenaDeque<PcRelativePatchInfo> boot_image_string_patches_;
   // PC-relative String patch info for kBssEntry.
   ArenaDeque<PcRelativePatchInfo> string_bss_entry_patches_;
+  // PC-relative patch info for IntrinsicObjects.
+  ArenaDeque<PcRelativePatchInfo> boot_image_intrinsic_patches_;
   // Baker read barrier patch info.
   ArenaDeque<BakerReadBarrierPatchInfo> baker_read_barrier_patches_;
 
