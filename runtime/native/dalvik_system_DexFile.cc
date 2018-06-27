@@ -34,6 +34,7 @@
 #include "dex/descriptors_names.h"
 #include "dex/dex_file-inl.h"
 #include "dex/dex_file_loader.h"
+#include "handle_scope-inl.h"
 #include "jit/debugger_interface.h"
 #include "jni/jni_internal.h"
 #include "mirror/class_loader.h"

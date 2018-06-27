@@ -474,7 +474,6 @@ class ImageWriter FINAL {
       REQUIRES_SHARED(Locks::mutator_lock_);
   void FixupPointerArray(mirror::Object* dst,
                          mirror::PointerArray* arr,
-                         mirror::Class* klass,
                          Bin array_type)
       REQUIRES_SHARED(Locks::mutator_lock_);
 
