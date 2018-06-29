@@ -7598,7 +7598,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (0 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_nop
+    sub    lr, lr, #(.L_ALT_op_nop - .L_op_nop)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7615,7 +7616,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (1 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move
+    sub    lr, lr, #(.L_ALT_op_move - .L_op_move)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7632,7 +7634,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (2 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_from16
+    sub    lr, lr, #(.L_ALT_op_move_from16 - .L_op_move_from16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7649,7 +7652,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (3 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_16
+    sub    lr, lr, #(.L_ALT_op_move_16 - .L_op_move_16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7666,7 +7670,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (4 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_wide
+    sub    lr, lr, #(.L_ALT_op_move_wide - .L_op_move_wide)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7683,7 +7688,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (5 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_wide_from16
+    sub    lr, lr, #(.L_ALT_op_move_wide_from16 - .L_op_move_wide_from16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7700,7 +7706,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (6 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_wide_16
+    sub    lr, lr, #(.L_ALT_op_move_wide_16 - .L_op_move_wide_16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7717,7 +7724,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (7 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_object
+    sub    lr, lr, #(.L_ALT_op_move_object - .L_op_move_object)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7734,7 +7742,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (8 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_object_from16
+    sub    lr, lr, #(.L_ALT_op_move_object_from16 - .L_op_move_object_from16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7751,7 +7760,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (9 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_object_16
+    sub    lr, lr, #(.L_ALT_op_move_object_16 - .L_op_move_object_16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7768,7 +7778,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (10 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_result
+    sub    lr, lr, #(.L_ALT_op_move_result - .L_op_move_result)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7785,7 +7796,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (11 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_result_wide
+    sub    lr, lr, #(.L_ALT_op_move_result_wide - .L_op_move_result_wide)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7802,7 +7814,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (12 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_result_object
+    sub    lr, lr, #(.L_ALT_op_move_result_object - .L_op_move_result_object)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7819,7 +7832,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (13 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_move_exception
+    sub    lr, lr, #(.L_ALT_op_move_exception - .L_op_move_exception)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7836,7 +7850,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (14 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_return_void
+    sub    lr, lr, #(.L_ALT_op_return_void - .L_op_return_void)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7853,7 +7868,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (15 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_return
+    sub    lr, lr, #(.L_ALT_op_return - .L_op_return)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7870,7 +7886,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (16 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_return_wide
+    sub    lr, lr, #(.L_ALT_op_return_wide - .L_op_return_wide)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7887,7 +7904,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (17 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_return_object
+    sub    lr, lr, #(.L_ALT_op_return_object - .L_op_return_object)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7904,7 +7922,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (18 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_4
+    sub    lr, lr, #(.L_ALT_op_const_4 - .L_op_const_4)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7921,7 +7940,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (19 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_16
+    sub    lr, lr, #(.L_ALT_op_const_16 - .L_op_const_16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7938,7 +7958,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (20 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const
+    sub    lr, lr, #(.L_ALT_op_const - .L_op_const)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7955,7 +7976,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (21 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_high16
+    sub    lr, lr, #(.L_ALT_op_const_high16 - .L_op_const_high16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7972,7 +7994,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (22 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_wide_16
+    sub    lr, lr, #(.L_ALT_op_const_wide_16 - .L_op_const_wide_16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -7989,7 +8012,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (23 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_wide_32
+    sub    lr, lr, #(.L_ALT_op_const_wide_32 - .L_op_const_wide_32)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8006,7 +8030,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (24 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_wide
+    sub    lr, lr, #(.L_ALT_op_const_wide - .L_op_const_wide)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8023,7 +8048,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (25 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_wide_high16
+    sub    lr, lr, #(.L_ALT_op_const_wide_high16 - .L_op_const_wide_high16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8040,7 +8066,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (26 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_string
+    sub    lr, lr, #(.L_ALT_op_const_string - .L_op_const_string)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8057,7 +8084,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (27 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_string_jumbo
+    sub    lr, lr, #(.L_ALT_op_const_string_jumbo - .L_op_const_string_jumbo)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8074,7 +8102,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (28 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_class
+    sub    lr, lr, #(.L_ALT_op_const_class - .L_op_const_class)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8091,7 +8120,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (29 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_monitor_enter
+    sub    lr, lr, #(.L_ALT_op_monitor_enter - .L_op_monitor_enter)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8108,7 +8138,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (30 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_monitor_exit
+    sub    lr, lr, #(.L_ALT_op_monitor_exit - .L_op_monitor_exit)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8125,7 +8156,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (31 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_check_cast
+    sub    lr, lr, #(.L_ALT_op_check_cast - .L_op_check_cast)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8142,7 +8174,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (32 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_instance_of
+    sub    lr, lr, #(.L_ALT_op_instance_of - .L_op_instance_of)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8159,7 +8192,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (33 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_array_length
+    sub    lr, lr, #(.L_ALT_op_array_length - .L_op_array_length)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8176,7 +8210,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (34 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_new_instance
+    sub    lr, lr, #(.L_ALT_op_new_instance - .L_op_new_instance)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8193,7 +8228,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (35 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_new_array
+    sub    lr, lr, #(.L_ALT_op_new_array - .L_op_new_array)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8210,7 +8246,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (36 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_filled_new_array
+    sub    lr, lr, #(.L_ALT_op_filled_new_array - .L_op_filled_new_array)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8227,7 +8264,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (37 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_filled_new_array_range
+    sub    lr, lr, #(.L_ALT_op_filled_new_array_range - .L_op_filled_new_array_range)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8244,7 +8282,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (38 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_fill_array_data
+    sub    lr, lr, #(.L_ALT_op_fill_array_data - .L_op_fill_array_data)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8261,7 +8300,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (39 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_throw
+    sub    lr, lr, #(.L_ALT_op_throw - .L_op_throw)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8278,7 +8318,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (40 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_goto
+    sub    lr, lr, #(.L_ALT_op_goto - .L_op_goto)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8295,7 +8336,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (41 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_goto_16
+    sub    lr, lr, #(.L_ALT_op_goto_16 - .L_op_goto_16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8312,7 +8354,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (42 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_goto_32
+    sub    lr, lr, #(.L_ALT_op_goto_32 - .L_op_goto_32)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8329,7 +8372,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (43 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_packed_switch
+    sub    lr, lr, #(.L_ALT_op_packed_switch - .L_op_packed_switch)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8346,7 +8390,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (44 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sparse_switch
+    sub    lr, lr, #(.L_ALT_op_sparse_switch - .L_op_sparse_switch)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8363,7 +8408,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (45 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_cmpl_float
+    sub    lr, lr, #(.L_ALT_op_cmpl_float - .L_op_cmpl_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8380,7 +8426,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (46 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_cmpg_float
+    sub    lr, lr, #(.L_ALT_op_cmpg_float - .L_op_cmpg_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8397,7 +8444,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (47 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_cmpl_double
+    sub    lr, lr, #(.L_ALT_op_cmpl_double - .L_op_cmpl_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8414,7 +8462,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (48 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_cmpg_double
+    sub    lr, lr, #(.L_ALT_op_cmpg_double - .L_op_cmpg_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8431,7 +8480,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (49 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_cmp_long
+    sub    lr, lr, #(.L_ALT_op_cmp_long - .L_op_cmp_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8448,7 +8498,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (50 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_eq
+    sub    lr, lr, #(.L_ALT_op_if_eq - .L_op_if_eq)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8465,7 +8516,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (51 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_ne
+    sub    lr, lr, #(.L_ALT_op_if_ne - .L_op_if_ne)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8482,7 +8534,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (52 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_lt
+    sub    lr, lr, #(.L_ALT_op_if_lt - .L_op_if_lt)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8499,7 +8552,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (53 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_ge
+    sub    lr, lr, #(.L_ALT_op_if_ge - .L_op_if_ge)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8516,7 +8570,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (54 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_gt
+    sub    lr, lr, #(.L_ALT_op_if_gt - .L_op_if_gt)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8533,7 +8588,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (55 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_le
+    sub    lr, lr, #(.L_ALT_op_if_le - .L_op_if_le)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8550,7 +8606,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (56 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_eqz
+    sub    lr, lr, #(.L_ALT_op_if_eqz - .L_op_if_eqz)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8567,7 +8624,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (57 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_nez
+    sub    lr, lr, #(.L_ALT_op_if_nez - .L_op_if_nez)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8584,7 +8642,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (58 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_ltz
+    sub    lr, lr, #(.L_ALT_op_if_ltz - .L_op_if_ltz)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8601,7 +8660,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (59 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_gez
+    sub    lr, lr, #(.L_ALT_op_if_gez - .L_op_if_gez)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8618,7 +8678,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (60 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_gtz
+    sub    lr, lr, #(.L_ALT_op_if_gtz - .L_op_if_gtz)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8635,7 +8696,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (61 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_if_lez
+    sub    lr, lr, #(.L_ALT_op_if_lez - .L_op_if_lez)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8652,7 +8714,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (62 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_3e
+    sub    lr, lr, #(.L_ALT_op_unused_3e - .L_op_unused_3e)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8669,7 +8732,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (63 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_3f
+    sub    lr, lr, #(.L_ALT_op_unused_3f - .L_op_unused_3f)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8686,7 +8750,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (64 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_40
+    sub    lr, lr, #(.L_ALT_op_unused_40 - .L_op_unused_40)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8703,7 +8768,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (65 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_41
+    sub    lr, lr, #(.L_ALT_op_unused_41 - .L_op_unused_41)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8720,7 +8786,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (66 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_42
+    sub    lr, lr, #(.L_ALT_op_unused_42 - .L_op_unused_42)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8737,7 +8804,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (67 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_43
+    sub    lr, lr, #(.L_ALT_op_unused_43 - .L_op_unused_43)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8754,7 +8822,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (68 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aget
+    sub    lr, lr, #(.L_ALT_op_aget - .L_op_aget)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8771,7 +8840,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (69 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aget_wide
+    sub    lr, lr, #(.L_ALT_op_aget_wide - .L_op_aget_wide)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8788,7 +8858,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (70 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aget_object
+    sub    lr, lr, #(.L_ALT_op_aget_object - .L_op_aget_object)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8805,7 +8876,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (71 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aget_boolean
+    sub    lr, lr, #(.L_ALT_op_aget_boolean - .L_op_aget_boolean)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8822,7 +8894,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (72 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aget_byte
+    sub    lr, lr, #(.L_ALT_op_aget_byte - .L_op_aget_byte)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8839,7 +8912,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (73 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aget_char
+    sub    lr, lr, #(.L_ALT_op_aget_char - .L_op_aget_char)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8856,7 +8930,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (74 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aget_short
+    sub    lr, lr, #(.L_ALT_op_aget_short - .L_op_aget_short)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8873,7 +8948,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (75 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aput
+    sub    lr, lr, #(.L_ALT_op_aput - .L_op_aput)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8890,7 +8966,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (76 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aput_wide
+    sub    lr, lr, #(.L_ALT_op_aput_wide - .L_op_aput_wide)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8907,7 +8984,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (77 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aput_object
+    sub    lr, lr, #(.L_ALT_op_aput_object - .L_op_aput_object)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8924,7 +9002,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (78 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aput_boolean
+    sub    lr, lr, #(.L_ALT_op_aput_boolean - .L_op_aput_boolean)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8941,7 +9020,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (79 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aput_byte
+    sub    lr, lr, #(.L_ALT_op_aput_byte - .L_op_aput_byte)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8958,7 +9038,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (80 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aput_char
+    sub    lr, lr, #(.L_ALT_op_aput_char - .L_op_aput_char)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8975,7 +9056,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (81 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_aput_short
+    sub    lr, lr, #(.L_ALT_op_aput_short - .L_op_aput_short)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -8992,7 +9074,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (82 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget
+    sub    lr, lr, #(.L_ALT_op_iget - .L_op_iget)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9009,7 +9092,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (83 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_wide
+    sub    lr, lr, #(.L_ALT_op_iget_wide - .L_op_iget_wide)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9026,7 +9110,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (84 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_object
+    sub    lr, lr, #(.L_ALT_op_iget_object - .L_op_iget_object)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9043,7 +9128,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (85 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_boolean
+    sub    lr, lr, #(.L_ALT_op_iget_boolean - .L_op_iget_boolean)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9060,7 +9146,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (86 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_byte
+    sub    lr, lr, #(.L_ALT_op_iget_byte - .L_op_iget_byte)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9077,7 +9164,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (87 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_char
+    sub    lr, lr, #(.L_ALT_op_iget_char - .L_op_iget_char)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9094,7 +9182,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (88 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_short
+    sub    lr, lr, #(.L_ALT_op_iget_short - .L_op_iget_short)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9111,7 +9200,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (89 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput
+    sub    lr, lr, #(.L_ALT_op_iput - .L_op_iput)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9128,7 +9218,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (90 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_wide
+    sub    lr, lr, #(.L_ALT_op_iput_wide - .L_op_iput_wide)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9145,7 +9236,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (91 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_object
+    sub    lr, lr, #(.L_ALT_op_iput_object - .L_op_iput_object)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9162,7 +9254,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (92 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_boolean
+    sub    lr, lr, #(.L_ALT_op_iput_boolean - .L_op_iput_boolean)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9179,7 +9272,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (93 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_byte
+    sub    lr, lr, #(.L_ALT_op_iput_byte - .L_op_iput_byte)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9196,7 +9290,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (94 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_char
+    sub    lr, lr, #(.L_ALT_op_iput_char - .L_op_iput_char)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9213,7 +9308,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (95 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_short
+    sub    lr, lr, #(.L_ALT_op_iput_short - .L_op_iput_short)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9230,7 +9326,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (96 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sget
+    sub    lr, lr, #(.L_ALT_op_sget - .L_op_sget)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9247,7 +9344,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (97 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sget_wide
+    sub    lr, lr, #(.L_ALT_op_sget_wide - .L_op_sget_wide)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9264,7 +9362,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (98 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sget_object
+    sub    lr, lr, #(.L_ALT_op_sget_object - .L_op_sget_object)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9281,7 +9380,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (99 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sget_boolean
+    sub    lr, lr, #(.L_ALT_op_sget_boolean - .L_op_sget_boolean)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9298,7 +9398,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (100 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sget_byte
+    sub    lr, lr, #(.L_ALT_op_sget_byte - .L_op_sget_byte)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9315,7 +9416,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (101 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sget_char
+    sub    lr, lr, #(.L_ALT_op_sget_char - .L_op_sget_char)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9332,7 +9434,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (102 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sget_short
+    sub    lr, lr, #(.L_ALT_op_sget_short - .L_op_sget_short)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9349,7 +9452,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (103 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sput
+    sub    lr, lr, #(.L_ALT_op_sput - .L_op_sput)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9366,7 +9470,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (104 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sput_wide
+    sub    lr, lr, #(.L_ALT_op_sput_wide - .L_op_sput_wide)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9383,7 +9488,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (105 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sput_object
+    sub    lr, lr, #(.L_ALT_op_sput_object - .L_op_sput_object)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9400,7 +9506,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (106 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sput_boolean
+    sub    lr, lr, #(.L_ALT_op_sput_boolean - .L_op_sput_boolean)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9417,7 +9524,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (107 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sput_byte
+    sub    lr, lr, #(.L_ALT_op_sput_byte - .L_op_sput_byte)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9434,7 +9542,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (108 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sput_char
+    sub    lr, lr, #(.L_ALT_op_sput_char - .L_op_sput_char)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9451,7 +9560,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (109 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sput_short
+    sub    lr, lr, #(.L_ALT_op_sput_short - .L_op_sput_short)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9468,7 +9578,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (110 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_virtual
+    sub    lr, lr, #(.L_ALT_op_invoke_virtual - .L_op_invoke_virtual)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9485,7 +9596,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (111 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_super
+    sub    lr, lr, #(.L_ALT_op_invoke_super - .L_op_invoke_super)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9502,7 +9614,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (112 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_direct
+    sub    lr, lr, #(.L_ALT_op_invoke_direct - .L_op_invoke_direct)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9519,7 +9632,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (113 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_static
+    sub    lr, lr, #(.L_ALT_op_invoke_static - .L_op_invoke_static)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9536,7 +9650,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (114 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_interface
+    sub    lr, lr, #(.L_ALT_op_invoke_interface - .L_op_invoke_interface)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9553,7 +9668,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (115 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_return_void_no_barrier
+    sub    lr, lr, #(.L_ALT_op_return_void_no_barrier - .L_op_return_void_no_barrier)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9570,7 +9686,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (116 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_virtual_range
+    sub    lr, lr, #(.L_ALT_op_invoke_virtual_range - .L_op_invoke_virtual_range)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9587,7 +9704,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (117 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_super_range
+    sub    lr, lr, #(.L_ALT_op_invoke_super_range - .L_op_invoke_super_range)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9604,7 +9722,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (118 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_direct_range
+    sub    lr, lr, #(.L_ALT_op_invoke_direct_range - .L_op_invoke_direct_range)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9621,7 +9740,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (119 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_static_range
+    sub    lr, lr, #(.L_ALT_op_invoke_static_range - .L_op_invoke_static_range)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9638,7 +9758,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (120 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_interface_range
+    sub    lr, lr, #(.L_ALT_op_invoke_interface_range - .L_op_invoke_interface_range)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9655,7 +9776,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (121 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_79
+    sub    lr, lr, #(.L_ALT_op_unused_79 - .L_op_unused_79)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9672,7 +9794,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (122 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_7a
+    sub    lr, lr, #(.L_ALT_op_unused_7a - .L_op_unused_7a)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9689,7 +9812,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (123 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_neg_int
+    sub    lr, lr, #(.L_ALT_op_neg_int - .L_op_neg_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9706,7 +9830,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (124 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_not_int
+    sub    lr, lr, #(.L_ALT_op_not_int - .L_op_not_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9723,7 +9848,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (125 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_neg_long
+    sub    lr, lr, #(.L_ALT_op_neg_long - .L_op_neg_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9740,7 +9866,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (126 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_not_long
+    sub    lr, lr, #(.L_ALT_op_not_long - .L_op_not_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9757,7 +9884,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (127 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_neg_float
+    sub    lr, lr, #(.L_ALT_op_neg_float - .L_op_neg_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9774,7 +9902,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (128 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_neg_double
+    sub    lr, lr, #(.L_ALT_op_neg_double - .L_op_neg_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9791,7 +9920,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (129 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_int_to_long
+    sub    lr, lr, #(.L_ALT_op_int_to_long - .L_op_int_to_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9808,7 +9938,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (130 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_int_to_float
+    sub    lr, lr, #(.L_ALT_op_int_to_float - .L_op_int_to_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9825,7 +9956,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (131 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_int_to_double
+    sub    lr, lr, #(.L_ALT_op_int_to_double - .L_op_int_to_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9842,7 +9974,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (132 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_long_to_int
+    sub    lr, lr, #(.L_ALT_op_long_to_int - .L_op_long_to_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9859,7 +9992,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (133 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_long_to_float
+    sub    lr, lr, #(.L_ALT_op_long_to_float - .L_op_long_to_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9876,7 +10010,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (134 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_long_to_double
+    sub    lr, lr, #(.L_ALT_op_long_to_double - .L_op_long_to_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9893,7 +10028,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (135 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_float_to_int
+    sub    lr, lr, #(.L_ALT_op_float_to_int - .L_op_float_to_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9910,7 +10046,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (136 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_float_to_long
+    sub    lr, lr, #(.L_ALT_op_float_to_long - .L_op_float_to_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9927,7 +10064,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (137 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_float_to_double
+    sub    lr, lr, #(.L_ALT_op_float_to_double - .L_op_float_to_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9944,7 +10082,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (138 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_double_to_int
+    sub    lr, lr, #(.L_ALT_op_double_to_int - .L_op_double_to_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9961,7 +10100,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (139 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_double_to_long
+    sub    lr, lr, #(.L_ALT_op_double_to_long - .L_op_double_to_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9978,7 +10118,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (140 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_double_to_float
+    sub    lr, lr, #(.L_ALT_op_double_to_float - .L_op_double_to_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -9995,7 +10136,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (141 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_int_to_byte
+    sub    lr, lr, #(.L_ALT_op_int_to_byte - .L_op_int_to_byte)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10012,7 +10154,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (142 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_int_to_char
+    sub    lr, lr, #(.L_ALT_op_int_to_char - .L_op_int_to_char)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10029,7 +10172,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (143 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_int_to_short
+    sub    lr, lr, #(.L_ALT_op_int_to_short - .L_op_int_to_short)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10046,7 +10190,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (144 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_add_int
+    sub    lr, lr, #(.L_ALT_op_add_int - .L_op_add_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10063,7 +10208,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (145 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sub_int
+    sub    lr, lr, #(.L_ALT_op_sub_int - .L_op_sub_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10080,7 +10226,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (146 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_mul_int
+    sub    lr, lr, #(.L_ALT_op_mul_int - .L_op_mul_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10097,7 +10244,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (147 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_div_int
+    sub    lr, lr, #(.L_ALT_op_div_int - .L_op_div_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10114,7 +10262,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (148 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rem_int
+    sub    lr, lr, #(.L_ALT_op_rem_int - .L_op_rem_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10131,7 +10280,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (149 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_and_int
+    sub    lr, lr, #(.L_ALT_op_and_int - .L_op_and_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10148,7 +10298,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (150 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_or_int
+    sub    lr, lr, #(.L_ALT_op_or_int - .L_op_or_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10165,7 +10316,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (151 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_xor_int
+    sub    lr, lr, #(.L_ALT_op_xor_int - .L_op_xor_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10182,7 +10334,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (152 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_shl_int
+    sub    lr, lr, #(.L_ALT_op_shl_int - .L_op_shl_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10199,7 +10352,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (153 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_shr_int
+    sub    lr, lr, #(.L_ALT_op_shr_int - .L_op_shr_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10216,7 +10370,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (154 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_ushr_int
+    sub    lr, lr, #(.L_ALT_op_ushr_int - .L_op_ushr_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10233,7 +10388,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (155 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_add_long
+    sub    lr, lr, #(.L_ALT_op_add_long - .L_op_add_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10250,7 +10406,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (156 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sub_long
+    sub    lr, lr, #(.L_ALT_op_sub_long - .L_op_sub_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10267,7 +10424,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (157 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_mul_long
+    sub    lr, lr, #(.L_ALT_op_mul_long - .L_op_mul_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10284,7 +10442,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (158 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_div_long
+    sub    lr, lr, #(.L_ALT_op_div_long - .L_op_div_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10301,7 +10460,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (159 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rem_long
+    sub    lr, lr, #(.L_ALT_op_rem_long - .L_op_rem_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10318,7 +10478,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (160 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_and_long
+    sub    lr, lr, #(.L_ALT_op_and_long - .L_op_and_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10335,7 +10496,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (161 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_or_long
+    sub    lr, lr, #(.L_ALT_op_or_long - .L_op_or_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10352,7 +10514,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (162 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_xor_long
+    sub    lr, lr, #(.L_ALT_op_xor_long - .L_op_xor_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10369,7 +10532,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (163 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_shl_long
+    sub    lr, lr, #(.L_ALT_op_shl_long - .L_op_shl_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10386,7 +10550,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (164 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_shr_long
+    sub    lr, lr, #(.L_ALT_op_shr_long - .L_op_shr_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10403,7 +10568,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (165 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_ushr_long
+    sub    lr, lr, #(.L_ALT_op_ushr_long - .L_op_ushr_long)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10420,7 +10586,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (166 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_add_float
+    sub    lr, lr, #(.L_ALT_op_add_float - .L_op_add_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10437,7 +10604,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (167 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sub_float
+    sub    lr, lr, #(.L_ALT_op_sub_float - .L_op_sub_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10454,7 +10622,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (168 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_mul_float
+    sub    lr, lr, #(.L_ALT_op_mul_float - .L_op_mul_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10471,7 +10640,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (169 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_div_float
+    sub    lr, lr, #(.L_ALT_op_div_float - .L_op_div_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10488,7 +10658,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (170 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rem_float
+    sub    lr, lr, #(.L_ALT_op_rem_float - .L_op_rem_float)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10505,7 +10676,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (171 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_add_double
+    sub    lr, lr, #(.L_ALT_op_add_double - .L_op_add_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10522,7 +10694,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (172 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sub_double
+    sub    lr, lr, #(.L_ALT_op_sub_double - .L_op_sub_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10539,7 +10712,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (173 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_mul_double
+    sub    lr, lr, #(.L_ALT_op_mul_double - .L_op_mul_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10556,7 +10730,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (174 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_div_double
+    sub    lr, lr, #(.L_ALT_op_div_double - .L_op_div_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10573,7 +10748,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (175 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rem_double
+    sub    lr, lr, #(.L_ALT_op_rem_double - .L_op_rem_double)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10590,7 +10766,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (176 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_add_int_2addr
+    sub    lr, lr, #(.L_ALT_op_add_int_2addr - .L_op_add_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10607,7 +10784,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (177 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sub_int_2addr
+    sub    lr, lr, #(.L_ALT_op_sub_int_2addr - .L_op_sub_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10624,7 +10802,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (178 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_mul_int_2addr
+    sub    lr, lr, #(.L_ALT_op_mul_int_2addr - .L_op_mul_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10641,7 +10820,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (179 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_div_int_2addr
+    sub    lr, lr, #(.L_ALT_op_div_int_2addr - .L_op_div_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10658,7 +10838,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (180 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rem_int_2addr
+    sub    lr, lr, #(.L_ALT_op_rem_int_2addr - .L_op_rem_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10675,7 +10856,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (181 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_and_int_2addr
+    sub    lr, lr, #(.L_ALT_op_and_int_2addr - .L_op_and_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10692,7 +10874,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (182 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_or_int_2addr
+    sub    lr, lr, #(.L_ALT_op_or_int_2addr - .L_op_or_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10709,7 +10892,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (183 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_xor_int_2addr
+    sub    lr, lr, #(.L_ALT_op_xor_int_2addr - .L_op_xor_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10726,7 +10910,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (184 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_shl_int_2addr
+    sub    lr, lr, #(.L_ALT_op_shl_int_2addr - .L_op_shl_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10743,7 +10928,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (185 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_shr_int_2addr
+    sub    lr, lr, #(.L_ALT_op_shr_int_2addr - .L_op_shr_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10760,7 +10946,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (186 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_ushr_int_2addr
+    sub    lr, lr, #(.L_ALT_op_ushr_int_2addr - .L_op_ushr_int_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10777,7 +10964,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (187 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_add_long_2addr
+    sub    lr, lr, #(.L_ALT_op_add_long_2addr - .L_op_add_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10794,7 +10982,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (188 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sub_long_2addr
+    sub    lr, lr, #(.L_ALT_op_sub_long_2addr - .L_op_sub_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10811,7 +11000,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (189 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_mul_long_2addr
+    sub    lr, lr, #(.L_ALT_op_mul_long_2addr - .L_op_mul_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10828,7 +11018,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (190 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_div_long_2addr
+    sub    lr, lr, #(.L_ALT_op_div_long_2addr - .L_op_div_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10845,7 +11036,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (191 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rem_long_2addr
+    sub    lr, lr, #(.L_ALT_op_rem_long_2addr - .L_op_rem_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10862,7 +11054,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (192 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_and_long_2addr
+    sub    lr, lr, #(.L_ALT_op_and_long_2addr - .L_op_and_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10879,7 +11072,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (193 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_or_long_2addr
+    sub    lr, lr, #(.L_ALT_op_or_long_2addr - .L_op_or_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10896,7 +11090,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (194 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_xor_long_2addr
+    sub    lr, lr, #(.L_ALT_op_xor_long_2addr - .L_op_xor_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10913,7 +11108,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (195 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_shl_long_2addr
+    sub    lr, lr, #(.L_ALT_op_shl_long_2addr - .L_op_shl_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10930,7 +11126,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (196 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_shr_long_2addr
+    sub    lr, lr, #(.L_ALT_op_shr_long_2addr - .L_op_shr_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10947,7 +11144,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (197 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_ushr_long_2addr
+    sub    lr, lr, #(.L_ALT_op_ushr_long_2addr - .L_op_ushr_long_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10964,7 +11162,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (198 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_add_float_2addr
+    sub    lr, lr, #(.L_ALT_op_add_float_2addr - .L_op_add_float_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10981,7 +11180,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (199 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sub_float_2addr
+    sub    lr, lr, #(.L_ALT_op_sub_float_2addr - .L_op_sub_float_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -10998,7 +11198,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (200 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_mul_float_2addr
+    sub    lr, lr, #(.L_ALT_op_mul_float_2addr - .L_op_mul_float_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11015,7 +11216,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (201 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_div_float_2addr
+    sub    lr, lr, #(.L_ALT_op_div_float_2addr - .L_op_div_float_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11032,7 +11234,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (202 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rem_float_2addr
+    sub    lr, lr, #(.L_ALT_op_rem_float_2addr - .L_op_rem_float_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11049,7 +11252,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (203 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_add_double_2addr
+    sub    lr, lr, #(.L_ALT_op_add_double_2addr - .L_op_add_double_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11066,7 +11270,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (204 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_sub_double_2addr
+    sub    lr, lr, #(.L_ALT_op_sub_double_2addr - .L_op_sub_double_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11083,7 +11288,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (205 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_mul_double_2addr
+    sub    lr, lr, #(.L_ALT_op_mul_double_2addr - .L_op_mul_double_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11100,7 +11306,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (206 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_div_double_2addr
+    sub    lr, lr, #(.L_ALT_op_div_double_2addr - .L_op_div_double_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11117,7 +11324,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (207 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rem_double_2addr
+    sub    lr, lr, #(.L_ALT_op_rem_double_2addr - .L_op_rem_double_2addr)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11134,7 +11342,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (208 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_add_int_lit16
+    sub    lr, lr, #(.L_ALT_op_add_int_lit16 - .L_op_add_int_lit16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11151,7 +11360,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (209 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rsub_int
+    sub    lr, lr, #(.L_ALT_op_rsub_int - .L_op_rsub_int)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11168,7 +11378,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (210 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_mul_int_lit16
+    sub    lr, lr, #(.L_ALT_op_mul_int_lit16 - .L_op_mul_int_lit16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11185,7 +11396,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (211 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_div_int_lit16
+    sub    lr, lr, #(.L_ALT_op_div_int_lit16 - .L_op_div_int_lit16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11202,7 +11414,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (212 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rem_int_lit16
+    sub    lr, lr, #(.L_ALT_op_rem_int_lit16 - .L_op_rem_int_lit16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11219,7 +11432,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (213 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_and_int_lit16
+    sub    lr, lr, #(.L_ALT_op_and_int_lit16 - .L_op_and_int_lit16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11236,7 +11450,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (214 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_or_int_lit16
+    sub    lr, lr, #(.L_ALT_op_or_int_lit16 - .L_op_or_int_lit16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11253,7 +11468,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (215 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_xor_int_lit16
+    sub    lr, lr, #(.L_ALT_op_xor_int_lit16 - .L_op_xor_int_lit16)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11270,7 +11486,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (216 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_add_int_lit8
+    sub    lr, lr, #(.L_ALT_op_add_int_lit8 - .L_op_add_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11287,7 +11504,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (217 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rsub_int_lit8
+    sub    lr, lr, #(.L_ALT_op_rsub_int_lit8 - .L_op_rsub_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11304,7 +11522,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (218 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_mul_int_lit8
+    sub    lr, lr, #(.L_ALT_op_mul_int_lit8 - .L_op_mul_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11321,7 +11540,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (219 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_div_int_lit8
+    sub    lr, lr, #(.L_ALT_op_div_int_lit8 - .L_op_div_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11338,7 +11558,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (220 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_rem_int_lit8
+    sub    lr, lr, #(.L_ALT_op_rem_int_lit8 - .L_op_rem_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11355,7 +11576,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (221 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_and_int_lit8
+    sub    lr, lr, #(.L_ALT_op_and_int_lit8 - .L_op_and_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11372,7 +11594,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (222 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_or_int_lit8
+    sub    lr, lr, #(.L_ALT_op_or_int_lit8 - .L_op_or_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11389,7 +11612,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (223 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_xor_int_lit8
+    sub    lr, lr, #(.L_ALT_op_xor_int_lit8 - .L_op_xor_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11406,7 +11630,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (224 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_shl_int_lit8
+    sub    lr, lr, #(.L_ALT_op_shl_int_lit8 - .L_op_shl_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11423,7 +11648,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (225 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_shr_int_lit8
+    sub    lr, lr, #(.L_ALT_op_shr_int_lit8 - .L_op_shr_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11440,7 +11666,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (226 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_ushr_int_lit8
+    sub    lr, lr, #(.L_ALT_op_ushr_int_lit8 - .L_op_ushr_int_lit8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11457,7 +11684,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (227 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_quick
+    sub    lr, lr, #(.L_ALT_op_iget_quick - .L_op_iget_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11474,7 +11702,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (228 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_wide_quick
+    sub    lr, lr, #(.L_ALT_op_iget_wide_quick - .L_op_iget_wide_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11491,7 +11720,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (229 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_object_quick
+    sub    lr, lr, #(.L_ALT_op_iget_object_quick - .L_op_iget_object_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11508,7 +11738,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (230 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_quick
+    sub    lr, lr, #(.L_ALT_op_iput_quick - .L_op_iput_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11525,7 +11756,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (231 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_wide_quick
+    sub    lr, lr, #(.L_ALT_op_iput_wide_quick - .L_op_iput_wide_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11542,7 +11774,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (232 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_object_quick
+    sub    lr, lr, #(.L_ALT_op_iput_object_quick - .L_op_iput_object_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11559,7 +11792,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (233 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_virtual_quick
+    sub    lr, lr, #(.L_ALT_op_invoke_virtual_quick - .L_op_invoke_virtual_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11576,7 +11810,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (234 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_virtual_range_quick
+    sub    lr, lr, #(.L_ALT_op_invoke_virtual_range_quick - .L_op_invoke_virtual_range_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11593,7 +11828,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (235 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_boolean_quick
+    sub    lr, lr, #(.L_ALT_op_iput_boolean_quick - .L_op_iput_boolean_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11610,7 +11846,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (236 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_byte_quick
+    sub    lr, lr, #(.L_ALT_op_iput_byte_quick - .L_op_iput_byte_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11627,7 +11864,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (237 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_char_quick
+    sub    lr, lr, #(.L_ALT_op_iput_char_quick - .L_op_iput_char_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11644,7 +11882,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (238 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iput_short_quick
+    sub    lr, lr, #(.L_ALT_op_iput_short_quick - .L_op_iput_short_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11661,7 +11900,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (239 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_boolean_quick
+    sub    lr, lr, #(.L_ALT_op_iget_boolean_quick - .L_op_iget_boolean_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11678,7 +11918,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (240 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_byte_quick
+    sub    lr, lr, #(.L_ALT_op_iget_byte_quick - .L_op_iget_byte_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11695,7 +11936,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (241 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_char_quick
+    sub    lr, lr, #(.L_ALT_op_iget_char_quick - .L_op_iget_char_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11712,7 +11954,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (242 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_iget_short_quick
+    sub    lr, lr, #(.L_ALT_op_iget_short_quick - .L_op_iget_short_quick)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11729,7 +11972,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (243 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_f3
+    sub    lr, lr, #(.L_ALT_op_unused_f3 - .L_op_unused_f3)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11746,7 +11990,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (244 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_f4
+    sub    lr, lr, #(.L_ALT_op_unused_f4 - .L_op_unused_f4)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11763,7 +12008,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (245 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_f5
+    sub    lr, lr, #(.L_ALT_op_unused_f5 - .L_op_unused_f5)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11780,7 +12026,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (246 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_f6
+    sub    lr, lr, #(.L_ALT_op_unused_f6 - .L_op_unused_f6)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11797,7 +12044,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (247 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_f7
+    sub    lr, lr, #(.L_ALT_op_unused_f7 - .L_op_unused_f7)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11814,7 +12062,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (248 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_f8
+    sub    lr, lr, #(.L_ALT_op_unused_f8 - .L_op_unused_f8)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11831,7 +12080,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (249 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_unused_f9
+    sub    lr, lr, #(.L_ALT_op_unused_f9 - .L_op_unused_f9)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11848,7 +12098,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (250 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_polymorphic
+    sub    lr, lr, #(.L_ALT_op_invoke_polymorphic - .L_op_invoke_polymorphic)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11865,7 +12116,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (251 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_polymorphic_range
+    sub    lr, lr, #(.L_ALT_op_invoke_polymorphic_range - .L_op_invoke_polymorphic_range)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11882,7 +12134,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (252 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_custom
+    sub    lr, lr, #(.L_ALT_op_invoke_custom - .L_op_invoke_custom)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11899,7 +12152,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (253 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_invoke_custom_range
+    sub    lr, lr, #(.L_ALT_op_invoke_custom_range - .L_op_invoke_custom_range)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11916,7 +12170,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (254 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_method_handle
+    sub    lr, lr, #(.L_ALT_op_const_method_handle - .L_op_const_method_handle)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -11933,7 +12188,8 @@ artMterpAsmAltInstructionStart = .L_ALT_op_nop
  */
     .extern MterpCheckBefore
     ldr    rIBASE, [rSELF, #THREAD_CURRENT_IBASE_OFFSET]            @ refresh IBASE.
-    adrl   lr, artMterpAsmInstructionStart + (255 * 128)       @ Addr of primary handler.
+    adr    lr, .L_ALT_op_const_method_type
+    sub    lr, lr, #(.L_ALT_op_const_method_type - .L_op_const_method_type)  @ Addr of primary handler.
     mov    r0, rSELF
     add    r1, rFP, #OFF_FP_SHADOWFRAME
     mov    r2, rPC
@@ -12093,7 +12349,7 @@ MterpCommonTakenBranch:
 #endif
     cmp     rPROFILE, #JIT_CHECK_OSR
     beq     .L_osr_check
-    subgts  rPROFILE, #1
+    subsgt  rPROFILE, #1
     beq     .L_add_batch                @ counted down to zero - report
 .L_resume_backward_branch:
     ldr     lr, [rSELF, #THREAD_FLAGS_OFFSET]
