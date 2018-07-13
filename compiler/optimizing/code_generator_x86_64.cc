@@ -997,9 +997,6 @@ void CodeGeneratorX86_64::GenerateStaticOrDirectCall(
               Address::Absolute(kDummy32BitOffset, /* no_rip= */ false));
       RecordBootImageMethodPatch(invoke);
       break;
-    case HInvokeStaticOrDirect::MethodLoadKind::kDirectAddress:
-      Load64BitValue(temp.AsRegister<CpuRegister>(), invoke->GetMethodAddress());
-      break;
     case HInvokeStaticOrDirect::MethodLoadKind::kBootImageRelRo: {
       // Note: Boot image is in the low 4GiB and the entry is 32-bit, so emit a 32-bit load.
       __ movl(temp.AsRegister<CpuRegister>(),
@@ -1013,6 +1010,9 @@ void CodeGeneratorX86_64::GenerateStaticOrDirectCall(
       RecordMethodBssEntryPatch(invoke);
       break;
     }
+    case HInvokeStaticOrDirect::MethodLoadKind::kJitDirectAddress:
+      Load64BitValue(temp.AsRegister<CpuRegister>(), invoke->GetMethodAddress());
+      break;
     case HInvokeStaticOrDirect::MethodLoadKind::kRuntimeCall: {
       GenerateInvokeStaticOrDirectRuntimeCall(invoke, temp, slow_path);
       return;  // No code pointer retrieval; the runtime performs the call directly.
@@ -1118,11 +1118,11 @@ void CodeGeneratorX86_64::LoadBootImageAddress(CpuRegister reg, uint32_t boot_im
   if (GetCompilerOptions().IsBootImage()) {
     __ leal(reg, Address::Absolute(CodeGeneratorX86_64::kDummy32BitOffset, /* no_rip */ false));
     RecordBootImageIntrinsicPatch(boot_image_reference);
-  } else if (GetCompilerOptions().GetCompilePic()) {
-    DCHECK(Runtime::Current()->IsAotCompiler());
+  } else if (Runtime::Current()->IsAotCompiler()) {
     __ movl(reg, Address::Absolute(CodeGeneratorX86_64::kDummy32BitOffset, /* no_rip */ false));
     RecordBootImageRelRoPatch(boot_image_reference);
   } else {
+    DCHECK(Runtime::Current()->UseJitCompilation());
     gc::Heap* heap = Runtime::Current()->GetHeap();
     DCHECK(!heap->GetBootImageSpaces().empty());
     const uint8_t* address = heap->GetBootImageSpaces()[0]->Begin() + boot_image_reference;
@@ -5792,10 +5792,10 @@ HLoadClass::LoadKind CodeGeneratorX86_64::GetSupportedLoadClassKind(
     case HLoadClass::LoadKind::kBssEntry:
       DCHECK(!Runtime::Current()->UseJitCompilation());
       break;
+    case HLoadClass::LoadKind::kJitBootImageAddress:
     case HLoadClass::LoadKind::kJitTableAddress:
       DCHECK(Runtime::Current()->UseJitCompilation());
       break;
-    case HLoadClass::LoadKind::kBootImageAddress:
     case HLoadClass::LoadKind::kRuntimeCall:
       break;
   }
@@ -5888,14 +5888,6 @@ void InstructionCodeGeneratorX86_64::VisitLoadClass(HLoadClass* cls) NO_THREAD_S
       __ leal(out, Address::Absolute(CodeGeneratorX86_64::kDummy32BitOffset, /* no_rip= */ false));
       codegen_->RecordBootImageTypePatch(cls);
       break;
-    case HLoadClass::LoadKind::kBootImageAddress: {
-      DCHECK_EQ(read_barrier_option, kWithoutReadBarrier);
-      uint32_t address = dchecked_integral_cast<uint32_t>(
-          reinterpret_cast<uintptr_t>(cls->GetClass().Get()));
-      DCHECK_NE(address, 0u);
-      __ movl(out, Immediate(static_cast<int32_t>(address)));  // Zero-extended.
-      break;
-    }
     case HLoadClass::LoadKind::kBootImageRelRo: {
       DCHECK(!codegen_->GetCompilerOptions().IsBootImage());
       __ movl(out, Address::Absolute(CodeGeneratorX86_64::kDummy32BitOffset, /* no_rip= */ false));
@@ -5909,6 +5901,13 @@ void InstructionCodeGeneratorX86_64::VisitLoadClass(HLoadClass* cls) NO_THREAD_S
       // /* GcRoot<mirror::Class> */ out = *address  /* PC-relative */
       GenerateGcRootFieldLoad(cls, out_loc, address, fixup_label, read_barrier_option);
       generate_null_check = true;
+      break;
+    }
+    case HLoadClass::LoadKind::kJitBootImageAddress: {
+      DCHECK_EQ(read_barrier_option, kWithoutReadBarrier);
+      uint32_t address = reinterpret_cast32<uint32_t>(cls->GetClass().Get());
+      DCHECK_NE(address, 0u);
+      __ movl(out, Immediate(static_cast<int32_t>(address)));  // Zero-extended.
       break;
     }
     case HLoadClass::LoadKind::kJitTableAddress: {
@@ -5988,10 +5987,10 @@ HLoadString::LoadKind CodeGeneratorX86_64::GetSupportedLoadStringKind(
     case HLoadString::LoadKind::kBssEntry:
       DCHECK(!Runtime::Current()->UseJitCompilation());
       break;
+    case HLoadString::LoadKind::kJitBootImageAddress:
     case HLoadString::LoadKind::kJitTableAddress:
       DCHECK(Runtime::Current()->UseJitCompilation());
       break;
-    case HLoadString::LoadKind::kBootImageAddress:
     case HLoadString::LoadKind::kRuntimeCall:
       break;
   }
@@ -6043,13 +6042,6 @@ void InstructionCodeGeneratorX86_64::VisitLoadString(HLoadString* load) NO_THREA
       codegen_->RecordBootImageStringPatch(load);
       return;
     }
-    case HLoadString::LoadKind::kBootImageAddress: {
-      uint32_t address = dchecked_integral_cast<uint32_t>(
-          reinterpret_cast<uintptr_t>(load->GetString().Get()));
-      DCHECK_NE(address, 0u);
-      __ movl(out, Immediate(static_cast<int32_t>(address)));  // Zero-extended.
-      return;
-    }
     case HLoadString::LoadKind::kBootImageRelRo: {
       DCHECK(!codegen_->GetCompilerOptions().IsBootImage());
       __ movl(out, Address::Absolute(CodeGeneratorX86_64::kDummy32BitOffset, /* no_rip= */ false));
@@ -6067,6 +6059,12 @@ void InstructionCodeGeneratorX86_64::VisitLoadString(HLoadString* load) NO_THREA
       __ testl(out, out);
       __ j(kEqual, slow_path->GetEntryLabel());
       __ Bind(slow_path->GetExitLabel());
+      return;
+    }
+    case HLoadString::LoadKind::kJitBootImageAddress: {
+      uint32_t address = reinterpret_cast32<uint32_t>(load->GetString().Get());
+      DCHECK_NE(address, 0u);
+      __ movl(out, Immediate(static_cast<int32_t>(address)));  // Zero-extended.
       return;
     }
     case HLoadString::LoadKind::kJitTableAddress: {
