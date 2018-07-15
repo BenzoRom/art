@@ -356,7 +356,6 @@ art_cc_defaults {
     ],
     shared_libs: [
         "libbase",
-        "slicer",
     ],
     header_libs: ["libopenjdkjvmti_headers"],
 }
