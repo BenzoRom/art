@@ -121,7 +121,7 @@ void StackMapStream::BeginInlineInfoEntry(ArtMethod* method,
       ScopedObjectAccess soa(Thread::Current());
       DCHECK(IsSameDexFile(*outer_dex_file, *method->GetDexFile()));
     }
-    current_inline_info_.method_index = method->GetDexMethodIndexUnchecked();
+    current_inline_info_.method_index = method->GetDexMethodIndex();
   }
   current_inline_info_.dex_pc = dex_pc;
   current_inline_info_.dex_register_entry.num_dex_registers = num_dex_registers;
