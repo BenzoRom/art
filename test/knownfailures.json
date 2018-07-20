@@ -677,6 +677,11 @@
         "description": ["ASAN issue"]
     },
     {
+        "tests": ["683-clinit-inline-static-invoke"],
+        "variant": "jvm",
+        "description": ["Uses android-specific boot image class."]
+    },
+    {
         "tests": ["1941-dispose-stress", "522-checker-regression-monitor-exit"],
         "variant": "jvm",
         "bug": "b/73888836",

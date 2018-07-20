@@ -33,7 +33,7 @@ class PACKED(4) OatHeader {
  public:
   static constexpr uint8_t kOatMagic[] = { 'o', 'a', 't', '\n' };
   // Last oat version changed reason: compiler support invoke-custom
-  static constexpr uint8_t kOatVersion[] = { '1', '4', '8', '\0' };
+  static constexpr uint8_t kOatVersion[] = { '1', '4', '9', '\0' };
 
   static constexpr const char* kImageLocationKey = "image-location";
   static constexpr const char* kDex2OatCmdLineKey = "dex2oat-cmdline";
