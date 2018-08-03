@@ -123,7 +123,7 @@ static jboolean Thread_nativeHoldsLock(JNIEnv* env, jobject java_thread, jobject
   return thread->HoldsLock(object.Ptr());
 }
 
-static void Thread_nativeInterrupt(JNIEnv* env, jobject java_thread) {
+static void Thread_interrupt0(JNIEnv* env, jobject java_thread) {
   ScopedFastNativeObjectAccess soa(env);
   MutexLock mu(soa.Self(), *Locks::thread_list_lock_);
   Thread* thread = Thread::FromManagedThread(soa, java_thread);
@@ -132,7 +132,7 @@ static void Thread_nativeInterrupt(JNIEnv* env, jobject java_thread) {
   }
 }
 
-static void Thread_nativeSetName(JNIEnv* env, jobject peer, jstring java_name) {
+static void Thread_setNativeName(JNIEnv* env, jobject peer, jstring java_name) {
   ScopedUtfChars name(env, java_name);
   {
     ScopedObjectAccess soa(env);
@@ -169,7 +169,7 @@ static void Thread_nativeSetName(JNIEnv* env, jobject peer, jstring java_name) {
  * from Thread.MIN_PRIORITY to Thread.MAX_PRIORITY (1-10), with "normal"
  * threads at Thread.NORM_PRIORITY (5).
  */
-static void Thread_nativeSetPriority(JNIEnv* env, jobject java_thread, jint new_priority) {
+static void Thread_setPriority0(JNIEnv* env, jobject java_thread, jint new_priority) {
   ScopedObjectAccess soa(env);
   MutexLock mu(soa.Self(), *Locks::thread_list_lock_);
   Thread* thread = Thread::FromManagedThread(soa, java_thread);
@@ -201,9 +201,9 @@ static JNINativeMethod gMethods[] = {
   NATIVE_METHOD(Thread, nativeCreate, "(Ljava/lang/Thread;JZ)V"),
   NATIVE_METHOD(Thread, nativeGetStatus, "(Z)I"),
   NATIVE_METHOD(Thread, nativeHoldsLock, "(Ljava/lang/Object;)Z"),
-  FAST_NATIVE_METHOD(Thread, nativeInterrupt, "()V"),
-  NATIVE_METHOD(Thread, nativeSetName, "(Ljava/lang/String;)V"),
-  NATIVE_METHOD(Thread, nativeSetPriority, "(I)V"),
+  FAST_NATIVE_METHOD(Thread, interrupt0, "()V"),
+  NATIVE_METHOD(Thread, setNativeName, "(Ljava/lang/String;)V"),
+  NATIVE_METHOD(Thread, setPriority0, "(I)V"),
   FAST_NATIVE_METHOD(Thread, sleep, "(Ljava/lang/Object;JI)V"),
   NATIVE_METHOD(Thread, yield, "()V"),
 };
