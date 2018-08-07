@@ -2071,7 +2071,7 @@ SYMBOL(artMterpAsmInstructionStart) = .L_op_nop
     GET_VREG OUT_32_ARG1, %rcx              # the object pointer
     movq    OFF_FP_METHOD(rFP), OUT_ARG2    # referrer
     movq    rSELF, OUT_ARG3
-    call    SYMBOL(artGet32InstanceFromCode)
+    call    SYMBOL(artGet32InstanceFromMterp)
     movq    rSELF, %rcx
     cmpq    $0, THREAD_EXCEPTION_OFFSET(%rcx)
     jnz     MterpException                  # bail out
@@ -2104,7 +2104,7 @@ SYMBOL(artMterpAsmInstructionStart) = .L_op_nop
     GET_VREG OUT_32_ARG1, %rcx              # the object pointer
     movq    OFF_FP_METHOD(rFP), OUT_ARG2    # referrer
     movq    rSELF, OUT_ARG3
-    call    SYMBOL(artGet64InstanceFromCode)
+    call    SYMBOL(artGet64InstanceFromMterp)
     movq    rSELF, %rcx
     cmpq    $0, THREAD_EXCEPTION_OFFSET(%rcx)
     jnz     MterpException                  # bail out
@@ -2138,7 +2138,7 @@ SYMBOL(artMterpAsmInstructionStart) = .L_op_nop
     GET_VREG OUT_32_ARG1, %rcx              # the object pointer
     movq    OFF_FP_METHOD(rFP), OUT_ARG2    # referrer
     movq    rSELF, OUT_ARG3
-    call    SYMBOL(artGetObjInstanceFromCode)
+    call    SYMBOL(artGetObjInstanceFromMterp)
     movq    rSELF, %rcx
     cmpq    $0, THREAD_EXCEPTION_OFFSET(%rcx)
     jnz     MterpException                  # bail out
@@ -2172,7 +2172,7 @@ SYMBOL(artMterpAsmInstructionStart) = .L_op_nop
     GET_VREG OUT_32_ARG1, %rcx              # the object pointer
     movq    OFF_FP_METHOD(rFP), OUT_ARG2    # referrer
     movq    rSELF, OUT_ARG3
-    call    SYMBOL(artGetBooleanInstanceFromCode)
+    call    SYMBOL(artGetBooleanInstanceFromMterp)
     movq    rSELF, %rcx
     cmpq    $0, THREAD_EXCEPTION_OFFSET(%rcx)
     jnz     MterpException                  # bail out
@@ -2206,7 +2206,7 @@ SYMBOL(artMterpAsmInstructionStart) = .L_op_nop
     GET_VREG OUT_32_ARG1, %rcx              # the object pointer
     movq    OFF_FP_METHOD(rFP), OUT_ARG2    # referrer
     movq    rSELF, OUT_ARG3
-    call    SYMBOL(artGetByteInstanceFromCode)
+    call    SYMBOL(artGetByteInstanceFromMterp)
     movq    rSELF, %rcx
     cmpq    $0, THREAD_EXCEPTION_OFFSET(%rcx)
     jnz     MterpException                  # bail out
@@ -2240,7 +2240,7 @@ SYMBOL(artMterpAsmInstructionStart) = .L_op_nop
     GET_VREG OUT_32_ARG1, %rcx              # the object pointer
     movq    OFF_FP_METHOD(rFP), OUT_ARG2    # referrer
     movq    rSELF, OUT_ARG3
-    call    SYMBOL(artGetCharInstanceFromCode)
+    call    SYMBOL(artGetCharInstanceFromMterp)
     movq    rSELF, %rcx
     cmpq    $0, THREAD_EXCEPTION_OFFSET(%rcx)
     jnz     MterpException                  # bail out
@@ -2274,7 +2274,7 @@ SYMBOL(artMterpAsmInstructionStart) = .L_op_nop
     GET_VREG OUT_32_ARG1, %rcx              # the object pointer
     movq    OFF_FP_METHOD(rFP), OUT_ARG2    # referrer
     movq    rSELF, OUT_ARG3
-    call    SYMBOL(artGetShortInstanceFromCode)
+    call    SYMBOL(artGetShortInstanceFromMterp)
     movq    rSELF, %rcx
     cmpq    $0, THREAD_EXCEPTION_OFFSET(%rcx)
     jnz     MterpException                  # bail out

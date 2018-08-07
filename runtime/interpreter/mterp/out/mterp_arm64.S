@@ -2190,7 +2190,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG w1, w1                        // w1<- fp[B], the object pointer
     ldr      x2, [xFP, #OFF_FP_METHOD]     // w2<- referrer
     mov      x3, xSELF                     // w3<- self
-    bl       artGet32InstanceFromCode
+    bl       artGet32InstanceFromMterp
     ldr      x3, [xSELF, #THREAD_EXCEPTION_OFFSET]
     
     ubfx     w2, wINST, #8, #4             // w2<- A
@@ -2220,7 +2220,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG w1, w1                        // w1<- fp[B], the object pointer
     ldr      x2, [xFP, #OFF_FP_METHOD]     // w2<- referrer
     mov      x3, xSELF                     // w3<- self
-    bl       artGet64InstanceFromCode
+    bl       artGet64InstanceFromMterp
     ldr      x3, [xSELF, #THREAD_EXCEPTION_OFFSET]
     ubfx     w2, wINST, #8, #4             // w2<- A
     PREFETCH_INST 2
@@ -2247,7 +2247,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG w1, w1                        // w1<- fp[B], the object pointer
     ldr      x2, [xFP, #OFF_FP_METHOD]     // w2<- referrer
     mov      x3, xSELF                     // w3<- self
-    bl       artGetObjInstanceFromCode
+    bl       artGetObjInstanceFromMterp
     ldr      x3, [xSELF, #THREAD_EXCEPTION_OFFSET]
     
     ubfx     w2, wINST, #8, #4             // w2<- A
@@ -2279,7 +2279,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG w1, w1                        // w1<- fp[B], the object pointer
     ldr      x2, [xFP, #OFF_FP_METHOD]     // w2<- referrer
     mov      x3, xSELF                     // w3<- self
-    bl       artGetBooleanInstanceFromCode
+    bl       artGetBooleanInstanceFromMterp
     ldr      x3, [xSELF, #THREAD_EXCEPTION_OFFSET]
     uxtb w0, w0
     ubfx     w2, wINST, #8, #4             // w2<- A
@@ -2311,7 +2311,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG w1, w1                        // w1<- fp[B], the object pointer
     ldr      x2, [xFP, #OFF_FP_METHOD]     // w2<- referrer
     mov      x3, xSELF                     // w3<- self
-    bl       artGetByteInstanceFromCode
+    bl       artGetByteInstanceFromMterp
     ldr      x3, [xSELF, #THREAD_EXCEPTION_OFFSET]
     sxtb w0, w0
     ubfx     w2, wINST, #8, #4             // w2<- A
@@ -2343,7 +2343,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG w1, w1                        // w1<- fp[B], the object pointer
     ldr      x2, [xFP, #OFF_FP_METHOD]     // w2<- referrer
     mov      x3, xSELF                     // w3<- self
-    bl       artGetCharInstanceFromCode
+    bl       artGetCharInstanceFromMterp
     ldr      x3, [xSELF, #THREAD_EXCEPTION_OFFSET]
     uxth w0, w0
     ubfx     w2, wINST, #8, #4             // w2<- A
@@ -2375,7 +2375,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG w1, w1                        // w1<- fp[B], the object pointer
     ldr      x2, [xFP, #OFF_FP_METHOD]     // w2<- referrer
     mov      x3, xSELF                     // w3<- self
-    bl       artGetShortInstanceFromCode
+    bl       artGetShortInstanceFromMterp
     ldr      x3, [xSELF, #THREAD_EXCEPTION_OFFSET]
     sxth w0, w0
     ubfx     w2, wINST, #8, #4             // w2<- A
