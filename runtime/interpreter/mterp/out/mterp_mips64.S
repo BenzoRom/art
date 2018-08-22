@@ -2245,14 +2245,14 @@ artMterpAsmInstructionStart = .L_op_nop
      *
      * for: iget, iget-object, iget-boolean, iget-byte, iget-char, iget-short
      */
-    .extern artGet32InstanceFromMterp
+    .extern MterpIGetU32
     EXPORT_PC
     lhu      a0, 2(rPC)                 # a0 <- field ref CCCC
     srl      a1, rINST, 12              # a1 <- B
     GET_VREG_U a1, a1                   # a1 <- fp[B], the object pointer
     ld       a2, OFF_FP_METHOD(rFP)     # a2 <- referrer
     move     a3, rSELF                  # a3 <- self
-    jal      artGet32InstanceFromMterp
+    jal      MterpIGetU32
     ld       a3, THREAD_EXCEPTION_OFFSET(rSELF)
     ext      a2, rINST, 8, 4            # a2 <- A
     PREFETCH_INST 2
@@ -2275,14 +2275,14 @@ artMterpAsmInstructionStart = .L_op_nop
      *
      * for: iget-wide
      */
-    .extern artGet64InstanceFromMterp
+    .extern MterpIGetU64
     EXPORT_PC
     lhu      a0, 2(rPC)                 # a0 <- field ref CCCC
     srl      a1, rINST, 12              # a1 <- B
     GET_VREG_U a1, a1                   # a1 <- fp[B], the object pointer
     ld       a2, OFF_FP_METHOD(rFP)     # a2 <- referrer
     move     a3, rSELF                  # a3 <- self
-    jal      artGet64InstanceFromMterp
+    jal      MterpIGetU64
     ld       a3, THREAD_EXCEPTION_OFFSET(rSELF)
     ext      a2, rINST, 8, 4            # a2 <- A
     PREFETCH_INST 2
@@ -2302,14 +2302,14 @@ artMterpAsmInstructionStart = .L_op_nop
      *
      * for: iget, iget-object, iget-boolean, iget-byte, iget-char, iget-short
      */
-    .extern artGetObjInstanceFromMterp
+    .extern MterpIGetObj
     EXPORT_PC
     lhu      a0, 2(rPC)                 # a0 <- field ref CCCC
     srl      a1, rINST, 12              # a1 <- B
     GET_VREG_U a1, a1                   # a1 <- fp[B], the object pointer
     ld       a2, OFF_FP_METHOD(rFP)     # a2 <- referrer
     move     a3, rSELF                  # a3 <- self
-    jal      artGetObjInstanceFromMterp
+    jal      MterpIGetObj
     ld       a3, THREAD_EXCEPTION_OFFSET(rSELF)
     ext      a2, rINST, 8, 4            # a2 <- A
     PREFETCH_INST 2
@@ -2334,14 +2334,14 @@ artMterpAsmInstructionStart = .L_op_nop
      *
      * for: iget, iget-object, iget-boolean, iget-byte, iget-char, iget-short
      */
-    .extern artGetBooleanInstanceFromMterp
+    .extern MterpIGetU8
     EXPORT_PC
     lhu      a0, 2(rPC)                 # a0 <- field ref CCCC
     srl      a1, rINST, 12              # a1 <- B
     GET_VREG_U a1, a1                   # a1 <- fp[B], the object pointer
     ld       a2, OFF_FP_METHOD(rFP)     # a2 <- referrer
     move     a3, rSELF                  # a3 <- self
-    jal      artGetBooleanInstanceFromMterp
+    jal      MterpIGetU8
     ld       a3, THREAD_EXCEPTION_OFFSET(rSELF)
     ext      a2, rINST, 8, 4            # a2 <- A
     PREFETCH_INST 2
@@ -2366,14 +2366,14 @@ artMterpAsmInstructionStart = .L_op_nop
      *
      * for: iget, iget-object, iget-boolean, iget-byte, iget-char, iget-short
      */
-    .extern artGetByteInstanceFromMterp
+    .extern MterpIGetI8
     EXPORT_PC
     lhu      a0, 2(rPC)                 # a0 <- field ref CCCC
     srl      a1, rINST, 12              # a1 <- B
     GET_VREG_U a1, a1                   # a1 <- fp[B], the object pointer
     ld       a2, OFF_FP_METHOD(rFP)     # a2 <- referrer
     move     a3, rSELF                  # a3 <- self
-    jal      artGetByteInstanceFromMterp
+    jal      MterpIGetI8
     ld       a3, THREAD_EXCEPTION_OFFSET(rSELF)
     ext      a2, rINST, 8, 4            # a2 <- A
     PREFETCH_INST 2
@@ -2398,14 +2398,14 @@ artMterpAsmInstructionStart = .L_op_nop
      *
      * for: iget, iget-object, iget-boolean, iget-byte, iget-char, iget-short
      */
-    .extern artGetCharInstanceFromMterp
+    .extern MterpIGetU16
     EXPORT_PC
     lhu      a0, 2(rPC)                 # a0 <- field ref CCCC
     srl      a1, rINST, 12              # a1 <- B
     GET_VREG_U a1, a1                   # a1 <- fp[B], the object pointer
     ld       a2, OFF_FP_METHOD(rFP)     # a2 <- referrer
     move     a3, rSELF                  # a3 <- self
-    jal      artGetCharInstanceFromMterp
+    jal      MterpIGetU16
     ld       a3, THREAD_EXCEPTION_OFFSET(rSELF)
     ext      a2, rINST, 8, 4            # a2 <- A
     PREFETCH_INST 2
@@ -2430,14 +2430,14 @@ artMterpAsmInstructionStart = .L_op_nop
      *
      * for: iget, iget-object, iget-boolean, iget-byte, iget-char, iget-short
      */
-    .extern artGetShortInstanceFromMterp
+    .extern MterpIGetI16
     EXPORT_PC
     lhu      a0, 2(rPC)                 # a0 <- field ref CCCC
     srl      a1, rINST, 12              # a1 <- B
     GET_VREG_U a1, a1                   # a1 <- fp[B], the object pointer
     ld       a2, OFF_FP_METHOD(rFP)     # a2 <- referrer
     move     a3, rSELF                  # a3 <- self
-    jal      artGetShortInstanceFromMterp
+    jal      MterpIGetI16
     ld       a3, THREAD_EXCEPTION_OFFSET(rSELF)
     ext      a2, rINST, 8, 4            # a2 <- A
     PREFETCH_INST 2
@@ -2462,7 +2462,7 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: iput, iput-boolean, iput-byte, iput-char, iput-short
      */
     /* op vA, vB, field//CCCC */
-    .extern artSet32InstanceFromMterp
+    .extern MterpIPutU32
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref CCCC
     srl     a1, rINST, 12               # a1 <- B
@@ -2471,7 +2471,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG a2, a2                     # a2 <- fp[A]
     ld      a3, OFF_FP_METHOD(rFP)      # a3 <- referrer
     PREFETCH_INST 2
-    jal     artSet32InstanceFromMterp
+    jal     MterpIPutU32
     bnez    v0, MterpPossibleException  # bail out
     ADVANCE 2
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2482,7 +2482,7 @@ artMterpAsmInstructionStart = .L_op_nop
 .L_op_iput_wide: /* 0x5a */
 /* File: mips64/op_iput_wide.S */
     /* iput-wide vA, vB, field//CCCC */
-    .extern artSet64InstanceFromMterp
+    .extern MterpIPutU64
     EXPORT_PC
     lhu      a0, 2(rPC)                 # a0 <- field ref CCCC
     srl      a1, rINST, 12              # a1 <- B
@@ -2491,7 +2491,7 @@ artMterpAsmInstructionStart = .L_op_nop
     dlsa     a2, a2, rFP, 2             # a2 <- &fp[A]
     ld       a3, OFF_FP_METHOD(rFP)     # a3 <- referrer
     PREFETCH_INST 2
-    jal      artSet64InstanceFromMterp
+    jal      MterpIPutU64
     bnez     v0, MterpPossibleException # bail out
     ADVANCE 2
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2501,13 +2501,13 @@ artMterpAsmInstructionStart = .L_op_nop
     .balign 128
 .L_op_iput_object: /* 0x5b */
 /* File: mips64/op_iput_object.S */
-    .extern MterpIputObject
+    .extern MterpIPutObj
     EXPORT_PC
     daddu   a0, rFP, OFF_FP_SHADOWFRAME
     move    a1, rPC
     move    a2, rINST
     move    a3, rSELF
-    jal     MterpIputObject
+    jal     MterpIPutObj
     beqzc   v0, MterpException
     FETCH_ADVANCE_INST 2                # advance rPC, load rINST
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2524,7 +2524,7 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: iput, iput-boolean, iput-byte, iput-char, iput-short
      */
     /* op vA, vB, field//CCCC */
-    .extern artSet8InstanceFromMterp
+    .extern MterpIPutU8
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref CCCC
     srl     a1, rINST, 12               # a1 <- B
@@ -2533,7 +2533,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG a2, a2                     # a2 <- fp[A]
     ld      a3, OFF_FP_METHOD(rFP)      # a3 <- referrer
     PREFETCH_INST 2
-    jal     artSet8InstanceFromMterp
+    jal     MterpIPutU8
     bnez    v0, MterpPossibleException  # bail out
     ADVANCE 2
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2551,7 +2551,7 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: iput, iput-boolean, iput-byte, iput-char, iput-short
      */
     /* op vA, vB, field//CCCC */
-    .extern artSet8InstanceFromMterp
+    .extern MterpIPutI8
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref CCCC
     srl     a1, rINST, 12               # a1 <- B
@@ -2560,7 +2560,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG a2, a2                     # a2 <- fp[A]
     ld      a3, OFF_FP_METHOD(rFP)      # a3 <- referrer
     PREFETCH_INST 2
-    jal     artSet8InstanceFromMterp
+    jal     MterpIPutI8
     bnez    v0, MterpPossibleException  # bail out
     ADVANCE 2
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2578,7 +2578,7 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: iput, iput-boolean, iput-byte, iput-char, iput-short
      */
     /* op vA, vB, field//CCCC */
-    .extern artSet16InstanceFromMterp
+    .extern MterpIPutU16
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref CCCC
     srl     a1, rINST, 12               # a1 <- B
@@ -2587,7 +2587,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG a2, a2                     # a2 <- fp[A]
     ld      a3, OFF_FP_METHOD(rFP)      # a3 <- referrer
     PREFETCH_INST 2
-    jal     artSet16InstanceFromMterp
+    jal     MterpIPutU16
     bnez    v0, MterpPossibleException  # bail out
     ADVANCE 2
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2605,7 +2605,7 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: iput, iput-boolean, iput-byte, iput-char, iput-short
      */
     /* op vA, vB, field//CCCC */
-    .extern artSet16InstanceFromMterp
+    .extern MterpIPutI16
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref CCCC
     srl     a1, rINST, 12               # a1 <- B
@@ -2614,7 +2614,7 @@ artMterpAsmInstructionStart = .L_op_nop
     GET_VREG a2, a2                     # a2 <- fp[A]
     ld      a3, OFF_FP_METHOD(rFP)      # a3 <- referrer
     PREFETCH_INST 2
-    jal     artSet16InstanceFromMterp
+    jal     MterpIPutI16
     bnez    v0, MterpPossibleException  # bail out
     ADVANCE 2
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2631,12 +2631,12 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sget, sget-object, sget-boolean, sget-byte, sget-char, sget-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpGet32Static
+    .extern MterpSGetU32
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     ld      a1, OFF_FP_METHOD(rFP)
     move    a2, rSELF
-    jal     MterpGet32Static
+    jal     MterpSGetU32
     ld      a3, THREAD_EXCEPTION_OFFSET(rSELF)
     srl     a2, rINST, 8                # a2 <- AA
     
@@ -2660,12 +2660,12 @@ artMterpAsmInstructionStart = .L_op_nop
      *
      */
     /* sget-wide vAA, field//BBBB */
-    .extern MterpGet64Static
+    .extern MterpSGetU64
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     ld      a1, OFF_FP_METHOD(rFP)
     move    a2, rSELF
-    jal     MterpGet64Static
+    jal     MterpSGetU64
     ld      a3, THREAD_EXCEPTION_OFFSET(rSELF)
     srl     a4, rINST, 8                # a4 <- AA
     bnez    a3, MterpException          # bail out
@@ -2685,12 +2685,12 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sget, sget-object, sget-boolean, sget-byte, sget-char, sget-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpGetObjStatic
+    .extern MterpSGetObj
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     ld      a1, OFF_FP_METHOD(rFP)
     move    a2, rSELF
-    jal     MterpGetObjStatic
+    jal     MterpSGetObj
     ld      a3, THREAD_EXCEPTION_OFFSET(rSELF)
     srl     a2, rINST, 8                # a2 <- AA
     
@@ -2717,12 +2717,12 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sget, sget-object, sget-boolean, sget-byte, sget-char, sget-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpGetBooleanStatic
+    .extern MterpSGetU8
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     ld      a1, OFF_FP_METHOD(rFP)
     move    a2, rSELF
-    jal     MterpGetBooleanStatic
+    jal     MterpSGetU8
     ld      a3, THREAD_EXCEPTION_OFFSET(rSELF)
     srl     a2, rINST, 8                # a2 <- AA
     and v0, v0, 0xff
@@ -2749,12 +2749,12 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sget, sget-object, sget-boolean, sget-byte, sget-char, sget-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpGetByteStatic
+    .extern MterpSGetI8
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     ld      a1, OFF_FP_METHOD(rFP)
     move    a2, rSELF
-    jal     MterpGetByteStatic
+    jal     MterpSGetI8
     ld      a3, THREAD_EXCEPTION_OFFSET(rSELF)
     srl     a2, rINST, 8                # a2 <- AA
     seb v0, v0
@@ -2781,12 +2781,12 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sget, sget-object, sget-boolean, sget-byte, sget-char, sget-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpGetCharStatic
+    .extern MterpSGetU16
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     ld      a1, OFF_FP_METHOD(rFP)
     move    a2, rSELF
-    jal     MterpGetCharStatic
+    jal     MterpSGetU16
     ld      a3, THREAD_EXCEPTION_OFFSET(rSELF)
     srl     a2, rINST, 8                # a2 <- AA
     and v0, v0, 0xffff
@@ -2813,12 +2813,12 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sget, sget-object, sget-boolean, sget-byte, sget-char, sget-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpGetShortStatic
+    .extern MterpSGetI16
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     ld      a1, OFF_FP_METHOD(rFP)
     move    a2, rSELF
-    jal     MterpGetShortStatic
+    jal     MterpSGetI16
     ld      a3, THREAD_EXCEPTION_OFFSET(rSELF)
     srl     a2, rINST, 8                # a2 <- AA
     seh v0, v0
@@ -2844,7 +2844,7 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sput, sput-boolean, sput-byte, sput-char, sput-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpSet32Static
+    .extern MterpSPutU32
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     srl     a3, rINST, 8                # a3 <- AA
@@ -2852,7 +2852,7 @@ artMterpAsmInstructionStart = .L_op_nop
     ld      a2, OFF_FP_METHOD(rFP)
     move    a3, rSELF
     PREFETCH_INST 2                     # Get next inst, but don't advance rPC
-    jal     MterpSet32Static
+    jal     MterpSPutU32
     bnezc   v0, MterpException          # 0 on success
     ADVANCE 2                           # Past exception point - now advance rPC
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2867,7 +2867,7 @@ artMterpAsmInstructionStart = .L_op_nop
      *
      */
     /* sput-wide vAA, field//BBBB */
-    .extern MterpSet64Static
+    .extern MterpSPutU64
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     srl     a1, rINST, 8                # a2 <- AA
@@ -2875,7 +2875,7 @@ artMterpAsmInstructionStart = .L_op_nop
     ld      a2, OFF_FP_METHOD(rFP)
     move    a3, rSELF
     PREFETCH_INST 2                     # Get next inst, but don't advance rPC
-    jal     MterpSet64Static
+    jal     MterpSPutU64
     bnezc   v0, MterpException          # 0 on success, -1 on failure
     ADVANCE 2                           # Past exception point - now advance rPC
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2885,13 +2885,13 @@ artMterpAsmInstructionStart = .L_op_nop
     .balign 128
 .L_op_sput_object: /* 0x69 */
 /* File: mips64/op_sput_object.S */
-    .extern MterpSputObject
+    .extern MterpSPutObj
     EXPORT_PC
     daddu   a0, rFP, OFF_FP_SHADOWFRAME
     move    a1, rPC
     move    a2, rINST
     move    a3, rSELF
-    jal     MterpSputObject
+    jal     MterpSPutObj
     beqzc   v0, MterpException
     FETCH_ADVANCE_INST 2                # advance rPC, load rINST
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2908,7 +2908,7 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sput, sput-boolean, sput-byte, sput-char, sput-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpSetBooleanStatic
+    .extern MterpSPutU8
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     srl     a3, rINST, 8                # a3 <- AA
@@ -2916,7 +2916,7 @@ artMterpAsmInstructionStart = .L_op_nop
     ld      a2, OFF_FP_METHOD(rFP)
     move    a3, rSELF
     PREFETCH_INST 2                     # Get next inst, but don't advance rPC
-    jal     MterpSetBooleanStatic
+    jal     MterpSPutU8
     bnezc   v0, MterpException          # 0 on success
     ADVANCE 2                           # Past exception point - now advance rPC
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2934,7 +2934,7 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sput, sput-boolean, sput-byte, sput-char, sput-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpSetByteStatic
+    .extern MterpSPutI8
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     srl     a3, rINST, 8                # a3 <- AA
@@ -2942,7 +2942,7 @@ artMterpAsmInstructionStart = .L_op_nop
     ld      a2, OFF_FP_METHOD(rFP)
     move    a3, rSELF
     PREFETCH_INST 2                     # Get next inst, but don't advance rPC
-    jal     MterpSetByteStatic
+    jal     MterpSPutI8
     bnezc   v0, MterpException          # 0 on success
     ADVANCE 2                           # Past exception point - now advance rPC
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2960,7 +2960,7 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sput, sput-boolean, sput-byte, sput-char, sput-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpSetCharStatic
+    .extern MterpSPutU16
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     srl     a3, rINST, 8                # a3 <- AA
@@ -2968,7 +2968,7 @@ artMterpAsmInstructionStart = .L_op_nop
     ld      a2, OFF_FP_METHOD(rFP)
     move    a3, rSELF
     PREFETCH_INST 2                     # Get next inst, but don't advance rPC
-    jal     MterpSetCharStatic
+    jal     MterpSPutU16
     bnezc   v0, MterpException          # 0 on success
     ADVANCE 2                           # Past exception point - now advance rPC
     GET_INST_OPCODE v0                  # extract opcode from rINST
@@ -2986,7 +2986,7 @@ artMterpAsmInstructionStart = .L_op_nop
      * for: sput, sput-boolean, sput-byte, sput-char, sput-short
      */
     /* op vAA, field//BBBB */
-    .extern MterpSetShortStatic
+    .extern MterpSPutI16
     EXPORT_PC
     lhu     a0, 2(rPC)                  # a0 <- field ref BBBB
     srl     a3, rINST, 8                # a3 <- AA
@@ -2994,7 +2994,7 @@ artMterpAsmInstructionStart = .L_op_nop
     ld      a2, OFF_FP_METHOD(rFP)
     move    a3, rSELF
     PREFETCH_INST 2                     # Get next inst, but don't advance rPC
-    jal     MterpSetShortStatic
+    jal     MterpSPutI16
     bnezc   v0, MterpException          # 0 on success
     ADVANCE 2                           # Past exception point - now advance rPC
     GET_INST_OPCODE v0                  # extract opcode from rINST
