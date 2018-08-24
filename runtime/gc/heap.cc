@@ -1286,7 +1286,7 @@ class TrimIndirectReferenceTableClosure : public Closure {
  public:
   explicit TrimIndirectReferenceTableClosure(Barrier* barrier) : barrier_(barrier) {
   }
-  virtual void Run(Thread* thread) OVERRIDE NO_THREAD_SAFETY_ANALYSIS {
+  virtual void Run(Thread* thread) override NO_THREAD_SAFETY_ANALYSIS {
     thread->GetJniEnv()->TrimLocals();
     // If thread is a running mutator, then act on behalf of the trim thread.
     // See the code in ThreadList::RunCheckpoint.
@@ -2175,7 +2175,7 @@ void Heap::ChangeCollector(CollectorType collector_type) {
 }
 
 // Special compacting collector which uses sub-optimal bin packing to reduce zygote space size.
-class ZygoteCompactingCollector FINAL : public collector::SemiSpace {
+class ZygoteCompactingCollector final : public collector::SemiSpace {
  public:
   ZygoteCompactingCollector(gc::Heap* heap, bool is_running_on_memory_tool)
       : SemiSpace(heap, false, "zygote collector"),
@@ -2729,7 +2729,7 @@ class RootMatchesObjectVisitor : public SingleRootVisitor {
   explicit RootMatchesObjectVisitor(const mirror::Object* obj) : obj_(obj) { }
 
   void VisitRoot(mirror::Object* root, const RootInfo& info)
-      OVERRIDE REQUIRES_SHARED(Locks::mutator_lock_) {
+      override REQUIRES_SHARED(Locks::mutator_lock_) {
     if (root == obj_) {
       LOG(INFO) << "Object " << obj_ << " is a root " << info.ToString();
     }
@@ -2788,7 +2788,7 @@ class VerifyReferenceVisitor : public SingleRootVisitor {
         root->AsMirrorPtr(), RootInfo(kRootVMInternal));
   }
 
-  virtual void VisitRoot(mirror::Object* root, const RootInfo& root_info) OVERRIDE
+  virtual void VisitRoot(mirror::Object* root, const RootInfo& root_info) override
       REQUIRES_SHARED(Locks::mutator_lock_) {
     if (root == nullptr) {
       LOG(ERROR) << "Root is null with info " << root_info.GetType();
@@ -3216,10 +3216,10 @@ void Heap::ProcessCards(TimingLogger* timings,
 }
 
 struct IdentityMarkHeapReferenceVisitor : public MarkObjectVisitor {
-  virtual mirror::Object* MarkObject(mirror::Object* obj) OVERRIDE {
+  virtual mirror::Object* MarkObject(mirror::Object* obj) override {
     return obj;
   }
-  virtual void MarkHeapReference(mirror::HeapReference<mirror::Object>*, bool) OVERRIDE {
+  virtual void MarkHeapReference(mirror::HeapReference<mirror::Object>*, bool) override {
   }
 };
 
@@ -3577,7 +3577,7 @@ class Heap::ConcurrentGCTask : public HeapTask {
  public:
   ConcurrentGCTask(uint64_t target_time, GcCause cause, bool force_full)
       : HeapTask(target_time), cause_(cause), force_full_(force_full) {}
-  virtual void Run(Thread* self) OVERRIDE {
+  virtual void Run(Thread* self) override {
     gc::Heap* heap = Runtime::Current()->GetHeap();
     heap->ConcurrentGC(self, cause_, force_full_);
     heap->ClearConcurrentGCRequest();
@@ -3635,7 +3635,7 @@ class Heap::CollectorTransitionTask : public HeapTask {
  public:
   explicit CollectorTransitionTask(uint64_t target_time) : HeapTask(target_time) {}
 
-  virtual void Run(Thread* self) OVERRIDE {
+  virtual void Run(Thread* self) override {
     gc::Heap* heap = Runtime::Current()->GetHeap();
     heap->DoPendingCollectorTransition();
     heap->ClearPendingCollectorTransition(self);
@@ -3677,7 +3677,7 @@ void Heap::RequestCollectorTransition(CollectorType desired_collector_type, uint
 class Heap::HeapTrimTask : public HeapTask {
  public:
   explicit HeapTrimTask(uint64_t delta_time) : HeapTask(NanoTime() + delta_time) { }
-  virtual void Run(Thread* self) OVERRIDE {
+  virtual void Run(Thread* self) override {
     gc::Heap* heap = Runtime::Current()->GetHeap();
     heap->Trim(self);
     heap->ClearPendingTrim(self);

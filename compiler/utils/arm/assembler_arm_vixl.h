@@ -48,7 +48,7 @@ inline dwarf::Reg DWARFReg(vixl32::SRegister reg) {
   return dwarf::Reg::ArmFp(static_cast<int>(reg.GetCode()));
 }
 
-class ArmVIXLMacroAssembler FINAL : public vixl32::MacroAssembler {
+class ArmVIXLMacroAssembler final : public vixl32::MacroAssembler {
  public:
   // Most methods fit in a 1KB code buffer, which results in more optimal alloc/realloc and
   // fewer system calls than a larger default capacity.
@@ -158,7 +158,7 @@ class ArmVIXLMacroAssembler FINAL : public vixl32::MacroAssembler {
   using MacroAssembler::Vmov;
 };
 
-class ArmVIXLAssembler FINAL : public Assembler {
+class ArmVIXLAssembler final : public Assembler {
  private:
   class ArmException;
  public:
@@ -170,19 +170,19 @@ class ArmVIXLAssembler FINAL : public Assembler {
 
   virtual ~ArmVIXLAssembler() {}
   ArmVIXLMacroAssembler* GetVIXLAssembler() { return &vixl_masm_; }
-  void FinalizeCode() OVERRIDE;
+  void FinalizeCode() override;
 
   // Size of generated code.
-  size_t CodeSize() const OVERRIDE;
-  const uint8_t* CodeBufferBaseAddress() const OVERRIDE;
+  size_t CodeSize() const override;
+  const uint8_t* CodeBufferBaseAddress() const override;
 
   // Copy instructions out of assembly buffer into the given region of memory.
-  void FinalizeInstructions(const MemoryRegion& region) OVERRIDE;
+  void FinalizeInstructions(const MemoryRegion& region) override;
 
-  void Bind(Label* label ATTRIBUTE_UNUSED) OVERRIDE {
+  void Bind(Label* label ATTRIBUTE_UNUSED) override {
     UNIMPLEMENTED(FATAL) << "Do not use Bind for ARM";
   }
-  void Jump(Label* label ATTRIBUTE_UNUSED) OVERRIDE {
+  void Jump(Label* label ATTRIBUTE_UNUSED) override {
     UNIMPLEMENTED(FATAL) << "Do not use Jump for ARM";
   }
 

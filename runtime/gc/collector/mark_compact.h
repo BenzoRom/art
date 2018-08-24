@@ -61,7 +61,7 @@ class MarkCompact : public GarbageCollector {
   explicit MarkCompact(Heap* heap, const std::string& name_prefix = "");
   ~MarkCompact() {}
 
-  virtual void RunPhases() OVERRIDE NO_THREAD_SAFETY_ANALYSIS;
+  virtual void RunPhases() override NO_THREAD_SAFETY_ANALYSIS;
   void InitializePhase();
   void MarkingPhase() REQUIRES(Locks::mutator_lock_)
       REQUIRES(!Locks::heap_bitmap_lock_);
@@ -70,10 +70,10 @@ class MarkCompact : public GarbageCollector {
   void FinishPhase() REQUIRES(Locks::mutator_lock_);
   void MarkReachableObjects()
       REQUIRES(Locks::mutator_lock_, Locks::heap_bitmap_lock_);
-  virtual GcType GetGcType() const OVERRIDE {
+  virtual GcType GetGcType() const override {
     return kGcTypePartial;
   }
-  virtual CollectorType GetCollectorType() const OVERRIDE {
+  virtual CollectorType GetCollectorType() const override {
     return kCollectorTypeMC;
   }
 
@@ -114,11 +114,11 @@ class MarkCompact : public GarbageCollector {
       REQUIRES_SHARED(Locks::heap_bitmap_lock_, Locks::mutator_lock_);
 
   virtual void VisitRoots(mirror::Object*** roots, size_t count, const RootInfo& info)
-      OVERRIDE REQUIRES(Locks::mutator_lock_, Locks::heap_bitmap_lock_);
+      override REQUIRES(Locks::mutator_lock_, Locks::heap_bitmap_lock_);
 
   virtual void VisitRoots(mirror::CompressedReference<mirror::Object>** roots, size_t count,
                           const RootInfo& info)
-      OVERRIDE REQUIRES(Locks::mutator_lock_, Locks::heap_bitmap_lock_);
+      override REQUIRES(Locks::mutator_lock_, Locks::heap_bitmap_lock_);
 
   // Schedules an unmarked object for reference processing.
   void DelayReferenceReferent(ObjPtr<mirror::Class> klass, ObjPtr<mirror::Reference> reference)
@@ -167,16 +167,16 @@ class MarkCompact : public GarbageCollector {
   // Move a single object to its forward address.
   void MoveObject(mirror::Object* obj, size_t len) REQUIRES(Locks::mutator_lock_);
   // Mark a single object.
-  virtual mirror::Object* MarkObject(mirror::Object* obj) OVERRIDE
+  virtual mirror::Object* MarkObject(mirror::Object* obj) override
       REQUIRES(Locks::heap_bitmap_lock_, Locks::mutator_lock_);
   virtual void MarkHeapReference(mirror::HeapReference<mirror::Object>* obj_ptr,
-                                 bool do_atomic_update) OVERRIDE
+                                 bool do_atomic_update) override
       REQUIRES(Locks::heap_bitmap_lock_, Locks::mutator_lock_);
-  virtual mirror::Object* IsMarked(mirror::Object* obj) OVERRIDE
+  virtual mirror::Object* IsMarked(mirror::Object* obj) override
       REQUIRES_SHARED(Locks::heap_bitmap_lock_)
       REQUIRES(Locks::mutator_lock_);
   virtual bool IsNullOrMarkedHeapReference(mirror::HeapReference<mirror::Object>* obj,
-                                           bool do_atomic_update) OVERRIDE
+                                           bool do_atomic_update) override
       REQUIRES_SHARED(Locks::heap_bitmap_lock_)
       REQUIRES(Locks::mutator_lock_);
   void ForwardObject(mirror::Object* obj) REQUIRES(Locks::heap_bitmap_lock_,

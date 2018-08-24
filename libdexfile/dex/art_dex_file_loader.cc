@@ -39,9 +39,9 @@ namespace {
 class MemMapContainer : public DexFileContainer {
  public:
   explicit MemMapContainer(std::unique_ptr<MemMap>&& mem_map) : mem_map_(std::move(mem_map)) { }
-  virtual ~MemMapContainer() OVERRIDE { }
+  virtual ~MemMapContainer() override { }
 
-  int GetPermissions() OVERRIDE {
+  int GetPermissions() override {
     if (mem_map_.get() == nullptr) {
       return 0;
     } else {
@@ -49,11 +49,11 @@ class MemMapContainer : public DexFileContainer {
     }
   }
 
-  bool IsReadOnly() OVERRIDE {
+  bool IsReadOnly() override {
     return GetPermissions() == PROT_READ;
   }
 
-  bool EnableWrite() OVERRIDE {
+  bool EnableWrite() override {
     CHECK(IsReadOnly());
     if (mem_map_.get() == nullptr) {
       return false;
@@ -62,7 +62,7 @@ class MemMapContainer : public DexFileContainer {
     }
   }
 
-  bool DisableWrite() OVERRIDE {
+  bool DisableWrite() override {
     CHECK(!IsReadOnly());
     if (mem_map_.get() == nullptr) {
       return false;

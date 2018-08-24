@@ -164,7 +164,7 @@ class DexMember {
   const ClassDataItemIterator& it_;
 };
 
-class HiddenApi FINAL {
+class HiddenApi final {
  public:
   HiddenApi() : print_hidden_api_(false) {}
 

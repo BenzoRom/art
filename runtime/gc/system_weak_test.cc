@@ -43,7 +43,7 @@ struct CountingSystemWeakHolder : public SystemWeakHolder {
         disallow_count_(0),
         sweep_count_(0) {}
 
-  void Allow() OVERRIDE
+  void Allow() override
       REQUIRES_SHARED(Locks::mutator_lock_)
       REQUIRES(!allow_disallow_lock_) {
     SystemWeakHolder::Allow();
@@ -51,7 +51,7 @@ struct CountingSystemWeakHolder : public SystemWeakHolder {
     allow_count_++;
   }
 
-  void Disallow() OVERRIDE
+  void Disallow() override
       REQUIRES_SHARED(Locks::mutator_lock_)
       REQUIRES(!allow_disallow_lock_) {
     SystemWeakHolder::Disallow();
@@ -59,7 +59,7 @@ struct CountingSystemWeakHolder : public SystemWeakHolder {
     disallow_count_++;
   }
 
-  void Broadcast(bool broadcast_for_checkpoint) OVERRIDE
+  void Broadcast(bool broadcast_for_checkpoint) override
       REQUIRES(!allow_disallow_lock_) {
     SystemWeakHolder::Broadcast(broadcast_for_checkpoint);
 
@@ -69,7 +69,7 @@ struct CountingSystemWeakHolder : public SystemWeakHolder {
     }
   }
 
-  void Sweep(IsMarkedVisitor* visitor) OVERRIDE
+  void Sweep(IsMarkedVisitor* visitor) override
       REQUIRES_SHARED(Locks::mutator_lock_)
       REQUIRES(!allow_disallow_lock_) {
     MutexLock mu(Thread::Current(), allow_disallow_lock_);

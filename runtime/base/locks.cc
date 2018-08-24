@@ -98,7 +98,7 @@ static void BackOff(uint32_t i) {
   }
 }
 
-class Locks::ScopedExpectedMutexesOnWeakRefAccessLock FINAL {
+class Locks::ScopedExpectedMutexesOnWeakRefAccessLock final {
  public:
   explicit ScopedExpectedMutexesOnWeakRefAccessLock(const BaseMutex* mutex) : mutex_(mutex) {
     for (uint32_t i = 0;

@@ -642,13 +642,13 @@ extern "C" mirror::Object* artQuickGetProxyThisObject(ArtMethod** sp)
 }
 
 // Visits arguments on the stack placing them into the shadow frame.
-class BuildQuickShadowFrameVisitor FINAL : public QuickArgumentVisitor {
+class BuildQuickShadowFrameVisitor final : public QuickArgumentVisitor {
  public:
   BuildQuickShadowFrameVisitor(ArtMethod** sp, bool is_static, const char* shorty,
                                uint32_t shorty_len, ShadowFrame* sf, size_t first_arg_reg) :
       QuickArgumentVisitor(sp, is_static, shorty, shorty_len), sf_(sf), cur_reg_(first_arg_reg) {}
 
-  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) OVERRIDE;
+  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) override;
 
  private:
   ShadowFrame* const sf_;
@@ -734,7 +734,7 @@ static void HandleDeoptimization(JValue* result,
       explicit DummyStackVisitor(Thread* self_in) REQUIRES_SHARED(Locks::mutator_lock_)
           : StackVisitor(self_in, nullptr, StackVisitor::StackWalkKind::kIncludeInlinedFrames) {}
 
-      bool VisitFrame() OVERRIDE REQUIRES_SHARED(Locks::mutator_lock_) {
+      bool VisitFrame() override REQUIRES_SHARED(Locks::mutator_lock_) {
         // Nothing to do here. In a debug build, SanityCheckFrame will do the work in the walking
         // logic. Just always say we want to continue.
         return true;
@@ -851,13 +851,13 @@ extern "C" uint64_t artQuickToInterpreterBridge(ArtMethod* method, Thread* self,
 
 // Visits arguments on the stack placing them into the args vector, Object* arguments are converted
 // to jobjects.
-class BuildQuickArgumentVisitor FINAL : public QuickArgumentVisitor {
+class BuildQuickArgumentVisitor final : public QuickArgumentVisitor {
  public:
   BuildQuickArgumentVisitor(ArtMethod** sp, bool is_static, const char* shorty, uint32_t shorty_len,
                             ScopedObjectAccessUnchecked* soa, std::vector<jvalue>* args) :
       QuickArgumentVisitor(sp, is_static, shorty, shorty_len), soa_(soa), args_(args) {}
 
-  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) OVERRIDE;
+  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) override;
 
  private:
   ScopedObjectAccessUnchecked* const soa_;
@@ -958,7 +958,7 @@ extern "C" uint64_t artQuickProxyInvokeHandler(
 
 // Visitor returning a reference argument at a given position in a Quick stack frame.
 // NOTE: Only used for testing purposes.
-class GetQuickReferenceArgumentAtVisitor FINAL : public QuickArgumentVisitor {
+class GetQuickReferenceArgumentAtVisitor final : public QuickArgumentVisitor {
  public:
   GetQuickReferenceArgumentAtVisitor(ArtMethod** sp,
                                      const char* shorty,
@@ -971,7 +971,7 @@ class GetQuickReferenceArgumentAtVisitor FINAL : public QuickArgumentVisitor {
           CHECK_LT(arg_pos, shorty_len) << "Argument position greater than the number arguments";
         }
 
-  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) OVERRIDE {
+  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) override {
     if (cur_pos_ == arg_pos_) {
       Primitive::Type type = GetParamPrimitiveType();
       CHECK_EQ(type, Primitive::kPrimNot) << "Argument at searched position is not a reference";
@@ -1013,7 +1013,7 @@ extern "C" StackReference<mirror::Object>* artQuickGetProxyReferenceArgumentAt(s
 }
 
 // Visitor returning all the reference arguments in a Quick stack frame.
-class GetQuickReferenceArgumentsVisitor FINAL : public QuickArgumentVisitor {
+class GetQuickReferenceArgumentsVisitor final : public QuickArgumentVisitor {
  public:
   GetQuickReferenceArgumentsVisitor(ArtMethod** sp,
                                     bool is_static,
@@ -1021,7 +1021,7 @@ class GetQuickReferenceArgumentsVisitor FINAL : public QuickArgumentVisitor {
                                     uint32_t shorty_len)
       : QuickArgumentVisitor(sp, is_static, shorty, shorty_len) {}
 
-  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) OVERRIDE {
+  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) override {
     Primitive::Type type = GetParamPrimitiveType();
     if (type == Primitive::kPrimNot) {
       StackReference<mirror::Object>* ref_arg =
@@ -1058,13 +1058,13 @@ std::vector<StackReference<mirror::Object>*> GetProxyReferenceArguments(ArtMetho
 
 // Read object references held in arguments from quick frames and place in a JNI local references,
 // so they don't get garbage collected.
-class RememberForGcArgumentVisitor FINAL : public QuickArgumentVisitor {
+class RememberForGcArgumentVisitor final : public QuickArgumentVisitor {
  public:
   RememberForGcArgumentVisitor(ArtMethod** sp, bool is_static, const char* shorty,
                                uint32_t shorty_len, ScopedObjectAccessUnchecked* soa) :
       QuickArgumentVisitor(sp, is_static, shorty, shorty_len), soa_(soa) {}
 
-  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) OVERRIDE;
+  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) override;
 
   void FixupReferences() REQUIRES_SHARED(Locks::mutator_lock_);
 
@@ -1985,7 +1985,7 @@ class ComputeNativeCallFrameSize {
   uint32_t num_stack_entries_;
 };
 
-class ComputeGenericJniFrameSize FINAL : public ComputeNativeCallFrameSize {
+class ComputeGenericJniFrameSize final : public ComputeNativeCallFrameSize {
  public:
   explicit ComputeGenericJniFrameSize(bool critical_native)
     : num_handle_scope_references_(0), critical_native_(critical_native) {}
@@ -2066,10 +2066,10 @@ class ComputeGenericJniFrameSize FINAL : public ComputeNativeCallFrameSize {
     return sp8;
   }
 
-  uintptr_t PushHandle(mirror::Object* /* ptr */) OVERRIDE;
+  uintptr_t PushHandle(mirror::Object* /* ptr */) override;
 
   // Add JNIEnv* and jobj/jclass before the shorty-derived elements.
-  void WalkHeader(BuildNativeCallFrameStateMachine<ComputeNativeCallFrameSize>* sm) OVERRIDE
+  void WalkHeader(BuildNativeCallFrameStateMachine<ComputeNativeCallFrameSize>* sm) override
       REQUIRES_SHARED(Locks::mutator_lock_);
 
  private:
@@ -2145,7 +2145,7 @@ class FillNativeCall {
 
 // Visits arguments on the stack placing them into a region lower down the stack for the benefit
 // of transitioning into native code.
-class BuildGenericJniFrameVisitor FINAL : public QuickArgumentVisitor {
+class BuildGenericJniFrameVisitor final : public QuickArgumentVisitor {
  public:
   BuildGenericJniFrameVisitor(Thread* self,
                               bool is_static,
@@ -2178,7 +2178,7 @@ class BuildGenericJniFrameVisitor FINAL : public QuickArgumentVisitor {
     }
   }
 
-  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) OVERRIDE;
+  void Visit() REQUIRES_SHARED(Locks::mutator_lock_) override;
 
   void FinalizeHandleScope(Thread* self) REQUIRES_SHARED(Locks::mutator_lock_);
 
@@ -2196,7 +2196,7 @@ class BuildGenericJniFrameVisitor FINAL : public QuickArgumentVisitor {
 
  private:
   // A class to fill a JNI call. Adds reference/handle-scope management to FillNativeCall.
-  class FillJniCall FINAL : public FillNativeCall {
+  class FillJniCall final : public FillNativeCall {
    public:
     FillJniCall(uintptr_t* gpr_regs, uint32_t* fpr_regs, uintptr_t* stack_args,
                 HandleScope* handle_scope, bool critical_native)
@@ -2205,7 +2205,7 @@ class BuildGenericJniFrameVisitor FINAL : public QuickArgumentVisitor {
         cur_entry_(0),
         critical_native_(critical_native) {}
 
-    uintptr_t PushHandle(mirror::Object* ref) OVERRIDE REQUIRES_SHARED(Locks::mutator_lock_);
+    uintptr_t PushHandle(mirror::Object* ref) override REQUIRES_SHARED(Locks::mutator_lock_);
 
     void Reset(uintptr_t* gpr_regs, uint32_t* fpr_regs, uintptr_t* stack_args, HandleScope* scope) {
       FillNativeCall::Reset(gpr_regs, fpr_regs, stack_args);

@@ -296,7 +296,7 @@ class MarkCompact::UpdateRootVisitor : public RootVisitor {
   explicit UpdateRootVisitor(MarkCompact* collector) : collector_(collector) {}
 
   void VisitRoots(mirror::Object*** roots, size_t count, const RootInfo& info ATTRIBUTE_UNUSED)
-      OVERRIDE REQUIRES(Locks::mutator_lock_)
+      override REQUIRES(Locks::mutator_lock_)
       REQUIRES_SHARED(Locks::heap_bitmap_lock_) {
     for (size_t i = 0; i < count; ++i) {
       mirror::Object* obj = *roots[i];
@@ -310,7 +310,7 @@ class MarkCompact::UpdateRootVisitor : public RootVisitor {
 
   void VisitRoots(mirror::CompressedReference<mirror::Object>** roots, size_t count,
                   const RootInfo& info ATTRIBUTE_UNUSED)
-      OVERRIDE REQUIRES(Locks::mutator_lock_)
+      override REQUIRES(Locks::mutator_lock_)
       REQUIRES_SHARED(Locks::heap_bitmap_lock_) {
     for (size_t i = 0; i < count; ++i) {
       mirror::Object* obj = roots[i]->AsMirrorPtr();

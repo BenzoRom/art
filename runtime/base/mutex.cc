@@ -80,7 +80,7 @@ static void BackOff(uint32_t i) {
   }
 }
 
-class ScopedAllMutexesLock FINAL {
+class ScopedAllMutexesLock final {
  public:
   explicit ScopedAllMutexesLock(const BaseMutex* mutex) : mutex_(mutex) {
     for (uint32_t i = 0;
@@ -100,7 +100,7 @@ class ScopedAllMutexesLock FINAL {
 };
 
 // Scoped class that generates events at the beginning and end of lock contention.
-class ScopedContentionRecorder FINAL : public ValueObject {
+class ScopedContentionRecorder final : public ValueObject {
  public:
   ScopedContentionRecorder(BaseMutex* mutex, uint64_t blocked_tid, uint64_t owner_tid)
       : mutex_(kLogLockContentions ? mutex : nullptr),

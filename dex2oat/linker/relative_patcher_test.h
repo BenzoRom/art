@@ -59,11 +59,11 @@ class RelativePatcherTest : public testing::Test {
     patched_code_.reserve(16 * KB);
   }
 
-  void SetUp() OVERRIDE {
+  void SetUp() override {
     Reset();
   }
 
-  void TearDown() OVERRIDE {
+  void TearDown() override {
     thunk_provider_.Reset();
     patcher_.reset();
     bss_begin_ = 0u;
@@ -290,7 +290,7 @@ class RelativePatcherTest : public testing::Test {
 
     void GetThunkCode(const LinkerPatch& patch,
                       /*out*/ ArrayRef<const uint8_t>* code,
-                      /*out*/ std::string* debug_name) OVERRIDE {
+                      /*out*/ std::string* debug_name) override {
       auto it = thunk_map_.find(ThunkKey(patch));
       CHECK(it != thunk_map_.end());
       const ThunkValue& value = it->second;
@@ -369,9 +369,9 @@ class RelativePatcherTest : public testing::Test {
 
   // Map method reference to assinged offset.
   // Wrap the map in a class implementing RelativePatcherTargetProvider.
-  class MethodOffsetMap FINAL : public RelativePatcherTargetProvider {
+  class MethodOffsetMap final : public RelativePatcherTargetProvider {
    public:
-    std::pair<bool, uint32_t> FindMethodOffset(MethodReference ref) OVERRIDE {
+    std::pair<bool, uint32_t> FindMethodOffset(MethodReference ref) override {
       auto it = map.find(ref);
       if (it == map.end()) {
         return std::pair<bool, uint32_t>(false, 0u);

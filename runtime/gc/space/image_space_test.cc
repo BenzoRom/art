@@ -113,7 +113,7 @@ TEST_F(DexoptTest, ValidateOatFile) {
 template <bool kImage, bool kRelocate, bool kPatchoat, bool kImageDex2oat>
 class ImageSpaceLoadingTest : public CommonRuntimeTest {
  protected:
-  void SetUpRuntimeOptions(RuntimeOptions* options) OVERRIDE {
+  void SetUpRuntimeOptions(RuntimeOptions* options) override {
     if (kImage) {
       options->emplace_back(android::base::StringPrintf("-Ximage:%s", GetCoreArtLocation().c_str()),
                             nullptr);

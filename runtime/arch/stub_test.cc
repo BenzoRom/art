@@ -38,7 +38,7 @@ namespace art {
 class StubTest : public CommonRuntimeTest {
  protected:
   // We need callee-save methods set up in the Runtime for exceptions.
-  void SetUp() OVERRIDE {
+  void SetUp() override {
     // Do the normal setup.
     CommonRuntimeTest::SetUp();
 
@@ -55,7 +55,7 @@ class StubTest : public CommonRuntimeTest {
     }
   }
 
-  void SetUpRuntimeOptions(RuntimeOptions *options) OVERRIDE {
+  void SetUpRuntimeOptions(RuntimeOptions *options) override {
     // Use a smaller heap
     for (std::pair<std::string, const void*>& pair : *options) {
       if (pair.first.find("-Xmx") == 0) {
