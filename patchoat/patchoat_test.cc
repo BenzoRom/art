@@ -522,7 +522,7 @@ class PatchoatVerificationTest : public PatchoatTest {
     ASSERT_EQ(rel_shortened_basenames, relocated_image_shortened_basenames);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (!dex2oat_orig_dir_.empty()) {
       ClearDirectory(dex2oat_orig_dir_.c_str(), /*recursive*/ true);
       rmdir(dex2oat_orig_dir_.c_str());

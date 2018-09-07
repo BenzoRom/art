@@ -79,7 +79,7 @@ struct GetStackTraceVisitor : public art::StackVisitor {
   GetStackTraceVisitor(const GetStackTraceVisitor&) = default;
   GetStackTraceVisitor(GetStackTraceVisitor&&) = default;
 
-  bool VisitFrame() REQUIRES_SHARED(art::Locks::mutator_lock_) {
+  bool VisitFrame() override REQUIRES_SHARED(art::Locks::mutator_lock_) {
     art::ArtMethod* m = GetMethod();
     if (m->IsRuntimeMethod()) {
       return true;
@@ -658,7 +658,7 @@ struct GetFrameCountVisitor : public art::StackVisitor {
       : art::StackVisitor(thread, nullptr, art::StackVisitor::StackWalkKind::kIncludeInlinedFrames),
         count(0) {}
 
-  bool VisitFrame() REQUIRES_SHARED(art::Locks::mutator_lock_) {
+  bool VisitFrame() override REQUIRES_SHARED(art::Locks::mutator_lock_) {
     art::ArtMethod* m = GetMethod();
     const bool do_count = !(m == nullptr || m->IsRuntimeMethod());
     if (do_count) {
@@ -730,7 +730,7 @@ struct GetLocationVisitor : public art::StackVisitor {
         caller(nullptr),
         caller_dex_pc(0) {}
 
-  bool VisitFrame() REQUIRES_SHARED(art::Locks::mutator_lock_) {
+  bool VisitFrame() override REQUIRES_SHARED(art::Locks::mutator_lock_) {
     art::ArtMethod* m = GetMethod();
     const bool do_count = !(m == nullptr || m->IsRuntimeMethod());
     if (do_count) {

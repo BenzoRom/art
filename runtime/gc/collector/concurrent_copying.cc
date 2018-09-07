@@ -368,7 +368,7 @@ class ConcurrentCopying::ThreadFlipVisitor : public Closure, public RootVisitor 
 
   void VisitRoots(mirror::Object*** roots,
                   size_t count,
-                  const RootInfo& info ATTRIBUTE_UNUSED)
+                  const RootInfo& info ATTRIBUTE_UNUSED) override
       REQUIRES_SHARED(Locks::mutator_lock_) {
     for (size_t i = 0; i < count; ++i) {
       mirror::Object** root = roots[i];
@@ -384,7 +384,7 @@ class ConcurrentCopying::ThreadFlipVisitor : public Closure, public RootVisitor 
 
   void VisitRoots(mirror::CompressedReference<mirror::Object>** roots,
                   size_t count,
-                  const RootInfo& info ATTRIBUTE_UNUSED)
+                  const RootInfo& info ATTRIBUTE_UNUSED) override
       REQUIRES_SHARED(Locks::mutator_lock_) {
     for (size_t i = 0; i < count; ++i) {
       mirror::CompressedReference<mirror::Object>* const root = roots[i];

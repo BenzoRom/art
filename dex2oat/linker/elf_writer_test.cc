@@ -31,7 +31,7 @@ namespace linker {
 
 class ElfWriterTest : public CommonCompilerTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     ReserveImageSpace();
     CommonCompilerTest::SetUp();
   }

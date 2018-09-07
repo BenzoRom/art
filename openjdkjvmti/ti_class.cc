@@ -270,7 +270,8 @@ struct ClassCallback : public art::ClassLoadCallback {
     }
   }
 
-  void ClassLoad(art::Handle<art::mirror::Class> klass) REQUIRES_SHARED(art::Locks::mutator_lock_) {
+  void ClassLoad(art::Handle<art::mirror::Class> klass) override
+      REQUIRES_SHARED(art::Locks::mutator_lock_) {
     if (event_handler->IsEventEnabledAnywhere(ArtJvmtiEvent::kClassLoad)) {
       art::Thread* thread = art::Thread::Current();
       ScopedLocalRef<jclass> jklass(thread->GetJniEnv(),
@@ -292,7 +293,7 @@ struct ClassCallback : public art::ClassLoadCallback {
 
   void ClassPrepare(art::Handle<art::mirror::Class> temp_klass,
                     art::Handle<art::mirror::Class> klass)
-      REQUIRES_SHARED(art::Locks::mutator_lock_) {
+      override REQUIRES_SHARED(art::Locks::mutator_lock_) {
     if (event_handler->IsEventEnabledAnywhere(ArtJvmtiEvent::kClassPrepare)) {
       art::Thread* thread = art::Thread::Current();
       if (temp_klass.Get() != klass.Get()) {
