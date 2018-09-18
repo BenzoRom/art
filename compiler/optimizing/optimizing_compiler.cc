@@ -623,7 +623,6 @@ void OptimizingCompiler::RunOptimizations(HGraph* graph,
   OptimizationDef optimizations[] = {
     // Initial optimizations.
     OptDef(OptimizationPass::kIntrinsicsRecognizer),
-    OptDef(OptimizationPass::kSharpening),
     OptDef(OptimizationPass::kConstantFolding),
     OptDef(OptimizationPass::kInstructionSimplifier),
     OptDef(OptimizationPass::kDeadCodeElimination,

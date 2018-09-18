@@ -16,13 +16,12 @@
 .super Ljava/lang/Object;
 
 ## CHECK-START: int Main2.rotateLeftBoolean(boolean, int) intrinsics_recognition (after)
-## CHECK-DAG:     <<Method:[ij]\d+>> CurrentMethod
 ## CHECK:         <<ArgVal:z\d+>>  ParameterValue
 ## CHECK:         <<ArgDist:i\d+>> ParameterValue
 ## CHECK-DAG:     <<Zero:i\d+>>    IntConstant 0
 ## CHECK-DAG:     <<One:i\d+>>     IntConstant 1
 ## CHECK-DAG:     <<Val:i\d+>>     Phi [<<One>>,<<Zero>>]
-## CHECK-DAG:     <<Result:i\d+>>  InvokeStaticOrDirect [<<Val>>,<<ArgDist>>,<<Method>>] intrinsic:IntegerRotateLeft
+## CHECK-DAG:     <<Result:i\d+>>  InvokeStaticOrDirect [<<Val>>,<<ArgDist>>] intrinsic:IntegerRotateLeft
 ## CHECK-DAG:                      Return [<<Result>>]
 
 ## CHECK-START: int Main2.rotateLeftBoolean(boolean, int) instruction_simplifier (after)
@@ -92,13 +91,12 @@
 .end method
 
 ## CHECK-START: int Main2.rotateRightBoolean(boolean, int) intrinsics_recognition (after)
-## CHECK-DAG:     <<Method:[ij]\d+>> CurrentMethod
 ## CHECK:         <<ArgVal:z\d+>>  ParameterValue
 ## CHECK:         <<ArgDist:i\d+>> ParameterValue
 ## CHECK-DAG:     <<Zero:i\d+>>    IntConstant 0
 ## CHECK-DAG:     <<One:i\d+>>     IntConstant 1
 ## CHECK-DAG:     <<Val:i\d+>>     Phi [<<One>>,<<Zero>>]
-## CHECK-DAG:     <<Result:i\d+>>  InvokeStaticOrDirect [<<Val>>,<<ArgDist>>,<<Method>>] intrinsic:IntegerRotateRight
+## CHECK-DAG:     <<Result:i\d+>>  InvokeStaticOrDirect [<<Val>>,<<ArgDist>>] intrinsic:IntegerRotateRight
 ## CHECK-DAG:                     Return [<<Result>>]
 
 ## CHECK-START: int Main2.rotateRightBoolean(boolean, int) instruction_simplifier (after)

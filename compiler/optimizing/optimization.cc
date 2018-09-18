@@ -83,8 +83,6 @@ const char* OptimizationPassName(OptimizationPass pass) {
       return HDeadCodeElimination::kDeadCodeEliminationPassName;
     case OptimizationPass::kInliner:
       return HInliner::kInlinerPassName;
-    case OptimizationPass::kSharpening:
-      return HSharpening::kSharpeningPassName;
     case OptimizationPass::kSelectGenerator:
       return HSelectGenerator::kSelectGeneratorPassName;
     case OptimizationPass::kInstructionSimplifier:
@@ -147,7 +145,6 @@ OptimizationPass OptimizationPassByName(const std::string& pass_name) {
   X(OptimizationPass::kLoopOptimization);
   X(OptimizationPass::kScheduling);
   X(OptimizationPass::kSelectGenerator);
-  X(OptimizationPass::kSharpening);
   X(OptimizationPass::kSideEffectsAnalysis);
 #ifdef ART_ENABLE_CODEGEN_arm
   X(OptimizationPass::kInstructionSimplifierArm);
@@ -263,9 +260,6 @@ ArenaVector<HOptimization*> ConstructOptimizations(
                                        pass_name);
         break;
       }
-      case OptimizationPass::kSharpening:
-        opt = new (allocator) HSharpening(graph, codegen, driver, pass_name);
-        break;
       case OptimizationPass::kSelectGenerator:
         opt = new (allocator) HSelectGenerator(graph, handles, stats, pass_name);
         break;
