@@ -38,12 +38,12 @@ class AssemblerMIPS32r5Test : public AssemblerTest<mips::MipsAssembler,
                                                    uint32_t,
                                                    mips::VectorRegister> {
  public:
-  typedef AssemblerTest<mips::MipsAssembler,
-                        mips::MipsLabel,
-                        mips::Register,
-                        mips::FRegister,
-                        uint32_t,
-                        mips::VectorRegister> Base;
+  using Base = AssemblerTest<mips::MipsAssembler,
+                             mips::MipsLabel,
+                             mips::Register,
+                             mips::FRegister,
+                             uint32_t,
+                             mips::VectorRegister>;
 
   AssemblerMIPS32r5Test() :
     instruction_set_features_(MipsInstructionSetFeatures::FromVariant("mips32r5", nullptr)) {

@@ -324,7 +324,7 @@ static void VMRuntime_runHeapTasks(JNIEnv* env, jobject) {
   Runtime::Current()->GetHeap()->GetTaskProcessor()->RunAllTasks(ThreadForEnv(env));
 }
 
-typedef std::map<std::string, ObjPtr<mirror::String>> StringTable;
+using StringTable = std::map<std::string, ObjPtr<mirror::String>>;
 
 class PreloadDexCachesStringsVisitor : public SingleRootVisitor {
  public:

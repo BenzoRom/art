@@ -41,12 +41,12 @@ class AssemblerMIPS64Test : public AssemblerTest<mips64::Mips64Assembler,
                                                  uint32_t,
                                                  mips64::VectorRegister> {
  public:
-  typedef AssemblerTest<mips64::Mips64Assembler,
-                        mips64::Mips64Label,
-                        mips64::GpuRegister,
-                        mips64::FpuRegister,
-                        uint32_t,
-                        mips64::VectorRegister> Base;
+  using Base = AssemblerTest<mips64::Mips64Assembler,
+                             mips64::Mips64Label,
+                             mips64::GpuRegister,
+                             mips64::FpuRegister,
+                             uint32_t,
+                             mips64::VectorRegister>;
 
   AssemblerMIPS64Test()
       : instruction_set_features_(Mips64InstructionSetFeatures::FromVariant("default", nullptr)) {}

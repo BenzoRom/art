@@ -37,11 +37,11 @@ class AssemblerMIPSTest : public AssemblerTest<mips::MipsAssembler,
                                                mips::FRegister,
                                                uint32_t> {
  public:
-  typedef AssemblerTest<mips::MipsAssembler,
-                        mips::MipsLabel,
-                        mips::Register,
-                        mips::FRegister,
-                        uint32_t> Base;
+  using Base = AssemblerTest<mips::MipsAssembler,
+                             mips::MipsLabel,
+                             mips::Register,
+                             mips::FRegister,
+                             uint32_t>;
 
  protected:
   // Get the typically used name for this architecture, e.g., aarch64, x86-64, ...
