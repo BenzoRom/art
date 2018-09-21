@@ -28,7 +28,7 @@ public class Main {
 
   public static boolean doThrow = false;
 
-  /// CHECK-START: float Main.$opt$noinline$absSP(float) intrinsics_recognition (after)
+  /// CHECK-START: float Main.$opt$noinline$absSP(float) builder (after)
   /// CHECK-DAG: <<Result:f\d+>> InvokeStaticOrDirect intrinsic:MathAbsFloat
   /// CHECK-DAG:                 Return [<<Result>>]
   private static float $opt$noinline$absSP(float f) {
@@ -38,7 +38,7 @@ public class Main {
     return Math.abs(f);
   }
 
-  /// CHECK-START: double Main.$opt$noinline$absDP(double) intrinsics_recognition (after)
+  /// CHECK-START: double Main.$opt$noinline$absDP(double) builder (after)
   /// CHECK-DAG: <<Result:d\d+>> InvokeStaticOrDirect intrinsic:MathAbsDouble
   /// CHECK-DAG:                 Return [<<Result>>]
   private static double $opt$noinline$absDP(double d) {

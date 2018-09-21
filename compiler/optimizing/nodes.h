@@ -29,6 +29,7 @@
 #include "base/quasi_atomic.h"
 #include "base/stl_util.h"
 #include "base/transform_array_ref.h"
+#include "art_method.h"
 #include "data_type.h"
 #include "deoptimization_kind.h"
 #include "dex/dex_file.h"
@@ -4248,6 +4249,80 @@ enum IntrinsicExceptions {
   kCanThrow  // Intrinsic may throw exceptions.
 };
 
+// Check that intrinsic enum values fit within space set aside in ArtMethod modifier flags.
+#define CHECK_INTRINSICS_ENUM_VALUES(Name, IsStatic, NeedsEnvironmentOrCache, SideEffects, Exceptions, ...) \
+  static_assert( \
+      static_cast<uint32_t>(Intrinsics::k ## Name) <= (kAccIntrinsicBits >> CTZ(kAccIntrinsicBits)), \
+      "Instrinsics enumeration space overflow.");
+#include "intrinsics_list.h"
+  INTRINSICS_LIST(CHECK_INTRINSICS_ENUM_VALUES)
+#undef INTRINSICS_LIST
+#undef CHECK_INTRINSICS_ENUM_VALUES
+
+// Function that returns whether an intrinsic is static/direct or virtual.
+static inline InvokeType GetIntrinsicInvokeType(Intrinsics i) {
+  switch (i) {
+    case Intrinsics::kNone:
+      return kInterface;  // Non-sensical for intrinsic.
+#define OPTIMIZING_INTRINSICS(Name, IsStatic, NeedsEnvironmentOrCache, SideEffects, Exceptions, ...) \
+    case Intrinsics::k ## Name: \
+      return IsStatic;
+#include "intrinsics_list.h"
+      INTRINSICS_LIST(OPTIMIZING_INTRINSICS)
+#undef INTRINSICS_LIST
+#undef OPTIMIZING_INTRINSICS
+  }
+  return kInterface;
+}
+
+// Function that returns whether an intrinsic needs an environment or not.
+static inline IntrinsicNeedsEnvironmentOrCache NeedsEnvironmentOrCacheIntrinsic(Intrinsics i) {
+  switch (i) {
+    case Intrinsics::kNone:
+      return kNeedsEnvironmentOrCache;  // Non-sensical for intrinsic.
+#define OPTIMIZING_INTRINSICS(Name, IsStatic, NeedsEnvironmentOrCache, SideEffects, Exceptions, ...) \
+    case Intrinsics::k ## Name: \
+      return NeedsEnvironmentOrCache;
+#include "intrinsics_list.h"
+      INTRINSICS_LIST(OPTIMIZING_INTRINSICS)
+#undef INTRINSICS_LIST
+#undef OPTIMIZING_INTRINSICS
+  }
+  return kNeedsEnvironmentOrCache;
+}
+
+// Function that returns whether an intrinsic has side effects.
+static inline IntrinsicSideEffects GetSideEffectsIntrinsic(Intrinsics i) {
+  switch (i) {
+    case Intrinsics::kNone:
+      return kAllSideEffects;
+#define OPTIMIZING_INTRINSICS(Name, IsStatic, NeedsEnvironmentOrCache, SideEffects, Exceptions, ...) \
+    case Intrinsics::k ## Name: \
+      return SideEffects;
+#include "intrinsics_list.h"
+      INTRINSICS_LIST(OPTIMIZING_INTRINSICS)
+#undef INTRINSICS_LIST
+#undef OPTIMIZING_INTRINSICS
+  }
+  return kAllSideEffects;
+}
+
+// Function that returns whether an intrinsic can throw exceptions.
+static inline IntrinsicExceptions GetExceptionsIntrinsic(Intrinsics i) {
+  switch (i) {
+    case Intrinsics::kNone:
+      return kCanThrow;
+#define OPTIMIZING_INTRINSICS(Name, IsStatic, NeedsEnvironmentOrCache, SideEffects, Exceptions, ...) \
+    case Intrinsics::k ## Name: \
+      return Exceptions;
+#include "intrinsics_list.h"
+      INTRINSICS_LIST(OPTIMIZING_INTRINSICS)
+#undef INTRINSICS_LIST
+#undef OPTIMIZING_INTRINSICS
+  }
+  return kCanThrow;
+}
+
 class HInvoke : public HVariableInputSizeInstruction {
  public:
   bool NeedsEnvironment() const OVERRIDE;
@@ -4306,7 +4381,20 @@ class HInvoke : public HVariableInputSizeInstruction {
   bool IsIntrinsic() const { return intrinsic_ != Intrinsics::kNone; }
 
   ArtMethod* GetResolvedMethod() const { return resolved_method_; }
-  void SetResolvedMethod(ArtMethod* method) { resolved_method_ = method; }
+  void SetResolvedMethod(ArtMethod* method) REQUIRES_SHARED(Locks::mutator_lock_) {
+    // TODO: b/65872996 The intent is that polymorphic signature methods should
+    // be compiler intrinsics. At present, they are only interpreter intrinsics.
+    if (method != nullptr &&
+        method->IsIntrinsic() &&
+        !method->IsPolymorphicSignature()) {
+      Intrinsics intrinsic = static_cast<Intrinsics>(method->GetIntrinsic());
+      SetIntrinsic(intrinsic,
+                   NeedsEnvironmentOrCacheIntrinsic(intrinsic),
+                   GetSideEffectsIntrinsic(intrinsic),
+                   GetExceptionsIntrinsic(intrinsic));
+    }
+    resolved_method_ = method;
+  }
 
   DECLARE_ABSTRACT_INSTRUCTION(Invoke);
 
@@ -4338,12 +4426,12 @@ class HInvoke : public HVariableInputSizeInstruction {
           number_of_arguments + number_of_other_inputs,
           kArenaAllocInvokeInputs),
       number_of_arguments_(number_of_arguments),
-      resolved_method_(resolved_method),
       dex_method_index_(dex_method_index),
       intrinsic_(Intrinsics::kNone),
       intrinsic_optimizations_(0) {
     SetPackedField<InvokeTypeField>(invoke_type);
     SetPackedFlag<kFlagCanThrow>(true);
+    SetResolvedMethod(resolved_method);
   }
 
   DEFAULT_COPY_CONSTRUCTOR(Invoke);
