@@ -90,7 +90,7 @@ class MANAGED Class FINAL : public Object {
   static void SetStatus(Handle<Class> h_this, ClassStatus new_status, Thread* self)
       REQUIRES_SHARED(Locks::mutator_lock_) REQUIRES(!Roles::uninterruptible_);
 
-  static MemberOffset StatusOffset() {
+  static constexpr MemberOffset StatusOffset() {
     return MemberOffset(OFFSET_OF_OBJECT_MEMBER(Class, status_));
   }
 
@@ -174,7 +174,7 @@ class MANAGED Class FINAL : public Object {
     return GetField32<kVerifyFlags>(AccessFlagsOffset());
   }
 
-  static MemberOffset AccessFlagsOffset() {
+  static constexpr MemberOffset AccessFlagsOffset() {
     return OFFSET_OF_OBJECT_MEMBER(Class, access_flags_);
   }
 
@@ -347,7 +347,7 @@ class MANAGED Class FINAL : public Object {
     return (access_flags & kAccClassIsProxy) != 0;
   }
 
-  static MemberOffset PrimitiveTypeOffset() {
+  static constexpr MemberOffset PrimitiveTypeOffset() {
     return OFFSET_OF_OBJECT_MEMBER(Class, primitive_type_);
   }
 
@@ -440,7 +440,7 @@ class MANAGED Class FINAL : public Object {
   template<ReadBarrierOption kReadBarrierOption = kWithReadBarrier>
   bool IsReferenceClass() const REQUIRES_SHARED(Locks::mutator_lock_);
 
-  static MemberOffset ComponentTypeOffset() {
+  static constexpr MemberOffset ComponentTypeOffset() {
     return OFFSET_OF_OBJECT_MEMBER(Class, component_type_);
   }
 
@@ -551,10 +551,10 @@ class MANAGED Class FINAL : public Object {
   template<VerifyObjectFlags kVerifyFlags = kDefaultVerifyFlags,
            ReadBarrierOption kReadBarrierOption = kWithReadBarrier>
   uint32_t GetObjectSize() REQUIRES_SHARED(Locks::mutator_lock_);
-  static MemberOffset ObjectSizeOffset() {
+  static constexpr MemberOffset ObjectSizeOffset() {
     return OFFSET_OF_OBJECT_MEMBER(Class, object_size_);
   }
-  static MemberOffset ObjectSizeAllocFastPathOffset() {
+  static constexpr MemberOffset ObjectSizeAllocFastPathOffset() {
     return OFFSET_OF_OBJECT_MEMBER(Class, object_size_alloc_fast_path_);
   }
 
@@ -639,7 +639,7 @@ class MANAGED Class FINAL : public Object {
     return GetSuperClass() != nullptr;
   }
 
-  static MemberOffset SuperClassOffset() {
+  static constexpr MemberOffset SuperClassOffset() {
     return MemberOffset(OFFSETOF_MEMBER(Class, super_class_));
   }
 
@@ -649,11 +649,11 @@ class MANAGED Class FINAL : public Object {
 
   void SetClassLoader(ObjPtr<ClassLoader> new_cl) REQUIRES_SHARED(Locks::mutator_lock_);
 
-  static MemberOffset DexCacheOffset() {
+  static constexpr MemberOffset DexCacheOffset() {
     return MemberOffset(OFFSETOF_MEMBER(Class, dex_cache_));
   }
 
-  static MemberOffset IfTableOffset() {
+  static constexpr MemberOffset IfTableOffset() {
     return MemberOffset(OFFSETOF_MEMBER(Class, iftable_));
   }
 
@@ -678,7 +678,7 @@ class MANAGED Class FINAL : public Object {
   ALWAYS_INLINE LengthPrefixedArray<ArtMethod>* GetMethodsPtr()
       REQUIRES_SHARED(Locks::mutator_lock_);
 
-  static MemberOffset MethodsOffset() {
+  static constexpr MemberOffset MethodsOffset() {
     return MemberOffset(OFFSETOF_MEMBER(Class, methods_));
   }
 
@@ -787,15 +787,15 @@ class MANAGED Class FINAL : public Object {
 
   void SetVTable(PointerArray* new_vtable) REQUIRES_SHARED(Locks::mutator_lock_);
 
-  static MemberOffset VTableOffset() {
+  static constexpr MemberOffset VTableOffset() {
     return OFFSET_OF_OBJECT_MEMBER(Class, vtable_);
   }
 
-  static MemberOffset EmbeddedVTableLengthOffset() {
+  static constexpr MemberOffset EmbeddedVTableLengthOffset() {
     return MemberOffset(sizeof(Class));
   }
 
-  static MemberOffset ImtPtrOffset(PointerSize pointer_size) {
+  static constexpr MemberOffset ImtPtrOffset(PointerSize pointer_size) {
     return MemberOffset(
         RoundUp(EmbeddedVTableLengthOffset().Uint32Value() + sizeof(uint32_t),
                 static_cast<size_t>(pointer_size)));
