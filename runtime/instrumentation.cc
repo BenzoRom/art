@@ -110,7 +110,6 @@ Instrumentation::Instrumentation()
       have_exception_thrown_listeners_(false),
       have_watched_frame_pop_listeners_(false),
       have_branch_listeners_(false),
-      have_invoke_virtual_or_interface_listeners_(false),
       have_exception_handled_listeners_(false),
       deoptimized_methods_lock_("deoptimized methods lock", kGenericBottomLock),
       deoptimization_enabled_(false),
@@ -512,11 +511,6 @@ void Instrumentation::AddListener(InstrumentationListener* listener, uint32_t ev
                            branch_listeners_,
                            listener,
                            &have_branch_listeners_);
-  PotentiallyAddListenerTo(kInvokeVirtualOrInterface,
-                           events,
-                           invoke_virtual_or_interface_listeners_,
-                           listener,
-                           &have_invoke_virtual_or_interface_listeners_);
   PotentiallyAddListenerTo(kDexPcMoved,
                            events,
                            dex_pc_listeners_,
@@ -599,11 +593,6 @@ void Instrumentation::RemoveListener(InstrumentationListener* listener, uint32_t
                                 branch_listeners_,
                                 listener,
                                 &have_branch_listeners_);
-  PotentiallyRemoveListenerFrom(kInvokeVirtualOrInterface,
-                                events,
-                                invoke_virtual_or_interface_listeners_,
-                                listener,
-                                &have_invoke_virtual_or_interface_listeners_);
   PotentiallyRemoveListenerFrom(kDexPcMoved,
                                 events,
                                 dex_pc_listeners_,
@@ -1159,21 +1148,6 @@ void Instrumentation::BranchImpl(Thread* thread,
   for (InstrumentationListener* listener : branch_listeners_) {
     if (listener != nullptr) {
       listener->Branch(thread, method, dex_pc, offset);
-    }
-  }
-}
-
-void Instrumentation::InvokeVirtualOrInterfaceImpl(Thread* thread,
-                                                   ObjPtr<mirror::Object> this_object,
-                                                   ArtMethod* caller,
-                                                   uint32_t dex_pc,
-                                                   ArtMethod* callee) const {
-  Thread* self = Thread::Current();
-  StackHandleScope<1> hs(self);
-  Handle<mirror::Object> thiz(hs.NewHandle(this_object));
-  for (InstrumentationListener* listener : invoke_virtual_or_interface_listeners_) {
-    if (listener != nullptr) {
-      listener->InvokeVirtualOrInterface(thread, thiz, caller, dex_pc, callee);
     }
   }
 }
