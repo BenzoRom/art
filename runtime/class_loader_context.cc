@@ -120,7 +120,7 @@ bool ClassLoaderContext::ParseClassLoaderSpec(const std::string& class_loader_sp
         return false;
       }
       uint32_t checksum = 0;
-      if (!ParseInt(dex_file_with_checksum[1].c_str(), &checksum)) {
+      if (!ParseUint(dex_file_with_checksum[1].c_str(), &checksum)) {
         return false;
       }
       class_loader_chain_.back().classpath.push_back(dex_file_with_checksum[0]);
