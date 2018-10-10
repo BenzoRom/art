@@ -42,7 +42,7 @@ constexpr bool kMemoryToolIsAvailable = false;
 
 extern "C" void __asan_handle_no_return();
 
-#define ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
+# define ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address, noinline))
 #define MEMORY_TOOL_HANDLE_NO_RETURN __asan_handle_no_return()
 #define RUNNING_ON_MEMORY_TOOL 1U
 constexpr bool kMemoryToolIsValgrind = false;
