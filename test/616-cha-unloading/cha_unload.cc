@@ -19,6 +19,7 @@
 #include <iostream>
 
 #include "art_method.h"
+#include "base/casts.h"
 #include "jit/jit.h"
 #include "linear_alloc.h"
 #include "nativehelper/ScopedUtfChars.h"
@@ -34,7 +35,7 @@ extern "C" JNIEXPORT jlong JNICALL Java_Main_getArtMethod(JNIEnv* env,
                                                           jobject java_method) {
   ScopedObjectAccess soa(env);
   ArtMethod* method = ArtMethod::FromReflectedMethod(soa, java_method);
-  return static_cast<jlong>(reinterpret_cast<uintptr_t>(method));
+  return reinterpret_cast64<jlong>(method);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_Main_reuseArenaOfMethod(JNIEnv*,
