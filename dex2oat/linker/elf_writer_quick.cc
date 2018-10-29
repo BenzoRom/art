@@ -17,6 +17,7 @@
 #include "elf_writer_quick.h"
 
 #include <openssl/sha.h>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -253,16 +254,15 @@ void ElfWriterQuick<ElfTypes>::PrepareDebugInfo(const debug::DebugInfo& debug_in
   if (!debug_info.Empty() && compiler_options_->GetGenerateMiniDebugInfo()) {
     // Prepare the mini-debug-info in background while we do other I/O.
     Thread* self = Thread::Current();
-    debug_info_task_ = std::unique_ptr<DebugInfoTask>(
-        new DebugInfoTask(builder_->GetIsa(),
-                          instruction_set_features_,
-                          builder_->GetText()->GetAddress(),
-                          text_size_,
-                          builder_->GetDex()->Exists() ? builder_->GetDex()->GetAddress() : 0,
-                          dex_section_size_,
-                          debug_info));
-    debug_info_thread_pool_ = std::unique_ptr<ThreadPool>(
-        new ThreadPool("Mini-debug-info writer", 1));
+    debug_info_task_ = std::make_unique<DebugInfoTask>(
+        builder_->GetIsa(),
+        instruction_set_features_,
+        builder_->GetText()->GetAddress(),
+        text_size_,
+        builder_->GetDex()->Exists() ? builder_->GetDex()->GetAddress() : 0,
+        dex_section_size_,
+        debug_info);
+    debug_info_thread_pool_ = std::make_unique<ThreadPool>("Mini-debug-info writer", 1);
     debug_info_thread_pool_->AddTask(self, debug_info_task_.get());
     debug_info_thread_pool_->StartWorkers(self);
   }
