@@ -82,8 +82,7 @@ art_cc_binary {
         "libprofile",
         "libart-compiler",
         "libart-disassembler",
-        "libvixl-arm",
-        "libvixl-arm64",
+        "libvixl",
     ] + art_static_dependencies,
 }
 
@@ -114,8 +113,7 @@ art_cc_binary {
         "libprofiled",
         "libartd-compiler",
         "libartd-disassembler",
-        "libvixld-arm",
-        "libvixld-arm64",
+        "libvixld",
     ] + art_static_dependencies,
 }
 
