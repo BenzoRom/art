@@ -98,6 +98,9 @@ class Arm64InstructionSetFeatures FINAL : public InstructionSetFeatures {
       AddFeaturesFromSplitString(const std::vector<std::string>& features,
                                  std::string* error_msg) const OVERRIDE;
 
+  std::unique_ptr<const InstructionSetFeatures>
+      AddRuntimeDetectedFeatures(const InstructionSetFeatures *features) const override;
+
  private:
   Arm64InstructionSetFeatures(bool needs_a53_835769_fix,
                               bool needs_a53_843419_fix,
