@@ -241,7 +241,6 @@ class Transaction FINAL {
         REQUIRES(Locks::intern_table_lock_);
     void VisitRoots(RootVisitor* visitor) REQUIRES_SHARED(Locks::mutator_lock_);
 
-    InternStringLog() = default;
     InternStringLog(InternStringLog&& log) = default;
 
    private:

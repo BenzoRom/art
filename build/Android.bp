@@ -32,7 +32,6 @@ art_global_defaults {
         "-fstrict-aliasing",
         "-Wunreachable-code",
         "-Wredundant-decls",
-        "-Wshadow",
         "-Wunused",
         "-fvisibility=protected",
 
