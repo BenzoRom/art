@@ -17,19 +17,17 @@
 #ifndef ART_DEX2OAT_LINKER_RELATIVE_PATCHER_TEST_H_
 #define ART_DEX2OAT_LINKER_RELATIVE_PATCHER_TEST_H_
 
+#include <gtest/gtest.h>
+
 #include "arch/instruction_set.h"
 #include "arch/instruction_set_features.h"
 #include "base/array_ref.h"
 #include "base/globals.h"
 #include "base/macros.h"
-#include "common_compiler_test.h"
 #include "compiled_method-inl.h"
-#include "dex/verification_results.h"
 #include "dex/method_reference.h"
 #include "dex/string_reference.h"
-#include "driver/compiler_driver.h"
-#include "driver/compiler_options.h"
-#include "gtest/gtest.h"
+#include "driver/compiled_method_storage.h"
 #include "linker/relative_patcher.h"
 #include "linker/vector_output_stream.h"
 #include "oat.h"
@@ -39,10 +37,12 @@ namespace art {
 namespace linker {
 
 // Base class providing infrastructure for architecture-specific tests.
-class RelativePatcherTest : public CommonCompilerTest {
+class RelativePatcherTest : public testing::Test {
  protected:
   RelativePatcherTest(InstructionSet instruction_set, const std::string& variant)
-      : variant_(variant),
+      : storage_(/*swap_fd=*/ -1),
+        instruction_set_(instruction_set),
+        instruction_set_features_(nullptr),
         method_offset_map_(),
         patcher_(nullptr),
         bss_begin_(0u),
@@ -50,26 +50,47 @@ class RelativePatcherTest : public CommonCompilerTest {
         compiled_methods_(),
         patched_code_(),
         output_(),
-        out_("test output stream", &output_) {
-    // Override CommonCompilerTest's defaults.
-    instruction_set_ = instruction_set;
-    number_of_threads_ = 1u;
+        out_(nullptr) {
+    std::string error_msg;
+    instruction_set_features_ =
+        InstructionSetFeatures::FromVariant(instruction_set, variant, &error_msg);
+    CHECK(instruction_set_features_ != nullptr) << error_msg;
+
     patched_code_.reserve(16 * KB);
   }
 
   void SetUp() OVERRIDE {
-    OverrideInstructionSetFeatures(instruction_set_, variant_);
-    CommonCompilerTest::SetUp();
-
-    patcher_ = RelativePatcher::Create(compiler_options_->GetInstructionSet(),
-                                       compiler_options_->GetInstructionSetFeatures(),
-                                       &thunk_provider_,
-                                       &method_offset_map_);
+    Reset();
   }
 
   void TearDown() OVERRIDE {
+    thunk_provider_.Reset();
     patcher_.reset();
-    CommonCompilerTest::TearDown();
+    bss_begin_ = 0u;
+    string_index_to_offset_map_.clear();
+    compiled_method_refs_.clear();
+    compiled_methods_.clear();
+    patched_code_.clear();
+    output_.clear();
+    out_.reset();
+  }
+
+  // Reset the helper to start another test. Creating and tearing down the Runtime is expensive,
+  // so we merge related tests together.
+  void Reset() {
+    thunk_provider_.Reset();
+    method_offset_map_.map.clear();
+    patcher_ = RelativePatcher::Create(instruction_set_,
+                                       instruction_set_features_.get(),
+                                       &thunk_provider_,
+                                       &method_offset_map_);
+    bss_begin_ = 0u;
+    string_index_to_offset_map_.clear();
+    compiled_method_refs_.clear();
+    compiled_methods_.clear();
+    patched_code_.clear();
+    output_.clear();
+    out_.reset(new VectorOutputStream("test output stream", &output_));
   }
 
   MethodReference MethodRef(uint32_t method_idx) {
@@ -83,7 +104,7 @@ class RelativePatcherTest : public CommonCompilerTest {
       const ArrayRef<const LinkerPatch>& patches = ArrayRef<const LinkerPatch>()) {
     compiled_method_refs_.push_back(method_ref);
     compiled_methods_.emplace_back(new CompiledMethod(
-        compiler_driver_.get(),
+        &storage_,
         instruction_set_,
         code,
         /* frame_size_in_bytes */ 0u,
@@ -130,7 +151,7 @@ class RelativePatcherTest : public CommonCompilerTest {
     DCHECK(output_.empty());
     uint8_t dummy_trampoline[kTrampolineSize];
     memset(dummy_trampoline, 0, sizeof(dummy_trampoline));
-    out_.WriteFully(dummy_trampoline, kTrampolineSize);
+    out_->WriteFully(dummy_trampoline, kTrampolineSize);
     offset = kTrampolineSize;
     static const uint8_t kPadding[] = {
         0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u
@@ -138,14 +159,14 @@ class RelativePatcherTest : public CommonCompilerTest {
     uint8_t dummy_header[sizeof(OatQuickMethodHeader)];
     memset(dummy_header, 0, sizeof(dummy_header));
     for (auto& compiled_method : compiled_methods_) {
-      offset = patcher_->WriteThunks(&out_, offset);
+      offset = patcher_->WriteThunks(out_.get(), offset);
 
       uint32_t alignment_size = CodeAlignmentSize(offset);
       CHECK_LE(alignment_size, sizeof(kPadding));
-      out_.WriteFully(kPadding, alignment_size);
+      out_->WriteFully(kPadding, alignment_size);
       offset += alignment_size;
 
-      out_.WriteFully(dummy_header, sizeof(OatQuickMethodHeader));
+      out_->WriteFully(dummy_header, sizeof(OatQuickMethodHeader));
       offset += sizeof(OatQuickMethodHeader);
       ArrayRef<const uint8_t> code = compiled_method->GetQuickCode();
       if (!compiled_method->GetPatches().empty()) {
@@ -182,10 +203,10 @@ class RelativePatcherTest : public CommonCompilerTest {
           }
         }
       }
-      out_.WriteFully(&code[0], code.size());
+      out_->WriteFully(&code[0], code.size());
       offset += code.size();
     }
-    offset = patcher_->WriteThunks(&out_, offset);
+    offset = patcher_->WriteThunks(out_.get(), offset);
     CHECK_EQ(offset, output_size);
     CHECK_EQ(output_.size(), output_size);
   }
@@ -273,6 +294,10 @@ class RelativePatcherTest : public CommonCompilerTest {
       *debug_name = value.GetDebugName();
     }
 
+    void Reset() {
+      thunk_map_.clear();
+    }
+
    private:
     class ThunkKey {
      public:
@@ -335,7 +360,10 @@ class RelativePatcherTest : public CommonCompilerTest {
   static const uint32_t kTrampolineSize = 4u;
   static const uint32_t kTrampolineOffset = 0u;
 
-  std::string variant_;
+  CompiledMethodStorage storage_;
+  InstructionSet instruction_set_;
+  std::unique_ptr<const InstructionSetFeatures> instruction_set_features_;
+
   ThunkProvider thunk_provider_;
   MethodOffsetMap method_offset_map_;
   std::unique_ptr<RelativePatcher> patcher_;
@@ -345,7 +373,7 @@ class RelativePatcherTest : public CommonCompilerTest {
   std::vector<std::unique_ptr<CompiledMethod>> compiled_methods_;
   std::vector<uint8_t> patched_code_;
   std::vector<uint8_t> output_;
-  VectorOutputStream out_;
+  std::unique_ptr<VectorOutputStream> out_;
 };
 
 }  // namespace linker

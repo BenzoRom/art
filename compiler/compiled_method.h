@@ -28,7 +28,6 @@
 namespace art {
 
 template <typename T> class ArrayRef;
-class CompilerDriver;
 class CompiledMethodStorage;
 template<typename T> class LengthPrefixedArray;
 
@@ -39,7 +38,7 @@ class LinkerPatch;
 class CompiledCode {
  public:
   // For Quick to supply an code blob
-  CompiledCode(CompilerDriver* compiler_driver,
+  CompiledCode(CompiledMethodStorage* storage,
                InstructionSet instruction_set,
                const ArrayRef<const uint8_t>& quick_code);
 
@@ -78,8 +77,8 @@ class CompiledCode {
   template <typename T>
   static ArrayRef<const T> GetArray(const LengthPrefixedArray<T>* array);
 
-  CompilerDriver* GetCompilerDriver() {
-    return compiler_driver_;
+  CompiledMethodStorage* GetStorage() {
+    return storage_;
   }
 
   template <typename BitFieldType>
@@ -96,7 +95,7 @@ class CompiledCode {
  private:
   using InstructionSetField = BitField<InstructionSet, 0u, kInstructionSetFieldSize>;
 
-  CompilerDriver* const compiler_driver_;
+  CompiledMethodStorage* const storage_;
 
   // Used to store the compiled code.
   const LengthPrefixedArray<uint8_t>* const quick_code_;
@@ -109,7 +108,7 @@ class CompiledMethod FINAL : public CompiledCode {
   // Constructs a CompiledMethod.
   // Note: Consider using the static allocation methods below that will allocate the CompiledMethod
   //       in the swap space.
-  CompiledMethod(CompilerDriver* driver,
+  CompiledMethod(CompiledMethodStorage* storage,
                  InstructionSet instruction_set,
                  const ArrayRef<const uint8_t>& quick_code,
                  const size_t frame_size_in_bytes,
@@ -123,7 +122,7 @@ class CompiledMethod FINAL : public CompiledCode {
   virtual ~CompiledMethod();
 
   static CompiledMethod* SwapAllocCompiledMethod(
-      CompilerDriver* driver,
+      CompiledMethodStorage* storage,
       InstructionSet instruction_set,
       const ArrayRef<const uint8_t>& quick_code,
       const size_t frame_size_in_bytes,
@@ -134,7 +133,7 @@ class CompiledMethod FINAL : public CompiledCode {
       const ArrayRef<const uint8_t>& cfi_info,
       const ArrayRef<const linker::LinkerPatch>& patches);
 
-  static void ReleaseSwapAllocatedCompiledMethod(CompilerDriver* driver, CompiledMethod* m);
+  static void ReleaseSwapAllocatedCompiledMethod(CompiledMethodStorage* storage, CompiledMethod* m);
 
   bool IsIntrinsic() const {
     return GetPackedField<IsIntrinsicField>();
