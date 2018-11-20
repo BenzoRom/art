@@ -26,7 +26,7 @@
 namespace art {
 
 const uint8_t ImageHeader::kImageMagic[] = { 'a', 'r', 't', '\n' };
-const uint8_t ImageHeader::kImageVersion[] = { '0', '6', '1', '\0' };  // Added CRC32 intrinsic
+const uint8_t ImageHeader::kImageVersion[] = { '0', '6', '1', '\0' };  // CRC32UpdateBytes intrinsic
 
 ImageHeader::ImageHeader(uint32_t image_begin,
                          uint32_t image_size,
