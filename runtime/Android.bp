@@ -23,6 +23,7 @@ cc_defaults {
         "art_field.cc",
         "art_method.cc",
         "barrier.cc",
+        "base/locks.cc",
         "base/mem_map_arena_pool.cc",
         "base/mutex.cc",
         "base/quasi_atomic.cc",
@@ -394,7 +395,7 @@ gensrcs {
     cmd: "$(location generate_operator_out) art/runtime $(in) > $(out)",
     tools: ["generate_operator_out"],
     srcs: [
-        "base/mutex.h",
+        "base/locks.h",
         "class_status.h",
         "debugger.h",
         "gc_root.h",
