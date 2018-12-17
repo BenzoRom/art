@@ -399,6 +399,7 @@ inline HiddenApiAccessFlags::ApiList ArtMethod::GetHiddenApiAccessFlags()
       case Intrinsics::kReferenceGetReferent:
       case Intrinsics::kCRC32Update:
       case Intrinsics::kCRC32UpdateBytes:
+      case Intrinsics::kCRC32UpdateByteBuffer:
         // These intrinsics are on the light greylist and will fail a DCHECK in
         // SetIntrinsic() if their flags change on the respective dex methods.
         // Note that the DCHECK currently won't fail if the dex methods are
