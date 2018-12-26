@@ -160,7 +160,7 @@ class PassObserver : public ValueObject {
     VLOG(compiler) << "Starting pass: " << pass_name;
     // Dump graph first, then start timer.
     if (visualizer_enabled_) {
-      visualizer_.DumpGraph(pass_name, /* is_after_pass */ false, graph_in_bad_state_);
+      visualizer_.DumpGraph(pass_name, /* is_after_pass= */ false, graph_in_bad_state_);
       FlushVisualizer();
     }
     if (timing_logger_enabled_) {
@@ -182,7 +182,7 @@ class PassObserver : public ValueObject {
       timing_logger_.EndTiming();
     }
     if (visualizer_enabled_) {
-      visualizer_.DumpGraph(pass_name, /* is_after_pass */ true, graph_in_bad_state_);
+      visualizer_.DumpGraph(pass_name, /* is_after_pass= */ true, graph_in_bad_state_);
       FlushVisualizer();
     }
 
@@ -926,7 +926,7 @@ CodeGenerator* OptimizingCompiler::TryCompileIntrinsic(
       compiler_driver->GetCompilerOptions().GetInstructionSet(),
       kInvalidInvokeType,
       compiler_driver->GetCompilerOptions().GetDebuggable(),
-      /* osr */ false);
+      /* osr= */ false);
 
   DCHECK(Runtime::Current()->IsAotCompiler());
   DCHECK(method != nullptr);
@@ -957,7 +957,7 @@ CodeGenerator* OptimizingCompiler::TryCompileIntrinsic(
                           compiler_driver,
                           codegen.get(),
                           compilation_stats_.get(),
-                          /* interpreter_metadata */ ArrayRef<const uint8_t>(),
+                          /* interpreter_metadata= */ ArrayRef<const uint8_t>(),
                           handles);
     builder.BuildIntrinsicGraph(method);
   }
@@ -1027,7 +1027,7 @@ CompiledMethod* OptimizingCompiler::Compile(const DexFile::CodeItem* code_item,
           class_def_idx,
           method_idx,
           access_flags,
-          /* verified_method */ nullptr,  // Not needed by the Optimizing compiler.
+          /* verified_method= */ nullptr,  // Not needed by the Optimizing compiler.
           dex_cache);
       ScopedObjectAccess soa(Thread::Current());
       ArtMethod* method = compiler_driver->ResolveMethod(
@@ -1055,7 +1055,7 @@ CompiledMethod* OptimizingCompiler::Compile(const DexFile::CodeItem* code_item,
                        &code_allocator,
                        dex_compilation_unit,
                        method,
-                       /* osr */ false,
+                       /* osr= */ false,
                        &handles));
       }
     }
@@ -1115,18 +1115,18 @@ CompiledMethod* OptimizingCompiler::JniCompile(uint32_t access_flags,
     ScopedObjectAccess soa(Thread::Current());
     Runtime* runtime = Runtime::Current();
     ArtMethod* method = runtime->GetClassLinker()->LookupResolvedMethod(
-        method_idx, dex_cache.Get(), /* class_loader */ nullptr);
+        method_idx, dex_cache.Get(), /* class_loader= */ nullptr);
     if (method != nullptr && UNLIKELY(method->IsIntrinsic())) {
       ScopedNullHandle<mirror::ClassLoader> class_loader;  // null means boot class path loader.
       DexCompilationUnit dex_compilation_unit(
           class_loader,
           runtime->GetClassLinker(),
           dex_file,
-          /* code_item */ nullptr,
-          /* class_def_idx */ DexFile::kDexNoIndex16,
+          /* code_item= */ nullptr,
+          /* class_def_idx= */ DexFile::kDexNoIndex16,
           method_idx,
           access_flags,
-          /* verified_method */ nullptr,
+          /* verified_method= */ nullptr,
           dex_cache);
       ArenaAllocator allocator(runtime->GetArenaPool());
       ArenaStack arena_stack(runtime->GetArenaPool());
@@ -1145,7 +1145,7 @@ CompiledMethod* OptimizingCompiler::JniCompile(uint32_t access_flags,
         CompiledMethod* compiled_method = Emit(&allocator,
                                                &code_allocator,
                                                codegen.get(),
-                                               /* code_item_for_osr_check */ nullptr);
+                                               /* item= */ nullptr);
         compiled_method->MarkAsIntrinsic();
         return compiled_method;
       }
@@ -1162,10 +1162,10 @@ CompiledMethod* OptimizingCompiler::JniCompile(uint32_t access_flags,
       jni_compiled_method.GetFrameSize(),
       jni_compiled_method.GetCoreSpillMask(),
       jni_compiled_method.GetFpSpillMask(),
-      /* method_info */ ArrayRef<const uint8_t>(),
-      /* vmap_table */ ArrayRef<const uint8_t>(),
+      /* method_info= */ ArrayRef<const uint8_t>(),
+      /* vmap_table= */ ArrayRef<const uint8_t>(),
       jni_compiled_method.GetCfi(),
-      /* patches */ ArrayRef<const linker::LinkerPatch>());
+      /* patches= */ ArrayRef<const linker::LinkerPatch>());
 }
 
 Compiler* CreateOptimizingCompiler(CompilerDriver* driver) {
@@ -1226,18 +1226,18 @@ bool OptimizingCompiler::JitCompile(Thread* self,
     const void* code = code_cache->CommitCode(
         self,
         method,
-        /* stack_map_data */ nullptr,
-        /* method_info_data */ nullptr,
-        /* roots_data */ nullptr,
+        /* stack_map_data= */ nullptr,
+        /* method_info_data= */ nullptr,
+        /* roots_data= */ nullptr,
         jni_compiled_method.GetFrameSize(),
         jni_compiled_method.GetCoreSpillMask(),
         jni_compiled_method.GetFpSpillMask(),
         jni_compiled_method.GetCode().data(),
         jni_compiled_method.GetCode().size(),
-        /* data_size */ 0u,
+        /* data_size= */ 0u,
         osr,
         roots,
-        /* has_should_deoptimize_flag */ false,
+        /* has_should_deoptimize_flag= */ false,
         cha_single_implementation_list);
     if (code == nullptr) {
       return false;
@@ -1287,7 +1287,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
         class_def_idx,
         method_idx,
         access_flags,
-        /* verified_method */ nullptr,
+        /* verified_method= */ nullptr,
         dex_cache);
 
     // Go to native so that we don't block GC during compilation.

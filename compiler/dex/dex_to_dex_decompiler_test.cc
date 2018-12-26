@@ -102,7 +102,7 @@ class DexToDexDecompilerTest : public CommonCompilerTest {
         optimizer::ArtDecompileDEX(*updated_dex_file,
                                    *it.GetMethodCodeItem(),
                                    table,
-                                   /* decompile_return_instruction */ true);
+                                   /* decompile_return_instruction= */ true);
         it.Next();
       }
       DCHECK(!it.HasNext());

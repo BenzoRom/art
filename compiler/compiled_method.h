@@ -144,7 +144,7 @@ class CompiledMethod FINAL : public CompiledCode {
   // This affects debug information generated at link time.
   void MarkAsIntrinsic() {
     DCHECK(!IsIntrinsic());
-    SetPackedField<IsIntrinsicField>(/* value */ true);
+    SetPackedField<IsIntrinsicField>(/* value= */ true);
   }
 
   size_t GetFrameSizeInBytes() const {

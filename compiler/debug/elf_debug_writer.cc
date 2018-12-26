@@ -42,7 +42,7 @@ void WriteDebugInfo(linker::ElfBuilder<ElfTypes>* builder,
                     dwarf::CFIFormat cfi_format,
                     bool write_oat_patches) {
   // Write .strtab and .symtab.
-  WriteDebugSymbols(builder, false /* mini-debug-info */, debug_info);
+  WriteDebugSymbols(builder, /* mini-debug-info= */ false, debug_info);
 
   // Write .debug_frame.
   WriteCFISection(builder, debug_info.compiled_methods, cfi_format, write_oat_patches);
@@ -154,7 +154,7 @@ static std::vector<uint8_t> MakeElfFileForJITInternal(
   std::unique_ptr<linker::ElfBuilder<ElfTypes>> builder(
       new linker::ElfBuilder<ElfTypes>(isa, features, &out));
   // No program headers since the ELF file is not linked and has no allocated sections.
-  builder->Start(false /* write_program_headers */);
+  builder->Start(false /* write_program_headers= */);
   if (mini_debug_info) {
     if (method_infos.size() > 1) {
       std::vector<uint8_t> mdi = MakeMiniDebugInfo(isa,
@@ -173,14 +173,14 @@ static std::vector<uint8_t> MakeElfFileForJITInternal(
       WriteCFISection(builder.get(),
                       debug_info.compiled_methods,
                       dwarf::DW_DEBUG_FRAME_FORMAT,
-                      false /* write_oat_paches */);
+                      false /* write_oat_paches= */);
     }
   } else {
     builder->GetText()->AllocateVirtualMemory(min_address, max_address - min_address);
     WriteDebugInfo(builder.get(),
                    debug_info,
                    dwarf::DW_DEBUG_FRAME_FORMAT,
-                   false /* write_oat_patches */);
+                   /* write_oat_patches= */ false);
   }
   builder->End();
   CHECK(builder->Good());
@@ -211,12 +211,12 @@ static std::vector<uint8_t> WriteDebugElfFileForClassesInternal(
   std::unique_ptr<linker::ElfBuilder<ElfTypes>> builder(
       new linker::ElfBuilder<ElfTypes>(isa, features, &out));
   // No program headers since the ELF file is not linked and has no allocated sections.
-  builder->Start(false /* write_program_headers */);
+  builder->Start(/* write_program_headers= */ false);
   ElfDebugInfoWriter<ElfTypes> info_writer(builder.get());
   info_writer.Start();
   ElfCompilationUnitWriter<ElfTypes> cu_writer(&info_writer);
   cu_writer.Write(types);
-  info_writer.End(false /* write_oat_patches */);
+  info_writer.End(/* write_oat_patches= */ false);
 
   builder->End();
   CHECK(builder->Good());

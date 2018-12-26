@@ -200,7 +200,7 @@ void CommonCompilerTest::CreateCompilerDriver() {
                                             compiler_kind_,
                                             &compiler_options_->image_classes_,
                                             number_of_threads_,
-                                            /* swap_fd */ -1,
+                                            /* swap_fd= */ -1,
                                             GetProfileCompilationInfo()));
   // We typically don't generate an image in unit tests, disable this optimization by default.
   compiler_driver_->SetSupportBootImageFixup(false);

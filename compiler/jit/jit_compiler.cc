@@ -150,12 +150,12 @@ JitCompiler::JitCompiler() {
 
   compiler_driver_.reset(new CompilerDriver(
       compiler_options_.get(),
-      /* verification_results */ nullptr,
+      /* verification_results= */ nullptr,
       Compiler::kOptimizing,
-      /* image_classes */ nullptr,
-      /* thread_count */ 1,
-      /* swap_fd */ -1,
-      /* profile_compilation_info */ nullptr));
+      /* image_classes= */ nullptr,
+      /* thread_count= */ 1,
+      /* swap_fd= */ -1,
+      /* profile_compilation_info= */ nullptr));
   // Disable dedupe so we can remove compiled methods.
   compiler_driver_->SetDedupeEnabled(false);
   compiler_driver_->SetSupportBootImageFixup(false);

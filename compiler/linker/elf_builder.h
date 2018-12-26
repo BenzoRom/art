@@ -281,10 +281,10 @@ class ElfBuilder FINAL {
                         name,
                         SHT_STRTAB,
                         flags,
-                        /* link */ nullptr,
-                        /* info */ 0,
+                        /* link= */ nullptr,
+                        /* info= */ 0,
                         align,
-                        /* entsize */ 0) { }
+                        /* entsize= */ 0) { }
 
     Elf_Word Add(const std::string& name) {
       if (CachedSection::GetCacheSize() == 0u) {
@@ -305,10 +305,10 @@ class ElfBuilder FINAL {
                   name,
                   SHT_STRTAB,
                   flags,
-                  /* link */ nullptr,
-                  /* info */ 0,
+                  /* link= */ nullptr,
+                  /* info= */ 0,
                   align,
-                  /* entsize */ 0),
+                  /* entsize= */ 0),
           current_offset_(0),
           last_offset_(0) {
     }
@@ -345,7 +345,7 @@ class ElfBuilder FINAL {
                   type,
                   flags,
                   strtab,
-                  /* info */ 1,
+                  /* info= */ 1,
                   sizeof(Elf_Off),
                   sizeof(Elf_Sym)) {
       syms_.push_back(Elf_Sym());  // The symbol table always has to start with NULL symbol.
@@ -725,7 +725,7 @@ class ElfBuilder FINAL {
       // The runtime does not care about the size of this symbol (it uses the "lastword" symbol).
       // We use size 0 (meaning "unknown size" in ELF) to prevent overlap with the debug symbols.
       Elf_Word oatexec = dynstr_.Add("oatexec");
-      dynsym_.Add(oatexec, &text_, text_.GetAddress(), /* size */ 0, STB_GLOBAL, STT_OBJECT);
+      dynsym_.Add(oatexec, &text_, text_.GetAddress(), /* size= */ 0, STB_GLOBAL, STT_OBJECT);
       Elf_Word oatlastword = dynstr_.Add("oatlastword");
       Elf_Word oatlastword_address = text_.GetAddress() + text_size - 4;
       dynsym_.Add(oatlastword, &text_, oatlastword_address, 4, STB_GLOBAL, STT_OBJECT);
@@ -763,7 +763,7 @@ class ElfBuilder FINAL {
     }
     if (dex_size != 0u) {
       Elf_Word oatdex = dynstr_.Add("oatdex");
-      dynsym_.Add(oatdex, &dex_, dex_.GetAddress(), /* size */ 0, STB_GLOBAL, STT_OBJECT);
+      dynsym_.Add(oatdex, &dex_, dex_.GetAddress(), /* size= */ 0, STB_GLOBAL, STT_OBJECT);
       Elf_Word oatdexlastword = dynstr_.Add("oatdexlastword");
       Elf_Word oatdexlastword_address = dex_.GetAddress() + dex_size - 4;
       dynsym_.Add(oatdexlastword, &dex_, oatdexlastword_address, 4, STB_GLOBAL, STT_OBJECT);

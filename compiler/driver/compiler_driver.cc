@@ -842,7 +842,7 @@ static void InitializeTypeCheckBitstrings(CompilerDriver* driver,
           ObjPtr<mirror::Class> klass =
               class_linker->LookupResolvedType(type_index,
                                                dex_cache.Get(),
-                                               /* class_loader */ nullptr);
+                                               /* class_loader= */ nullptr);
           CHECK(klass != nullptr) << descriptor << " should have been previously resolved.";
           // Now assign the bitstring if the class is not final. Keep this in sync with sharpening.
           if (!klass->IsFinal()) {
@@ -1256,7 +1256,7 @@ class ClinitImageUpdate {
   // Visitor for VisitReferences.
   void operator()(ObjPtr<mirror::Object> object,
                   MemberOffset field_offset,
-                  bool /* is_static */) const
+                  bool is_static ATTRIBUTE_UNUSED) const
       REQUIRES_SHARED(Locks::mutator_lock_) {
     mirror::Object* ref = object->GetFieldObject<mirror::Object>(field_offset);
     if (ref != nullptr) {
@@ -1489,7 +1489,7 @@ ArtField* CompilerDriver::ComputeInstanceFieldInfo(uint32_t field_idx,
   Handle<mirror::DexCache> dex_cache(mUnit->GetDexCache());
   {
     Handle<mirror::ClassLoader> class_loader = mUnit->GetClassLoader();
-    resolved_field = ResolveField(soa, dex_cache, class_loader, field_idx, /* is_static */ false);
+    resolved_field = ResolveField(soa, dex_cache, class_loader, field_idx, /* is_static= */ false);
     referrer_class = resolved_field != nullptr
         ? ResolveCompilingMethodsClass(soa, dex_cache, class_loader, mUnit) : nullptr;
   }
@@ -1785,7 +1785,7 @@ class ResolveClassFieldsAndMethodsVisitor : public CompilationVisitor {
       while (it.HasNextStaticField()) {
         if (resolve_fields_and_methods) {
           ArtField* field = class_linker->ResolveField(
-              it.GetMemberIndex(), dex_cache, class_loader, /* is_static */ true);
+              it.GetMemberIndex(), dex_cache, class_loader, /* is_static= */ true);
           if (field == nullptr) {
             CheckAndClearResolveException(soa.Self());
           }
@@ -1800,7 +1800,7 @@ class ResolveClassFieldsAndMethodsVisitor : public CompilationVisitor {
         }
         if (resolve_fields_and_methods) {
           ArtField* field = class_linker->ResolveField(
-              it.GetMemberIndex(), dex_cache, class_loader, /* is_static */ false);
+              it.GetMemberIndex(), dex_cache, class_loader, /* is_static= */ false);
           if (field == nullptr) {
             CheckAndClearResolveException(soa.Self());
           }
@@ -1813,7 +1813,7 @@ class ResolveClassFieldsAndMethodsVisitor : public CompilationVisitor {
               it.GetMemberIndex(),
               dex_cache,
               class_loader,
-              /* referrer */ nullptr,
+              /* referrer= */ nullptr,
               it.GetMethodInvokeType(class_def));
           if (method == nullptr) {
             CheckAndClearResolveException(soa.Self());
@@ -2112,7 +2112,7 @@ class VerifyClassVisitor : public CompilationVisitor {
                                                 class_loader,
                                                 class_def,
                                                 Runtime::Current()->GetCompilerCallbacks(),
-                                                true /* allow soft failures */,
+                                                /* allow_soft_failures= */ true,
                                                 log_level_,
                                                 &error_msg);
       if (failure_kind == verifier::FailureKind::kHardFailure) {
@@ -2725,7 +2725,7 @@ void CompilerDriver::InitializeClasses(jobject class_loader,
   }
   if (GetCompilerOptions().IsBootImage()) {
     // Prune garbage objects created during aborted transactions.
-    Runtime::Current()->GetHeap()->CollectGarbage(/* clear_soft_references */ true);
+    Runtime::Current()->GetHeap()->CollectGarbage(/* clear_soft_references= */ true);
   }
 }
 

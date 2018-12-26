@@ -3217,7 +3217,7 @@ class HDeoptimize FINAL : public HVariableInputSizeInstruction {
             SideEffects::All(),
             dex_pc,
             allocator,
-            /* number_of_inputs */ 1,
+            /* number_of_inputs= */ 1,
             kArenaAllocMisc) {
     SetPackedFlag<kFieldCanBeMoved>(false);
     SetPackedField<DeoptimizeKindField>(kind);
@@ -3242,7 +3242,7 @@ class HDeoptimize FINAL : public HVariableInputSizeInstruction {
             SideEffects::CanTriggerGC(),
             dex_pc,
             allocator,
-            /* number_of_inputs */ 2,
+            /* number_of_inputs= */ 2,
             kArenaAllocMisc) {
     SetPackedFlag<kFieldCanBeMoved>(true);
     SetPackedField<DeoptimizeKindField>(kind);
@@ -4459,7 +4459,7 @@ class HInvokeUnresolved FINAL : public HInvoke {
       : HInvoke(kInvokeUnresolved,
                 allocator,
                 number_of_arguments,
-                0u /* number_of_other_inputs */,
+                /* number_of_other_inputs= */ 0u,
                 return_type,
                 dex_pc,
                 dex_method_index,
@@ -4485,7 +4485,7 @@ class HInvokePolymorphic FINAL : public HInvoke {
       : HInvoke(kInvokePolymorphic,
                 allocator,
                 number_of_arguments,
-                0u /* number_of_other_inputs */,
+                /* number_of_other_inputs= */ 0u,
                 return_type,
                 dex_pc,
                 dex_method_index,
@@ -4511,11 +4511,11 @@ class HInvokeCustom FINAL : public HInvoke {
       : HInvoke(kInvokeCustom,
                 allocator,
                 number_of_arguments,
-                /* number_of_other_inputs */ 0u,
+                /* number_of_other_inputs= */ 0u,
                 return_type,
                 dex_pc,
-                /* dex_method_index */ dex::kDexNoIndex,
-                /* resolved_method */ nullptr,
+                /* dex_method_index= */ dex::kDexNoIndex,
+                /* resolved_method= */ nullptr,
                 kStatic),
       call_site_index_(call_site_index) {
   }
@@ -5945,7 +5945,7 @@ class HArrayGet FINAL : public HExpression<2> {
                  type,
                  SideEffects::ArrayReadOfType(type),
                  dex_pc,
-                 /* is_string_char_at */ false) {
+                 /* is_string_char_at= */ false) {
   }
 
   HArrayGet(HInstruction* array,
@@ -6380,7 +6380,7 @@ class HLoadClass FINAL : public HInstruction {
   ReferenceTypeInfo GetLoadedClassRTI() {
     if (GetPackedFlag<kFlagValidLoadedClassRTI>()) {
       // Note: The is_exact flag from the return value should not be used.
-      return ReferenceTypeInfo::CreateUnchecked(klass_, /* is_exact */ true);
+      return ReferenceTypeInfo::CreateUnchecked(klass_, /* is_exact= */ true);
     } else {
       return ReferenceTypeInfo::CreateInvalid();
     }
@@ -7128,7 +7128,7 @@ class HTypeCheckInstruction : public HVariableInputSizeInstruction {
           side_effects,
           dex_pc,
           allocator,
-          /* number_of_inputs */ check_kind == TypeCheckKind::kBitstringCheck ? 4u : 2u,
+          /* number_of_inputs= */ check_kind == TypeCheckKind::kBitstringCheck ? 4u : 2u,
           kArenaAllocTypeCheckInputs),
         klass_(klass) {
     SetPackedField<TypeCheckKindField>(check_kind);
@@ -7184,7 +7184,7 @@ class HTypeCheckInstruction : public HVariableInputSizeInstruction {
   ReferenceTypeInfo GetTargetClassRTI() {
     if (GetPackedFlag<kFlagValidTargetClassRTI>()) {
       // Note: The is_exact flag from the return value should not be used.
-      return ReferenceTypeInfo::CreateUnchecked(klass_, /* is_exact */ true);
+      return ReferenceTypeInfo::CreateUnchecked(klass_, /* is_exact= */ true);
     } else {
       return ReferenceTypeInfo::CreateInvalid();
     }
@@ -7497,7 +7497,7 @@ class HConstructorFence FINAL : public HVariableInputSizeInstruction {
                                       SideEffects::AllReads(),
                                       dex_pc,
                                       allocator,
-                                      /* number_of_inputs */ 1,
+                                      /* number_of_inputs= */ 1,
                                       kArenaAllocConstructorFenceInputs) {
     DCHECK(fence_object != nullptr);
     SetRawInputAt(0, fence_object);
