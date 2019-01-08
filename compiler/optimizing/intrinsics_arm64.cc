@@ -3102,10 +3102,10 @@ void IntrinsicLocationsBuilderARM64::VisitCRC32UpdateBytes(HInvoke* invoke) {
 void IntrinsicCodeGeneratorARM64::VisitCRC32UpdateBytes(HInvoke* invoke) {
   DCHECK(codegen_->GetInstructionSetFeatures().HasCRC());
 
-  auto masm = GetVIXLAssembler();
-  auto locations = invoke->GetLocations();
+  MacroAssembler* masm = GetVIXLAssembler();
+  LocationSummary* locations = invoke->GetLocations();
 
-  auto slow_path =
+  SlowPathCodeARM64* slow_path =
     new (codegen_->GetScopedAllocator()) IntrinsicSlowPathARM64(invoke);
   codegen_->AddSlowPath(slow_path);
 
@@ -3117,7 +3117,7 @@ void IntrinsicCodeGeneratorARM64::VisitCRC32UpdateBytes(HInvoke* invoke) {
       mirror::Array::DataOffset(Primitive::kPrimByte).Uint32Value();
   Register ptr = XRegisterFrom(locations->GetTemp(0));
   Register array = XRegisterFrom(locations->InAt(1));
-  auto offset = locations->InAt(2);
+  Location offset = locations->InAt(2);
   if (offset.IsConstant()) {
     int32_t offset_value = offset.GetConstant()->AsIntConstant()->GetValue();
     __ Add(ptr, array, array_data_offset + offset_value);
@@ -3164,8 +3164,8 @@ void IntrinsicLocationsBuilderARM64::VisitCRC32UpdateByteBuffer(HInvoke* invoke)
 void IntrinsicCodeGeneratorARM64::VisitCRC32UpdateByteBuffer(HInvoke* invoke) {
   DCHECK(codegen_->GetInstructionSetFeatures().HasCRC());
 
-  auto masm = GetVIXLAssembler();
-  auto locations = invoke->GetLocations();
+  MacroAssembler* masm = GetVIXLAssembler();
+  LocationSummary* locations = invoke->GetLocations();
 
   Register addr = XRegisterFrom(locations->InAt(1));
   Register ptr = XRegisterFrom(locations->GetTemp(0));
