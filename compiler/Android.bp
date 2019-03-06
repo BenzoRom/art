@@ -212,7 +212,6 @@ art_cc_library {
     name: "libart-compiler",
     defaults: [
         "libart-compiler-defaults",
-        "dex2oat-pgo-defaults",
     ],
     codegen: {
         arm: {
