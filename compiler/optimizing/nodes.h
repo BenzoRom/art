@@ -2899,7 +2899,7 @@ class HNullConstant final : public HConstant {
   size_t ComputeHashCode() const override { return 0; }
 
   // The null constant representation is a 0-bit pattern.
-  virtual bool IsZeroBitPattern() const { return true; }
+  bool IsZeroBitPattern() const override { return true; }
 
   DECLARE_INSTRUCTION(NullConstant);
 
@@ -6357,7 +6357,7 @@ class HLoadClass final : public HInstruction {
 
   bool CanBeMoved() const override { return true; }
 
-  bool InstructionDataEquals(const HInstruction* other) const;
+  bool InstructionDataEquals(const HInstruction* other) const override;
 
   size_t ComputeHashCode() const override { return type_index_.index_; }
 

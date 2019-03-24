@@ -164,7 +164,7 @@ class LOCKABLE Mutex : public BaseMutex {
   explicit Mutex(const char* name, LockLevel level = kDefaultMutexLevel, bool recursive = false);
   ~Mutex();
 
-  virtual bool IsMutex() const { return true; }
+  bool IsMutex() const override { return true; }
 
   // Block until mutex is free then acquire exclusive access.
   void ExclusiveLock(Thread* self) ACQUIRE();
@@ -205,7 +205,7 @@ class LOCKABLE Mutex : public BaseMutex {
     return recursion_count_;
   }
 
-  virtual void Dump(std::ostream& os) const;
+  void Dump(std::ostream& os) const override;
 
   // For negative capabilities in clang annotations.
   const Mutex& operator!() const { return *this; }
@@ -275,7 +275,7 @@ class SHARED_LOCKABLE ReaderWriterMutex : public BaseMutex {
   explicit ReaderWriterMutex(const char* name, LockLevel level = kDefaultMutexLevel);
   ~ReaderWriterMutex();
 
-  virtual bool IsReaderWriterMutex() const { return true; }
+  bool IsReaderWriterMutex() const override { return true; }
 
   // Block until ReaderWriterMutex is free then acquire exclusive access.
   void ExclusiveLock(Thread* self) ACQUIRE();
@@ -347,7 +347,7 @@ class SHARED_LOCKABLE ReaderWriterMutex : public BaseMutex {
   // one or more readers.
   pid_t GetExclusiveOwnerTid() const;
 
-  virtual void Dump(std::ostream& os) const;
+  void Dump(std::ostream& os) const override;
 
   // For negative capabilities in clang annotations.
   const ReaderWriterMutex& operator!() const { return *this; }
