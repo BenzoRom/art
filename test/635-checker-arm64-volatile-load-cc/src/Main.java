@@ -255,9 +255,9 @@ public class Main {
 
   /// CHECK-START-ARM64: void Main.testStaticVolatileFieldGetWithLargeOffset() disassembly (after)
   /// CHECK:               StaticFieldGet
-  /// CHECK:                 mov <<Kind:x|w>><<Temp1:\d+>>, #<<Offset:0x[0-9a-f]{4}>>
-  /// CHECK:                 add <<Kind>><<Temp2:\d+>>, <<Kind>>{{\d+}}, <<Kind>><<Temp1>>
-  /// CHECK:                 ldar {{w\d+}}, [x<<Temp2>>]
+  /// CHECK:                 add <<Kind:x|w>><<Temp:\d+>>, <<Kind>>{{\d+}}, #0x{{[0-9a-f]+}}
+  /// CHECK:                 add <<Kind>><<Temp>>, <<Kind>><<Temp>>, #0x{{[0-9a-f]+}}
+  /// CHECK:                 ldar {{w\d+}}, [x<<Temp>>]
   static void testStaticVolatileFieldGetWithLargeOffset() {
     // The offset of this static field cannot be encoded as an immediate on ARM64.
     Object s = s999;
@@ -265,9 +265,9 @@ public class Main {
 
   /// CHECK-START-ARM64: void Main.testInstanceVolatileFieldGetWithLargeOffset() disassembly (after)
   /// CHECK:               InstanceFieldGet
-  /// CHECK:                 mov <<Kind:x|w>><<Temp1:\d+>>, #<<Offset:0x[0-9a-f]{4}>>
-  /// CHECK:                 add <<Kind>><<Temp2:\d+>>, <<Kind>>{{\d+}}, <<Kind>><<Temp1>>
-  /// CHECK:                 ldar {{w\d+}}, [x<<Temp2>>]
+  /// CHECK:                 add <<Kind:x|w>><<Temp:\d+>>, <<Kind>>{{\d+}}, #0x{{[0-9a-f]+}}
+  /// CHECK:                 add <<Kind>><<Temp>>, <<Kind>><<Temp>>, #0x{{[0-9a-f]+}}
+  /// CHECK:                 ldar {{w\d+}}, [x<<Temp>>]
   void testInstanceVolatileFieldGetWithLargeOffset() {
     // The offset of this instance field cannot be encoded as an immediate on ARM64.
     Object i = i1029;
