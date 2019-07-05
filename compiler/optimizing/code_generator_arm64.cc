@@ -1082,27 +1082,40 @@ void CodeGeneratorARM64::GenerateFrameEntry() {
   }
 
   if (!HasEmptyFrame()) {
-    int frame_size = GetFrameSize();
     // Stack layout:
     //      sp[frame_size - 8]        : lr.
     //      ...                       : other preserved core registers.
     //      ...                       : other preserved fp registers.
     //      ...                       : reserved frame space.
     //      sp[0]                     : current method.
+    int32_t frame_size = dchecked_integral_cast<int32_t>(GetFrameSize());
+    uint32_t core_spills_offset = frame_size - GetCoreSpillSize();
+    CPURegList preserved_core_registers = GetFramePreservedCoreRegisters();
+    DCHECK(!preserved_core_registers.IsEmpty());
+    uint32_t fp_spills_offset = frame_size - FrameEntrySpillSize();
+    CPURegList preserved_fp_registers = GetFramePreservedFPRegisters();
 
-    // Save the current method if we need it. Note that we do not
-    // do this in HCurrentMethod, as the instruction might have been removed
-    // in the SSA graph.
-    if (RequiresCurrentMethod()) {
+    // Save the current method if we need it, or if using STP reduces code
+    // size. Note that we do not do this in HCurrentMethod, as the
+    // instruction might have been removed in the SSA graph.
+    CPURegister lowest_spill;
+    if (core_spills_offset == kXRegSizeInBytes) {
+      // Use STP pre-index for method and lowest spill. Max difference is 512.
+      DCHECK_LE(frame_size, 512);  // 32 core registers are only 256 bytes.
+      lowest_spill = preserved_core_registers.PopLowestIndex();
+      __ Stp(kArtMethodRegister, lowest_spill, MemOperand(sp, -frame_size, PreIndex));
+    } else if (RequiresCurrentMethod()) {
       __ Str(kArtMethodRegister, MemOperand(sp, -frame_size, PreIndex));
     } else {
       __ Claim(frame_size);
     }
     GetAssembler()->cfi().AdjustCFAOffset(frame_size);
-    GetAssembler()->SpillRegisters(GetFramePreservedCoreRegisters(),
-        frame_size - GetCoreSpillSize());
-    GetAssembler()->SpillRegisters(GetFramePreservedFPRegisters(),
-        frame_size - FrameEntrySpillSize());
+    if (lowest_spill.IsValid()) {
+      GetAssembler()->cfi().RelOffset(DWARFReg(lowest_spill), core_spills_offset);
+      core_spills_offset += kXRegSizeInBytes;
+    }
+    GetAssembler()->SpillRegisters(preserved_core_registers, core_spills_offset);
+    GetAssembler()->SpillRegisters(preserved_fp_registers, fp_spills_offset);
 
     if (GetGraph()->HasShouldDeoptimizeFlag()) {
       // Initialize should_deoptimize flag to 0.
@@ -1117,12 +1130,30 @@ void CodeGeneratorARM64::GenerateFrameEntry() {
 void CodeGeneratorARM64::GenerateFrameExit() {
   GetAssembler()->cfi().RememberState();
   if (!HasEmptyFrame()) {
-    int frame_size = GetFrameSize();
-    GetAssembler()->UnspillRegisters(GetFramePreservedFPRegisters(),
-        frame_size - FrameEntrySpillSize());
-    GetAssembler()->UnspillRegisters(GetFramePreservedCoreRegisters(),
-        frame_size - GetCoreSpillSize());
-    __ Drop(frame_size);
+    int32_t frame_size = dchecked_integral_cast<int32_t>(GetFrameSize());
+    uint32_t core_spills_offset = frame_size - GetCoreSpillSize();
+    CPURegList preserved_core_registers = GetFramePreservedCoreRegisters();
+    DCHECK(!preserved_core_registers.IsEmpty());
+    uint32_t fp_spills_offset = frame_size - FrameEntrySpillSize();
+    CPURegList preserved_fp_registers = GetFramePreservedFPRegisters();
+
+    CPURegister lowest_spill;
+    if (core_spills_offset == kXRegSizeInBytes) {
+      // Use STP pre-index for method and lowest spill. Max difference is 504.
+      DCHECK_LE(frame_size, 504);  // 32 core registers are only 256 bytes.
+      lowest_spill = preserved_core_registers.PopLowestIndex();
+      core_spills_offset += kXRegSizeInBytes;
+    }
+    GetAssembler()->UnspillRegisters(preserved_fp_registers, fp_spills_offset);
+    GetAssembler()->UnspillRegisters(preserved_core_registers, core_spills_offset);
+    if (lowest_spill.IsValid()) {
+      UseScratchRegisterScope temps(GetVIXLAssembler());
+      Register temp = temps.AcquireX();
+      __ Ldp(temp, lowest_spill, MemOperand(sp, frame_size, PostIndex));
+      GetAssembler()->cfi().Restore(DWARFReg(lowest_spill));
+    } else {
+      __ Drop(frame_size);
+    }
     GetAssembler()->cfi().AdjustCFAOffset(-frame_size);
   }
   __ Ret();
