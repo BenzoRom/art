@@ -272,6 +272,10 @@ art_cc_library {
         "art_debug_defaults",
         "libart-compiler-defaults",
     ],
+    cflags: [
+        // Clang r414646 error.
+        "-fno-experimental-new-pass-manager",
+    ],
     codegen: {
         arm: {
             // VIXL assembly support for ARM targets.
