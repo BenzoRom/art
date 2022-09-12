@@ -3144,6 +3144,9 @@ class UpdateEntryPointsClassVisitor : public ClassVisitor {
     auto pointer_size = Runtime::Current()->GetClassLinker()->GetImagePointerSize();
     for (auto& m : klass->GetMethods(pointer_size)) {
       const void* code = m.GetEntryPointFromQuickCompiledCode();
+      if (!m.IsInvokable()) {
+        continue;
+      }
       if (Runtime::Current()->GetHeap()->IsInBootImageOatFile(code) &&
           !m.IsNative() &&
           !m.IsProxyMethod()) {
